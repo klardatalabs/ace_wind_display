@@ -3,10 +3,10 @@
 This document presents the exploratory data analysis (EDA), dataset verification, and parameter-to-audience translation for the **Ambition Community Energy (ACE)** 4.2 MW wind turbine project in Avonmouth / Lawrence Weston, Bristol, UK. 
 
 All figures, ranges, variables, and architectural details in this document are strictly cross-verified against the official project data sources:
-- [`DATA_SOURCES.md`](file:///c:/Users/Shashi%20kiran/Grinding/windmill/DATA_SOURCES.md)
-- [`DATA_DICTIONARY.md`](file:///c:/Users/Shashi%20kiran/Grinding/windmill/DATA_DICTIONARY.md)
-- [`API_REFERENCE.md`](file:///c:/Users/Shashi%20kiran/Grinding/windmill/API_REFERENCE.md)
-- [`PROJECT_OVERVIEW.md`](file:///c:/Users/Shashi%20kiran/Grinding/windmill/PROJECT_OVERVIEW.md)
+- [`DATA_SOURCES.md`](./DATA_SOURCES.md)
+- [`DATA_DICTIONARY.md`](./DATA_DICTIONARY.md)
+- [`API_REFERENCE.md`](./API_REFERENCE.md)
+- [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md)
 
 ---
 
