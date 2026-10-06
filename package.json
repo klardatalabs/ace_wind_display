@@ -1,0 +1,15 @@
+{
+  "name": "ace-wind-display",
+  "version": "1.0.0",
+  "description": "ACE Wind Turbine public hoarding display - Node backend + static persona pages",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "three": "^0.186.1",
+    "ws": "^8.18.0"
+  }
+}
