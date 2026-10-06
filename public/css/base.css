@@ -1,0 +1,160 @@
+/* Shared base styles & conventions for ACE Wind Turbine Public Display */
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-playful: 'Fredoka', 'Outfit', cursive, sans-serif;
+
+  --accent-cyan: #06d6a0;
+  --accent-gold: #ffd166;
+  --accent-coral: #ef476f;
+  --accent-blue: #118ab2;
+  --text-primary: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.72);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle live footnote */
+.footnote {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 28px;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.18);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.footnote-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footnote-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  opacity: 0.8;
+  font-size: 0.75rem;
+}
+
+.conn-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  display: inline-block;
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+.conn-dot.simulate {
+  background: #f59e0b;
+  box-shadow: 0 0 10px #f59e0b;
+}
+
+.conn-dot.offline {
+  background: #ef4444;
+  box-shadow: 0 0 12px #ef4444;
+  animation: none;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.8; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Hotkey Navigation Drawer (top-right hover or key 1, 2, 3, A) */
+.hot-nav-drawer {
+  position: fixed;
+  top: 14px;
+  right: 20px;
+  z-index: 1000;
+  opacity: 0.18;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(-4px);
+}
+
+.hot-nav-drawer:hover,
+.hot-nav-drawer:focus-within {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hot-nav-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  font-family: var(--font-display);
+}
+
+.hot-nav-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 0 4px;
+}
+
+.hot-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.hot-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.hot-nav-btn.active {
+  background: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+.hot-nav-btn.fs-btn {
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0 999px 999px 0;
+  padding-left: 10px;
+}

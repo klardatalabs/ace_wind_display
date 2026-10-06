@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ACE Wind Turbine - Telemetry & Power Curve Explorer</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/datascience.css" />
+</head>
+<body>
+  <div class="tech-backdrop">
+    <div class="grid-overlay"></div>
+  </div>
+
+  <main class="datascience-stage">
+    <!-- Left Narrative & Chart Area -->
+    <section class="analysis-panel">
+      <div class="tech-header">
+        <span class="tech-badge">IEC 61400-25 SCADA TELEMETRY</span>
+        <h1 class="tech-headline">Enercon E-115 EP3 Power Curve</h1>
+        <p class="tech-sub">Live 1 Hz telemetry & 10-minute statistical moments from Avonmouth, Bristol.</p>
+      </div>
+
+      <!-- Live Power Curve Canvas -->
+      <div class="chart-container">
+        <div class="chart-title-bar">
+          <span class="chart-label">WIND SPEED (m/s) vs ACTIVE POWER (kW)</span>
+          <span class="chart-current" id="chart-marker-label">Live Point: -- m/s @ -- kW</span>
+        </div>
+        <canvas id="power-curve-canvas" width="800" height="340"></canvas>
+      </div>
+
+      <!-- Telemetry Metric Row -->
+      <div class="tech-metric-row">
+        <div class="tech-stat-card">
+          <span class="t-lbl">CAPACITY FACTOR</span>
+          <span class="t-val" id="t-cf">--%</span>
+          <span class="t-sub">Lifetime benchmark</span>
+        </div>
+        <div class="tech-stat-card">
+          <span class="t-lbl">BLADE TIP SPEED</span>
+          <span class="t-val" id="t-tip">-- m/s</span>
+          <span class="t-sub" id="t-tip-mph">-- mph</span>
+        </div>
+        <div class="tech-stat-card">
+          <span class="t-lbl">GRID SETPOINT</span>
+          <span class="t-val" id="t-grid">4,200 kW</span>
+          <span class="t-sub" id="t-curtail-flag">Unconstrained</span>
+        </div>
+        <div class="tech-stat-card">
+          <span class="t-lbl">LIFETIME YIELD</span>
+          <span class="t-val" id="t-lifetime">-- GWh</span>
+          <span class="t-sub">Exported since Mar 2023</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Turbine & Yaw Compass -->
+    <section class="turbine-schematic-panel">
+      <!-- Live Technical Compass -->
+      <div class="compass-widget">
+        <span class="compass-title">NACELLE AZIMUTH & WIND DIRECTION</span>
+        <div class="compass-dial">
+          <div class="compass-pointer" id="compass-pointer">
+            <span class="pointer-arrow">▲</span>
+          </div>
+          <span class="comp-cardinal c-n">N</span>
+          <span class="comp-cardinal c-e">E</span>
+          <span class="comp-cardinal c-s">S</span>
+          <span class="comp-cardinal c-w">W</span>
+        </div>
+        <div class="compass-readout" id="compass-degrees">Heading: 215°</div>
+      </div>
+
+      <!-- SVG Turbine with RPM indicator -->
+      <div class="turbine-schematic-wrap">
+        <div class="rpm-live-badge" id="rpm-badge">-- RPM</div>
+        <svg viewBox="0 0 400 560" id="tech-turbine-svg" class="tech-turbine-svg">
+          <defs>
+            <linearGradient id="techTower" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#334155" />
+              <stop offset="50%" stop-color="#475569" />
+              <stop offset="100%" stop-color="#1e293b" />
+            </linearGradient>
+            <linearGradient id="techBlade" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#e2e8f0" />
+              <stop offset="100%" stop-color="#94a3b8" />
+            </linearGradient>
+          </defs>
+
+          <!-- Tapered Tower -->
+          <polygon points="186,180 214,180 220,530 180,530" fill="url(#techTower)" />
+          
+          <!-- Nacelle & Rotor -->
+          <g id="tech-nacelle-group" style="transform-origin: 200px 180px;">
+            <rect x="175" y="168" width="50" height="24" rx="8" fill="#64748b" />
+            <g id="tech-rotor-group" style="transform-origin: 200px 180px;">
+              <g transform="translate(200, 180)">
+                <path d="M0,0 L8,-12 L4,-165 L-4,-165 L-8,-12 Z" fill="url(#techBlade)" />
+                <path d="M0,0 L8,-12 L4,-165 L-4,-165 L-8,-12 Z" fill="url(#techBlade)" transform="rotate(120)" />
+                <path d="M0,0 L8,-12 L4,-165 L-4,-165 L-8,-12 Z" fill="url(#techBlade)" transform="rotate(240)" />
+                <circle r="12" fill="#0ea5e9" />
+              </g>
+            </g>
+          </g>
+        </svg>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footnote">
+    <div class="footnote-left">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span>SCADA Stream · OpenAPI 3.1.0 · https://ace-api.duckdns.org</span>
+    </div>
+    <div class="footnote-right">
+      <span>DOI: 10.5281/zenodo.22662372</span>
+      <span>·</span>
+      <span>CC-BY-4.0</span>
+    </div>
+  </footer>
+
+  <script type="module" src="js/datascience.js"></script>
+</body>
+</html>

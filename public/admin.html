@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ACE Wind Turbine - Simulator & Admin Control</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+  <div class="admin-layout">
+    <!-- Header -->
+    <header class="admin-header">
+      <div class="admin-brand">
+        <span class="admin-icon">⚡</span>
+        <div>
+          <h1>ACE Turbine Simulation & Control Deck</h1>
+          <p>Local operator & demo tool for 24/7 public billboard hoardings</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="live-pill" id="server-status-pill">
+          <span class="conn-dot" id="admin-conn-dot"></span>
+          <span id="server-mode-label">Connecting...</span>
+        </div>
+        <button type="button" class="btn btn-primary" id="resume-live-btn">
+          🔄 Resume Live Telemetry
+        </button>
+      </div>
+    </header>
+
+    <!-- Quick Preview Nav -->
+    <nav class="display-links-bar">
+      <span class="links-title">Open Hoarding Displays:</span>
+      <a href="community.html" target="_blank" class="display-tab-link">
+        <span class="tab-key">1</span>
+        <span>🏘️ Community Screen</span>
+        <span class="tab-arrow">↗</span>
+      </a>
+      <a href="schools.html" target="_blank" class="display-tab-link">
+        <span class="tab-key">2</span>
+        <span>🎒 Schools (Cartoon) Screen</span>
+        <span class="tab-arrow">↗</span>
+      </a>
+      <a href="datascience.html" target="_blank" class="display-tab-link">
+        <span class="tab-key">3</span>
+        <span>🔬 Data Science Screen</span>
+        <span class="tab-arrow">↗</span>
+      </a>
+    </nav>
+
+    <!-- Main Grid -->
+    <main class="admin-grid">
+      <!-- 1-Click Scenario Presets -->
+      <section class="card presets-card">
+        <div class="card-header">
+          <h2>⚡ 1-Click Demo Scenarios</h2>
+          <span class="badge">Instant Trigger</span>
+        </div>
+        <p class="card-desc">Click any scenario to instantly broadcast simulated conditions to all open screens:</p>
+        
+        <div class="preset-btn-grid">
+          <button type="button" class="preset-btn" data-preset="calm">
+            <span class="preset-icon">😴</span>
+            <div class="preset-info">
+              <strong>Dead Calm (Nap Mode)</strong>
+              <span>Wind 1.2 m/s · 0 kW · Sleeping face</span>
+            </div>
+          </button>
+
+          <button type="button" class="preset-btn" data-preset="breeze">
+            <span class="preset-icon">🍃</span>
+            <div class="preset-info">
+              <strong>Gentle Breeze</strong>
+              <span>Wind 5.5 m/s · 650 kW · Cheerful spin</span>
+            </div>
+          </button>
+
+          <button type="button" class="preset-btn" data-preset="rated">
+            <span class="preset-icon">🐆</span>
+            <div class="preset-info">
+              <strong>Cheetah Mode (Peak 4.2 MW)</strong>
+              <span>Wind 12.8 m/s · 4,200 kW · Top RPM</span>
+            </div>
+          </button>
+
+          <button type="button" class="preset-btn" data-preset="storm">
+            <span class="preset-icon">🌪️</span>
+            <div class="preset-info">
+              <strong>Violent Gale & Cut-Out</strong>
+              <span>Wind 29.5 m/s · 0 kW · Feathered blades</span>
+            </div>
+          </button>
+
+          <button type="button" class="preset-btn" data-preset="curtailed">
+            <span class="preset-icon">🛑</span>
+            <div class="preset-info">
+              <strong>Grid Curtailment</strong>
+              <span>Wind 11.0 m/s · Capped at 1.5 MW</span>
+            </div>
+          </button>
+
+          <button type="button" class="preset-btn" data-preset="maintenance">
+            <span class="preset-icon">🔧</span>
+            <div class="preset-info">
+              <strong>Maintenance Mode</strong>
+              <span>Technicians on site · Service flag</span>
+            </div>
+          </button>
+
+          <button type="button" class="preset-btn" data-preset="fault">
+            <span class="preset-icon">⚠️</span>
+            <div class="preset-info">
+              <strong>Safety Trip / Fault</strong>
+              <span>Automatic protection lockout</span>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Manual Sliders & Overrides -->
+      <section class="card sliders-card">
+        <div class="card-header">
+          <h2>🎛️ Granular Telemetry Controls</h2>
+          <span class="badge" id="custom-badge">Custom Override</span>
+        </div>
+        <p class="card-desc">Move any slider to inject custom numbers directly into the broadcast stream:</p>
+
+        <form id="slider-form" class="slider-form">
+          <div class="slider-group">
+            <div class="slider-top">
+              <label for="slide-wind">Wind Speed (m/s)</label>
+              <span class="slider-val" id="val-wind">-- m/s</span>
+            </div>
+            <input type="range" id="slide-wind" min="0" max="35" step="0.1" value="5.5" />
+            <div class="slider-ticks">
+              <span>0 (Calm)</span>
+              <span>2.5 (Cut-in)</span>
+              <span>12.5 (Rated)</span>
+              <span>28+ (Storm)</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-top">
+              <label for="slide-power">Active Power (kW)</label>
+              <span class="slider-val" id="val-power">-- kW</span>
+            </div>
+            <input type="range" id="slide-power" min="0" max="4245" step="5" value="650" />
+            <div class="slider-ticks">
+              <span>0 kW</span>
+              <span>1,500 kW</span>
+              <span>3,000 kW</span>
+              <span>4,245 kW (Max)</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-top">
+              <label for="slide-rpm">Rotor Speed (RPM)</label>
+              <span class="slider-val" id="val-rpm">-- rpm</span>
+            </div>
+            <input type="range" id="slide-rpm" min="0" max="15" step="0.1" value="6.8" />
+            <div class="slider-ticks">
+              <span>0 rpm</span>
+              <span>5.0 rpm</span>
+              <span>10.0 rpm</span>
+              <span>13.5 rpm (Rated)</span>
+            </div>
+          </div>
+
+          <div class="slider-group">
+            <div class="slider-top">
+              <label for="slide-yaw">Nacelle Heading (Yaw Deg)</label>
+              <span class="slider-val" id="val-yaw">--°</span>
+            </div>
+            <input type="range" id="slide-yaw" min="0" max="359" step="1" value="215" />
+            <div class="slider-ticks">
+              <span>0° (N)</span>
+              <span>90° (E)</span>
+              <span>180° (S)</span>
+              <span>270° (W)</span>
+            </div>
+          </div>
+
+          <div class="status-select-group">
+            <label for="select-status">Turbine Operational Status:</label>
+            <select id="select-status">
+              <option value="generating">Generating Normally (main_status = 0)</option>
+              <option value="calm">Idle / Calm (main_status = 1)</option>
+              <option value="starting">Starting Up (main_status = 2)</option>
+              <option value="curtailed">Grid Curtailment (main_status = 1)</option>
+              <option value="maintenance">Maintenance (service_flag = 1)</option>
+              <option value="fault">Fault / Safety Trip (fault_flag = 1)</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-broadcast">
+            📡 Push Custom Simulation
+          </button>
+        </form>
+      </section>
+
+      <!-- Live Broadcast Monitor -->
+      <section class="card monitor-card">
+        <div class="card-header">
+          <h2>📊 Live Broadcast Inspector</h2>
+          <span class="badge" id="monitor-mode-badge">LIVE</span>
+        </div>
+        <p class="card-desc">Real-time state snapshot currently sent to all display screens:</p>
+
+        <div class="monitor-stats">
+          <div class="stat-box">
+            <span class="stat-lbl">WIND SPEED</span>
+            <span class="stat-num" id="mon-wind">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-lbl">ACTIVE POWER</span>
+            <span class="stat-num" id="mon-power">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-lbl">ROTOR RPM</span>
+            <span class="stat-num" id="mon-rpm">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-lbl">EST. HOMES</span>
+            <span class="stat-num" id="mon-homes">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-lbl">TIP SPEED</span>
+            <span class="stat-num" id="mon-tip">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-lbl">MOOD STATE</span>
+            <span class="stat-num" id="mon-mood">--</span>
+          </div>
+        </div>
+
+        <div class="json-preview-wrap">
+          <div class="json-header">Raw State JSON:</div>
+          <pre id="mon-json">{}</pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
