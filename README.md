@@ -102,6 +102,44 @@ chromium --kiosk --noerrdialogs --disable-session-crashed-bubble --incognito htt
 
 ---
 
+## 🗄️ TimescaleDB Historical Data Layer
+
+The project includes an embedded TimescaleDB time-series engine for gapless multi-month SCADA telemetry, continuous aggregate daily rollups, and long-term comparisons.
+
+### 1. Start the Database
+```bash
+docker compose up -d
+```
+*(Runs Postgres 16 + TimescaleDB bound strictly to `127.0.0.1:5432`, data persisted in Docker volume `timescaledb_data`)*
+
+### 2. Ingest Zenodo Historical Archive
+To ingest all historical 10-minute moments and status events from Zenodo Parquet releases into the `scada_10m` hypertable:
+```bash
+python scripts/ingest_zenodo_timescale.py
+```
+- Performs idempotent upsert (`ON CONFLICT (ts) DO UPDATE`) with `source='zenodo'`.
+- Automatically calls `refresh_continuous_aggregate('daily_rollup', ...)` for the affected range.
+
+### 3. Automated Live Sync Job
+- When the backend starts (`npm start`), the sync job runs immediately and on a recurring 12-minute schedule.
+- Fetches newly available `wecstd/range` SCADA moments from the live ACE API, gap-fills downtime, and inserts with `ON CONFLICT (ts) DO NOTHING` and `source='live'`.
+- If TimescaleDB is stopped or offline, the application gracefully continues running in live in-memory mode without crashing.
+
+### 4. Rebuild from Scratch
+To completely reset the database and re-ingest all history:
+```bash
+# 1. Wipe database volume and container
+docker compose down -v
+
+# 2. Re-create container and apply initial schema
+docker compose up -d
+
+# 3. Re-ingest Zenodo historical datasets
+python scripts/ingest_zenodo_timescale.py
+```
+
+---
+
 ## 📜 Attribution & Open Data
 
 - Live Telemetry: [ACE Live API](https://ace-api.duckdns.org/docs) (OpenAPI 3.1.0, CC-BY-4.0).
