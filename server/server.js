@@ -163,6 +163,55 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// --- Researcher Dataset Access & Delivery -----------------------------------
+import {
+  requestDatasetDownload,
+  verifyDownloadToken,
+  getDatasetFilePath,
+  recordDownloadSuccess,
+  DATASET_FILES,
+} from "./datasetService.js";
+
+app.get("/api/datasets/list", (_req, res) => {
+  res.json(DATASET_FILES);
+});
+
+app.post("/api/datasets/request", async (req, res) => {
+  try {
+    const { name, email, organization, purpose, datasetType } = req.body || {};
+    const result = await requestDatasetDownload({
+      name,
+      email,
+      organization,
+      purpose,
+      datasetType,
+      host: req.get("host") || `localhost:${PORT}`,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: String(err.message ?? err) });
+  }
+});
+
+app.get("/api/datasets/download", async (req, res) => {
+  try {
+    const token = req.query.token;
+    if (!token) return res.status(400).send("Missing download token.");
+
+    const verification = verifyDownloadToken(token);
+    if (!verification.valid) {
+      return res.status(403).send(`Unauthorized: ${verification.error}`);
+    }
+
+    const { filePath, filename } = getDatasetFilePath(verification.datasetType);
+    await recordDownloadSuccess(token);
+
+    res.download(filePath, filename);
+  } catch (err) {
+    res.status(500).send(`Server error: ${err.message}`);
+  }
+});
+
 const httpServer = createServer(app);
 const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 

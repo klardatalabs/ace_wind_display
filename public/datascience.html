@@ -129,8 +129,52 @@
       <span>DOI: 10.5281/zenodo.22662372</span>
       <span>·</span>
       <span>CC-BY-4.0</span>
+      <button id="btn-request-dataset" class="dataset-btn" type="button">📥 Request SCADA Dataset</button>
     </div>
   </footer>
+
+  <!-- Dataset Request Modal -->
+  <div class="dataset-modal" id="dataset-modal">
+    <div class="dataset-card">
+      <div class="dataset-header">
+        <h3>📥 Download Historical SCADA Dataset</h3>
+        <button class="modal-close-btn" id="btn-close-dataset" type="button">✕</button>
+      </div>
+      <form id="dataset-form">
+        <div class="form-group">
+          <label for="ds-name">Your Name</label>
+          <input type="text" id="ds-name" placeholder="Dr. Jane Doe / Student Name" required />
+        </div>
+        <div class="form-group">
+          <label for="ds-email">Email Address</label>
+          <input type="email" id="ds-email" placeholder="researcher@university.ac.uk" required />
+        </div>
+        <div class="form-group">
+          <label for="ds-org">Organization / University</label>
+          <input type="text" id="ds-org" placeholder="University of Bristol / Independent" />
+        </div>
+        <div class="form-group">
+          <label for="ds-purpose">Intended Purpose</label>
+          <select id="ds-purpose">
+            <option value="Academic Research">Academic Research / Thesis</option>
+            <option value="Machine Learning & Forecasting">Machine Learning & Wind Forecasting</option>
+            <option value="Classroom Coursework">Classroom / University Coursework</option>
+            <option value="Independent Curiosity">Independent Analysis</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="ds-type">Select Dataset Package</label>
+          <select id="ds-type">
+            <option value="10m_scada">10-Minute SCADA Telemetry (11,219 Intervals · Parquet · 8.7 MB)</option>
+            <option value="daily">Daily Operational Aggregates & Yield (Parquet · 337 KB)</option>
+            <option value="events">Operational Status & Grid Curtailment Events (Parquet · 325 KB)</option>
+          </select>
+        </div>
+        <button type="submit" class="dataset-submit-btn" id="btn-submit-dataset">Generate Secure Download Link</button>
+        <div id="dataset-result" class="dataset-result"></div>
+      </form>
+    </div>
+  </div>
 
   <script type="module" src="js/datascience.js"></script>
   <script type="module" src="js/chat-widget.js"></script>

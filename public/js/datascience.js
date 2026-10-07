@@ -306,3 +306,78 @@ onState((snapshot) => {
 
   drawPowerCurve();
 });
+
+// --- Dataset Request Modal Logic ---
+const modalEl = document.getElementById("dataset-modal");
+const openBtn = document.getElementById("btn-request-dataset");
+const closeBtn = document.getElementById("btn-close-dataset");
+const datasetForm = document.getElementById("dataset-form");
+const resultEl = document.getElementById("dataset-result");
+const submitBtn = document.getElementById("btn-submit-dataset");
+
+if (openBtn && modalEl) {
+  openBtn.addEventListener("click", () => {
+    modalEl.classList.add("active");
+  });
+}
+
+if (closeBtn && modalEl) {
+  closeBtn.addEventListener("click", () => {
+    modalEl.classList.remove("active");
+  });
+}
+
+if (modalEl) {
+  modalEl.addEventListener("click", (e) => {
+    if (e.target === modalEl) modalEl.classList.remove("active");
+  });
+}
+
+if (datasetForm) {
+  datasetForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!submitBtn || !resultEl) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Generating 24-Hour Token...";
+    resultEl.className = "dataset-result";
+    resultEl.textContent = "";
+
+    const name = document.getElementById("ds-name")?.value || "";
+    const email = document.getElementById("ds-email")?.value || "";
+    const organization = document.getElementById("ds-org")?.value || "";
+    const purpose = document.getElementById("ds-purpose")?.value || "";
+    const datasetType = document.getElementById("ds-type")?.value || "10m_scada";
+
+    try {
+      const res = await fetch("/api/datasets/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, organization, purpose, datasetType })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate download token");
+      }
+
+      const fname = data.dataset?.filename || data.filename || "dataset.parquet";
+      const fsize = data.dataset?.approxSize || data.fileSize || "Parquet";
+
+      resultEl.className = "dataset-result success";
+      resultEl.innerHTML = `
+        <div style="font-weight: 600; margin-bottom: 6px;">✅ Download Link Generated (Valid 24 Hours)</div>
+        <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">File: <strong>${fname}</strong> (${fsize})</div>
+        <a href="${data.downloadUrl}" class="dataset-submit-btn" style="display: block; text-align: center; text-decoration: none; padding: 8px 12px; margin-bottom: 8px;" download>⬇️ Download ${fname}</a>
+        <div style="font-size: 0.72rem; color: #64748b; word-break: break-all;">Link: ${data.downloadUrl}</div>
+      `;
+    } catch (err) {
+      resultEl.className = "dataset-result error";
+      resultEl.textContent = `❌ ${err.message}`;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Generate Secure Download Link";
+    }
+  });
+}
+
