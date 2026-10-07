@@ -110,6 +110,14 @@ app.get("/api/history", async (req, res) => {
   }
 });
 
+import { 
+  checkRateLimit, 
+  getSessionHistory, 
+  appendSessionHistory, 
+  cacheLiveTelemetry 
+} from "./redisClient.js";
+import { processChatPrompt } from "./aiAgent.js";
+
 // --- Admin (simulate mode) --------------------------------------------------
 app.get("/api/admin/presets", (_req, res) => {
   res.json(PRESETS);
@@ -131,14 +139,91 @@ app.post("/api/admin/resume-live", (_req, res) => {
   res.json(getState());
 });
 
+// --- Ask the Turbine (Chat REST fallback) -----------------------------------
+app.post("/api/chat", async (req, res) => {
+  try {
+    const sessionId = req.body?.sessionId || "anon-" + Math.random().toString(36).slice(2, 10);
+    const prompt = (req.body?.prompt || "").trim();
+    if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+
+    const rl = await checkRateLimit(`ratelimit:session:${sessionId}`, 6, 60);
+    if (!rl.allowed) {
+      return res.status(429).json({ error: `Rate limit exceeded. Please wait ${rl.resetSec} seconds.` });
+    }
+
+    const history = await getSessionHistory(sessionId);
+    const answer = await processChatPrompt(prompt, history);
+
+    await appendSessionHistory(sessionId, "user", prompt);
+    await appendSessionHistory(sessionId, "assistant", answer);
+
+    res.json({ sessionId, answer });
+  } catch (err) {
+    res.status(500).json({ error: String(err.message ?? err) });
+  }
+});
+
 const httpServer = createServer(app);
 const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
 wss.on("connection", (socket) => {
+  // Push initial live state
   socket.send(JSON.stringify(getState()));
+
+  // Handle incoming chat messages over WebSocket
+  socket.on("message", async (raw) => {
+    try {
+      const msg = JSON.parse(raw);
+      if (msg.type === "chat.send") {
+        const sessionId = msg.sessionId || "anon-" + Math.random().toString(36).slice(2, 10);
+        const prompt = (msg.prompt || "").trim();
+        if (!prompt) return;
+
+        // Rate limit: 6 requests per 60 seconds per session
+        const rl = await checkRateLimit(`ratelimit:session:${sessionId}`, 6, 60);
+        if (!rl.allowed) {
+          socket.send(JSON.stringify({
+            type: "chat.error",
+            sessionId,
+            message: `You're chatting fast! Please wait ${rl.resetSec} seconds before asking again.`
+          }));
+          return;
+        }
+
+        const history = await getSessionHistory(sessionId);
+        const streamId = "stream-" + Date.now();
+        socket.send(JSON.stringify({ type: "chat.started", streamId, sessionId }));
+
+        const fullAnswer = await processChatPrompt(
+          prompt,
+          history,
+          (chunk) => {
+            if (socket.readyState === socket.OPEN) {
+              socket.send(JSON.stringify({ type: "chat.token", streamId, token: chunk }));
+            }
+          },
+          (toolDesc) => {
+            if (socket.readyState === socket.OPEN) {
+              socket.send(JSON.stringify({ type: "chat.tool", streamId, status: toolDesc }));
+            }
+          }
+        );
+
+        await appendSessionHistory(sessionId, "user", prompt);
+        await appendSessionHistory(sessionId, "assistant", fullAnswer);
+
+        if (socket.readyState === socket.OPEN) {
+          socket.send(JSON.stringify({ type: "chat.completed", streamId, sessionId }));
+        }
+      }
+    } catch (err) {
+      console.warn("[WS] Error handling client message:", err.message);
+    }
+  });
 });
 
 onStateChange((snapshot) => {
+  cacheLiveTelemetry(snapshot);
   const payload = JSON.stringify(snapshot);
   for (const client of wss.clients) {
     if (client.readyState === client.OPEN) client.send(payload);
