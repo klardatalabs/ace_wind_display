@@ -99,3 +99,75 @@
     animation: none;
   }
 }
+
+/* Soft halo pulse around the hoarding QR codes. */
+@keyframes qr-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(119 192 154 / 0.55); }
+  50% { box-shadow: 0 0 0 1.6vmin rgb(119 192 154 / 0); }
+}
+.qr-pulse {
+  animation: qr-pulse 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qr-pulse {
+    animation: none;
+  }
+}
+
+/* Chat: bouncing typing dots and a blinking caret on a streaming reply. */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot {
+  animation: typing-dot 1s ease-in-out infinite;
+}
+.stream-caret > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 2px;
+  background: var(--color-moss-400);
+  animation: caret-blink 0.9s steps(2, start) infinite;
+}
+@keyframes caret-blink {
+  to { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot,
+  .stream-caret > :last-child::after {
+    animation: none;
+  }
+}
+
+/* Admin range sliders in the brand green. */
+.ww-range {
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--color-moss-500) var(--fill, 50%), var(--color-moss-100) var(--fill, 50%));
+  cursor: pointer;
+}
+.ww-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: white;
+  border: 2px solid var(--color-moss-600);
+  box-shadow: 0 2px 8px rgb(6 33 26 / 0.2);
+  transition: transform 0.2s var(--ease-spring);
+}
+.ww-range:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+.ww-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: white;
+  border: 2px solid var(--color-moss-600);
+}

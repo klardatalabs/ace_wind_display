@@ -5,14 +5,14 @@ import { checkRateLimit } from "../../db/redisClient.js";
 import { config } from "../../config/env.js";
 import { sendScreenCommand } from "../../realtime/socketHub.js";
 
-export const SCREEN_ACTIONS = ["look_inside", "close_inside", "fly_to_nacelle", "fly_to_base", "overview", "spin_blades"];
+export const SCREEN_ACTIONS = ["look_inside", "tower_inside", "close_inside", "fly_to_nacelle", "fly_to_base", "overview", "spin_blades"];
 
 export const definition = {
   type: "function",
   function: {
     name: "show_on_big_screen",
     description:
-      "Animate the big public screen the visitor is standing at. look_inside opens the turbine (cutaway, x-ray, exploded view); close_inside closes it; fly_to_nacelle / fly_to_base move the camera; overview returns to the wide shot; spin_blades gives a playful spin. Use when the visitor asks to see something.",
+      "Animate the big public screen the visitor is standing at. look_inside opens the turbine (cutaway, x-ray, exploded view) and flies into the machine room; tower_inside opens it and looks up the inside of the tower; close_inside closes it; fly_to_nacelle / fly_to_base move the camera; overview returns to the wide shot; spin_blades gives a playful spin. Use when the visitor asks to see something.",
     parameters: {
       type: "object",
       properties: { action: { type: "string", enum: SCREEN_ACTIONS } },

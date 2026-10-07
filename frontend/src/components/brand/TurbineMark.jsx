@@ -1,5 +1,5 @@
 // The Weston Wind mark: a three-blade rotor that turns at the real turbine's speed
-// (scaled up so slow rpm still reads as motion) and spins up on hover.
+// (the same rpm the live API reports) and spins up on hover.
 
 import { useEffect, useRef } from "react";
 import { useLive } from "../../store/useLiveStore.js";
@@ -23,7 +23,7 @@ export default function TurbineMark({ className = "size-9", spinWithLive = true,
     const loop = (t) => {
       const dt = (t - last) / 1000;
       last = t;
-      const base = spinWithLive ? Math.max(rpmRef.current, 2) * 6 * 2.2 : 40; // deg/s
+      const base = spinWithLive ? rpmRef.current * 6 : 40; // deg/s: exactly the turbine's rpm (1 rpm = 6°/s)
       angle.current = (angle.current + (base + boost.current) * dt) % 360;
       boost.current *= 0.96;
       if (rotor.current) rotor.current.setAttribute("transform", `rotate(${angle.current} 20 20)`);

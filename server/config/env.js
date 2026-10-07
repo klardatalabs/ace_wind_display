@@ -24,6 +24,8 @@ export const config = {
   // Public origin used in QR codes when the server sits behind a proxy (e.g. https://westonwind.org).
   publicOrigin: env.PUBLIC_ORIGIN || "",
   trustProxy: env.TRUST_PROXY === "1",
+  // Protects /api/admin. Leave empty only on a private network.
+  adminToken: env.ADMIN_TOKEN || "",
 
   chat: {
     // Signs anonymous per-tab chat session tokens. Without a fixed secret, tokens
@@ -40,6 +42,7 @@ export const config = {
 
   llm: {
     // Any OpenAI-compatible endpoint works. The first configured key wins.
+    anthropicKey: env.ANTHROPIC_API_KEY || "",
     openaiKey: env.OPENAI_API_KEY || "",
     groqKey: env.GROQ_API_KEY || "",
     geminiKey: env.GEMINI_API_KEY || "",
@@ -48,6 +51,8 @@ export const config = {
     model: env.LLM_MODEL || "",
     temperature: Number(env.LLM_TEMPERATURE ?? 0.4),
     maxTokens: Number(env.LLM_MAX_TOKENS) || 700,
+    // Give up on a provider that hasn't started answering in this long, then use the fallback.
+    connectTimeoutMs: Number(env.LLM_CONNECT_TIMEOUT_MS) || 20_000,
   },
 
   tavily: {

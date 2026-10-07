@@ -1,6 +1,7 @@
 // Named camera shots and smooth fly-throughs between them. Shots are defined in the
 // nacelle's frame, so the camera always frames the rotor no matter where the wind
-// points the turbine. Includes a gentle idle sway and optional pointer parallax.
+// points the turbine. Includes a gentle idle sway, pointer parallax, and drag-to-orbit /
+// pinch-to-zoom that eases back to the story's shot after a few idle seconds.
 
 import * as THREE from "three";
 import gsap from "gsap";
@@ -36,8 +37,13 @@ export class CameraRig {
     this.parallax = new THREE.Vector2();
     this.pointer = new THREE.Vector2();
     this.time = 0;
+    this.user = { yaw: 0, pitch: 0, zoom: 1 }; // eased toward userTarget
+    this.userTarget = { yaw: 0, pitch: 0, zoom: 1 };
+    this.lastInteraction = -Infinity;
+    this.returnAfter = 7; // seconds of no touching before the camera drifts home
     this._tween = null;
     this._world = new THREE.Vector3();
+    this._offset = new THREE.Vector3();
     this._worldTarget = new THREE.Vector3();
   }
 
@@ -45,6 +51,7 @@ export class CameraRig {
     const shot = SHOTS[name];
     if (!shot) return;
     this._tween?.kill();
+    this.resetUser();
     this.pos.copy(shot.pos);
     this.target.copy(shot.target);
     this.current = name;
@@ -55,6 +62,7 @@ export class CameraRig {
     const shot = SHOTS[name];
     if (!shot) return Promise.resolve();
     this._tween?.kill();
+    this.resetUser();
     const from = this.pos.clone();
     const fromTarget = this.target.clone();
     const mid = from.clone().lerp(shot.pos, 0.5);
@@ -84,14 +92,44 @@ export class CameraRig {
     this.pointer.set(x, y);
   }
 
+  get isInside() {
+    return this.current === "machineRoom" || this.current === "towerInside";
+  }
+
+  /** Drag deltas in screen fractions (dx, dy) and/or a zoom factor (>1 = closer). */
+  nudge(dx = 0, dy = 0, zoomBy = 1) {
+    const t = this.userTarget;
+    t.yaw -= dx * Math.PI * 1.2;
+    t.pitch = THREE.MathUtils.clamp(t.pitch + dy * 1.4, -0.6, 0.9);
+    t.zoom = THREE.MathUtils.clamp(t.zoom * zoomBy, this.isInside ? 0.8 : 0.45, this.isInside ? 1.4 : 2.4);
+    this.lastInteraction = this.time;
+  }
+
+  resetUser() {
+    Object.assign(this.userTarget, { yaw: 0, pitch: 0, zoom: 1 });
+  }
+
   update(dt) {
     this.time += dt;
     this.parallax.lerp(this.pointer, 1 - Math.exp(-dt * 2));
-    const inside = this.current === "machineRoom" || this.current === "towerInside";
+    if (this.time - this.lastInteraction > this.returnAfter) this.resetUser();
+    const k = 1 - Math.exp(-dt * 4);
+    for (const key of ["yaw", "pitch", "zoom"]) this.user[key] += (this.userTarget[key] - this.user[key]) * k;
+
+    const inside = this.isInside;
     const sway = inside ? 0.02 : 0.05 * this.swayAmount;
     const yaw = this.getYaw() + Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04;
 
-    this._world.copy(this.pos).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    // Orbit around the shot's target: yaw around it, tilt up/down, dolly in/out.
+    this._offset.copy(this.pos).sub(this.target);
+    this._offset.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.user.yaw);
+    const flat = Math.hypot(this._offset.x, this._offset.z);
+    this._offset.y += this.user.pitch * Math.max(flat, 2);
+    this._offset.multiplyScalar(1 / this.user.zoom);
+    this._world.copy(this.target).add(this._offset);
+    this._world.y = Math.max(this._world.y, inside ? this._world.y : 1.5);
+
+    this._world.applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
     this._world.y += Math.sin(this.time * 0.17) * (inside ? 0.05 : 0.8) + this.parallax.y * (inside ? 0.1 : 3);
     this._worldTarget.copy(this.target).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
     this.camera.position.copy(this._world);

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { E115_REFERENCE_CURVE } from "../../shared/physics.js";
 import { getWecStdRange } from "../clients/aceClient.js";
 import { getComparisonMetrics, getDailyRollups } from "../db/sqliteDb.js";
 import {
@@ -38,7 +39,12 @@ router.get("/records", async (_req, res) => {
 router.get("/power-curve", async (_req, res) => {
   try {
     if (await isDbAvailable()) return res.json(await getTimescalePowerCurve());
-    res.status(503).json({ error: "TimescaleDB currently unavailable" });
+    // No history database: still serve the manufacturer curve so charts can draw.
+    res.json({
+      metadata: { turbine_model: "Enercon E-115 EP3", rated_power_kw: 4200, source: "reference-only", total_samples_analyzed: 0 },
+      empirical: [],
+      theoretical: E115_REFERENCE_CURVE,
+    });
   } catch (err) {
     fail(res, err);
   }

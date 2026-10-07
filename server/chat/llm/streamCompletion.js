@@ -30,6 +30,13 @@ async function* sseEvents(body) {
  * @returns {Promise<{ text: string, toolCalls: Array<{ id: string, name: string, arguments: string }> }>}
  */
 export async function streamCompletion(provider, { messages, tools, onText, signal }) {
+  // Abort if the provider hasn't sent response headers in time (or the visitor left).
+  const connect = AbortSignal.timeout(config.llm.connectTimeoutMs);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  connect.addEventListener("abort", abort);
+  signal?.addEventListener("abort", abort);
+
   const res = await fetch(`${provider.baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${provider.apiKey}` },
@@ -42,8 +49,9 @@ export async function streamCompletion(provider, { messages, tools, onText, sign
       max_tokens: config.llm.maxTokens,
       stream: true,
     }),
-    signal,
+    signal: controller.signal,
   });
+  connect.removeEventListener("abort", abort);
   if (!res.ok || !res.body) {
     const detail = await res.text().catch(() => "");
     throw new Error(`LLM ${provider.name} responded ${res.status}: ${detail.slice(0, 200)}`);

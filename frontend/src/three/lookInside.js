@@ -1,7 +1,7 @@
 // "Look inside": one progress value U (0 → 1) drives four effects at once.
 //   1. Section cutaway — a clipping plane sweeps through the front shell; cut faces are
 //      filled with a bright cap colour so the section reads as solid, not hollow.
-//   2. Exploded / peel — front halves slide outward along local z:  front.position.z = 3.5 * U
+//   2. Exploded / peel — front halves slide outward along local z:  front.position.z = 3.5 m * U
 //   3. Ghost / X-ray   — shell opacity = 1 - 0.92 * U, depthWrite off once it starts fading
 //   4. Camera fly-in   — handled by CameraRig, started alongside by TurbineScene
 
@@ -9,7 +9,8 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { MOSS } from "./themes.js";
 
-const PEEL_DISTANCE = 3.5;
+const PEEL_DISTANCE = 3.5; // metres
+const BACKWARD = new THREE.Vector3(0, 0, -1);
 
 function injectCap(material, uniforms) {
   material.side = THREE.DoubleSide;
@@ -25,6 +26,25 @@ function injectCap(material, uniforms) {
       );
   };
   material.customProgramCacheKey = () => "ww-cap";
+}
+
+const _scale = new THREE.Vector3();
+const worldScaleZ = (object) => (object ? object.getWorldScale(_scale).z : 1) || 1;
+
+/** Outline / edge children that should fade (and clip) with their shell. */
+function extrasOf(mesh, plane) {
+  const extras = [];
+  mesh.traverse((child) => {
+    if (child !== mesh && (child.userData.isOutline || child.userData.isEdges)) {
+      if (!child.userData.lookInsideOwned) {
+        child.material = child.material.clone();
+        child.userData.lookInsideOwned = true;
+      }
+      if (plane) child.material.clippingPlanes = [plane];
+      extras.push({ material: child.material, baseOpacity: child.material.opacity });
+    }
+  });
+  return extras;
 }
 
 export class LookInside {
@@ -44,31 +64,28 @@ export class LookInside {
           const material = mesh.material.clone();
           mesh.material = material;
           injectCap(material, this.capUniforms);
-          const item = {
+          const plane = half === "front" ? new THREE.Plane() : null;
+          if (plane) material.clippingPlanes = [plane];
+          this.items.push({
             mesh,
             half,
             material,
+            plane,
             baseOpacity: material.opacity,
             baseZ: mesh.position.z,
-            plane: half === "front" ? new THREE.Plane() : null,
-            extras: [], // outlines / edges that should fade with the shell
-          };
-          if (item.plane) material.clippingPlanes = [item.plane];
-          mesh.traverse((child) => {
-            if (child !== mesh && (child.userData.isOutline || child.userData.isEdges)) {
-              child.material = child.material.clone();
-              if (item.plane) child.material.clippingPlanes = [item.plane];
-              item.extras.push({ material: child.material, baseOpacity: child.material.opacity });
-            }
+            // glTF nodes carry their own scale (quantised meshes), so convert metres
+            // into the parent's units for the peel and the mesh's units for the cut.
+            parentUnitsPerMetre: 1 / worldScaleZ(mesh.parent),
+            localUnitsPerMetre: 1 / worldScaleZ(mesh),
+            extras: extrasOf(mesh, plane), // outlines / edges that fade with the shell
           });
-          this.items.push(item);
         }
       }
     }
     this.apply();
   }
 
-  /** Re-reads shell materials after a theme change. */
+  /** Re-reads shell materials and their outlines / edges after a theme change. */
   rebind() {
     for (const item of this.items) {
       const material = item.mesh.material;
@@ -78,6 +95,7 @@ export class LookInside {
         injectCap(material, this.capUniforms);
         if (item.plane) material.clippingPlanes = [item.plane];
       }
+      item.extras = extrasOf(item.mesh, item.plane);
     }
     this.apply();
   }
@@ -87,7 +105,7 @@ export class LookInside {
     const ghost = 1 - 0.92 * u;
     this.capUniforms.alpha.value = u > 0.02 ? 0.55 * Math.min(1, u * 1.6) : 0;
     for (const item of this.items) {
-      if (item.half === "front") item.mesh.position.z = item.baseZ + PEEL_DISTANCE * u;
+      if (item.half === "front") item.mesh.position.z = item.baseZ + PEEL_DISTANCE * u * item.parentUnitsPerMetre;
       item.material.opacity = item.baseOpacity * ghost;
       item.material.depthWrite = u < 0.02;
       for (const e of item.extras) e.material.opacity = e.baseOpacity * ghost;
@@ -97,11 +115,11 @@ export class LookInside {
 
   /** Called every frame: keeps each cutting plane attached to its (moving) shell half. */
   updatePlanes() {
-    const keepBelow = THREE.MathUtils.lerp(3.6, 0.9, this.u); // local z the cut has swept down to
+    const keepBelow = THREE.MathUtils.lerp(3.6, 0.9, this.u); // metres in front of the centre line
     for (const item of this.items) {
       if (!item.plane) continue;
       item.mesh.updateWorldMatrix(true, false);
-      item.plane.set(new THREE.Vector3(0, 0, -1), keepBelow).applyMatrix4(item.mesh.matrixWorld);
+      item.plane.set(BACKWARD, keepBelow * item.localUnitsPerMetre).applyMatrix4(item.mesh.matrixWorld);
     }
   }
 

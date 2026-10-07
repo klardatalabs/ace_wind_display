@@ -33,18 +33,25 @@ const PALETTES = {
     body: MOSS.white, band1: MOSS[700], band2: MOSS[600], band3: MOSS[500], band4: MOSS[400], band5: MOSS[300],
     ground: MOSS[200], metal: MOSS[100], dark: MOSS[700], light: MOSS[300], copper: MOSS[400], cabinet: MOSS[300],
     accent: MOSS[500], cable: MOSS[800],
+    grass: MOSS[100], tree: MOSS[400], trunk: MOSS[700], house: MOSS.white, roof: MOSS[600], water: MOSS[200], road: MOSS[50],
   },
   realistic: {
     body: 0xeef2ef, band1: 0x0c3a1f, band2: 0x14512c, band3: 0x1f6b3c, band4: 0x3b8a52, band5: 0x6aa877,
     ground: 0xb9c4bd, metal: 0x9aa9a0, dark: 0x2c3b33, light: 0xd9f2e2, copper: MOSS[300], cabinet: 0xc7d3cb,
     accent: MOSS[400], cable: MOSS[900],
+    grass: 0x8fae8a, tree: 0x3f6b45, trunk: 0x4a4038, house: 0xd9dcd4, roof: 0x5b6460, water: 0x6f8f8a, road: 0x9a9f98,
   },
   blueprint: {
     body: MOSS[800], band1: MOSS[700], band2: MOSS[700], band3: MOSS[700], band4: MOSS[700], band5: MOSS[700],
     ground: MOSS[900], metal: MOSS[300], dark: MOSS[700], light: MOSS[200], copper: MOSS[200], cabinet: MOSS[300],
     accent: MOSS[300], cable: MOSS[200],
+    grass: MOSS[950], tree: MOSS[700], trunk: MOSS[800], house: MOSS[700], roof: MOSS[600], water: MOSS[900], road: MOSS[800],
   },
 };
+
+// Landscape parts are lit but never translucent, outlined or edged.
+const LANDSCAPE_ROLES = new Set(["grass", "tree", "trunk", "house", "roof", "water", "road"]);
+export const isLandscapeRole = (role) => LANDSCAPE_ROLES.has(role);
 
 export const ENVIRONMENTS = {
   cartoon: { skyTop: MOSS[200], skyBottom: MOSS[25], fog: MOSS[50], fogNear: 220, fogFar: 900, exposure: 1.05 },
@@ -74,10 +81,14 @@ export function createMaterial(theme, role) {
     if (role === "light") mat.emissive = new THREE.Color(MOSS[300]);
     return mat;
   }
+  if (theme === "blueprint" && isLandscapeRole(role)) {
+    return new THREE.MeshBasicMaterial({ color, transparent: role !== "grass", opacity: role === "grass" ? 1 : 0.5 });
+  }
   if (theme === "blueprint") {
     const interior = ["accent", "copper", "cabinet", "metal", "cable"].includes(role);
     return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: interior ? 0.55 : 0.22, depthWrite: interior });
   }
+  if (role === "water") return new THREE.MeshStandardMaterial({ color, roughness: 0.15, metalness: 0.3 });
   const metallic = ["metal", "copper", "accent"].includes(role);
   return new THREE.MeshStandardMaterial({
     color,

@@ -1,4 +1,5 @@
 import pg from "pg";
+import { E115_REFERENCE_CURVE } from "../../shared/physics.js";
 
 const { Pool } = pg;
 
@@ -189,39 +190,16 @@ export async function getTimescalePowerCurve() {
     ORDER BY bin_idx ASC;
   `);
 
-  // Enercon E-115 EP3 4.2MW manufacturer reference curve
-  const theoretical = [
-    { wind: 0.0, power: 0 },
-    { wind: 1.0, power: 0 },
-    { wind: 2.0, power: 0 },
-    { wind: 2.5, power: 5 },
-    { wind: 3.0, power: 45 },
-    { wind: 4.0, power: 175 },
-    { wind: 5.0, power: 410 },
-    { wind: 6.0, power: 820 },
-    { wind: 7.0, power: 1400 },
-    { wind: 8.0, power: 2150 },
-    { wind: 9.0, power: 2980 },
-    { wind: 10.0, power: 3680 },
-    { wind: 11.0, power: 4050 },
-    { wind: 12.0, power: 4180 },
-    { wind: 13.0, power: 4200 },
-    { wind: 14.0, power: 4200 },
-    { wind: 15.0, power: 4200 },
-    { wind: 16.0, power: 4200 },
-    { wind: 18.0, power: 4200 },
-    { wind: 20.0, power: 4200 },
-    { wind: 22.0, power: 4200 },
-    { wind: 25.0, power: 4200 },
-  ];
+  const theoretical = E115_REFERENCE_CURVE;
 
   return {
     metadata: {
-      turbine_model: "Enercon E-115 / E-126 EP3",
+      turbine_model: "Enercon E-115 EP3",
       rated_power_kw: 4200,
       cut_in_speed_ms: 2.5,
       rated_wind_speed_ms: 12.5,
-      cut_out_wind_speed_ms: 25.0,
+      storm_control_from_ms: 28.0,
+      cut_out_wind_speed_ms: 34.0,
       total_samples_analyzed: res.rows.reduce((sum, r) => sum + r.sample_count, 0)
     },
     empirical: res.rows,

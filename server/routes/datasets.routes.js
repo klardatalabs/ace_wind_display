@@ -23,7 +23,7 @@ router.post("/request", async (req, res) => {
       organization,
       purpose,
       datasetType,
-      host: req.get("host") || `localhost:${config.port}`,
+      origin: config.publicOrigin || `${req.protocol}://${req.get("host") || `localhost:${config.port}`}`,
     });
     res.json(result);
   } catch (err) {

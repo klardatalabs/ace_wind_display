@@ -1,10 +1,10 @@
 // Numbered step pills: the active one grows a label (springy) and shows a progress ring
 // that fills until the next step auto-advances.
 
-export default function StepPills({ steps, index, progress, onSelect, tone = "dark", className = "" }) {
+export default function StepPills({ steps, index, progress, onSelect, tone = "dark", className = "", style }) {
   const onDark = tone === "light";
   return (
-    <div className={`flex flex-nowrap items-center justify-center gap-1.5 sm:gap-2 ${className}`}>
+    <div className={`flex flex-nowrap items-center justify-center gap-1.5 sm:gap-2 ${className}`} style={style}>
       {steps.map((label, i) => {
         const active = i === index;
         return (

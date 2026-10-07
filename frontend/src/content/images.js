@@ -9,8 +9,8 @@ export const IMAGES = {
   hillside: { src: "/images/turbines-hillside.jpg", alt: "Wind turbines on a grassy hillside under a big sky" },
   dawn: { src: "/images/turbines-dawn-fog.jpg", alt: "Wind turbines rising out of morning fog at sunrise" },
   dusk: { src: "/images/wind-farm-dusk.jpg", alt: "A row of wind turbines along a ridge in the evening light" },
-  renderHero: { src: "/images/renders/turbine-hero.webp", alt: "3D render of the Weston Wind turbine" },
-  renderInside: { src: "/images/renders/turbine-inside.webp", alt: "3D cutaway render showing inside the turbine" },
-  renderNacelle: { src: "/images/renders/turbine-nacelle.webp", alt: "3D close-up of the turbine's nacelle and hub" },
-  renderBase: { src: "/images/renders/turbine-base.webp", alt: "3D view up the turbine tower from its base" },
+  renderHero: { src: "/images/renders/turbine-hero.jpg", alt: "3D render of the Weston Wind turbine" },
+  renderInside: { src: "/images/renders/turbine-inside.jpg", alt: "3D cutaway render showing inside the turbine" },
+  renderNacelle: { src: "/images/renders/turbine-nacelle.jpg", alt: "3D close-up of the turbine's nacelle and hub" },
+  renderBase: { src: "/images/renders/turbine-base.jpg", alt: "3D view up the turbine tower from its base" },
 };

@@ -103,14 +103,17 @@ export function getDatasetFilePath(datasetType) {
 /**
  * Handle dataset download request: records request, generates token, and optionally sends email.
  */
-export async function requestDatasetDownload({ name, email, organization, purpose, datasetType = "10m_scada", host = "localhost:4100" }) {
+const escapeHtml = (text) =>
+  String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+export async function requestDatasetDownload({ name, email, organization, purpose, datasetType = "10m_scada", origin = "http://localhost:4100" }) {
   if (!email || !email.includes("@")) {
     throw new Error("A valid email address is required.");
   }
 
   const cleanType = DATASET_FILES[datasetType] ? datasetType : "10m_scada";
   const { token, expiresAt } = generateDownloadToken(email, cleanType);
-  const downloadUrl = `http://${host}/api/datasets/download?token=${token}`;
+  const downloadUrl = `${origin.replace(/\/$/, "")}/api/datasets/download?token=${token}`;
 
   // Record request in database
   try {
@@ -139,10 +142,10 @@ export async function requestDatasetDownload({ name, email, organization, purpos
           subject: "Your ACE Wind Turbine Dataset Download Link",
           html: `
             <h2>Ambition Community Energy — Open SCADA Dataset</h2>
-            <p>Hi ${name || "there"},</p>
+            <p>Hi ${escapeHtml(name || "there")},</p>
             <p>Thank you for requesting access to the verified SCADA dataset for England's largest community wind turbine (Avonmouth, Bristol).</p>
             <p><b>Requested Dataset:</b> ${DATASET_FILES[cleanType].label} (${DATASET_FILES[cleanType].format})</p>
-            <p><a href="${downloadUrl}" style="background:#0284c7;color:#fff;padding:12px 20px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:bold;">Download Dataset Now</a></p>
+            <p><a href="${downloadUrl}" style="background:#13553a;color:#fff;padding:12px 20px;text-decoration:none;border-radius:8px;display:inline-block;font-weight:bold;">Download Dataset Now</a></p>
             <p><i>Note: This secure link is valid for 24 hours.</i></p>
             <p>DOI: <a href="https://doi.org/10.5281/zenodo.22662372">10.5281/zenodo.22662372</a> · Licence: CC-BY-4.0</p>
           `,

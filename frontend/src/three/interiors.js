@@ -6,7 +6,9 @@
 
 import * as THREE from "three";
 
-const TOWER_TOP = 88.6;
+export const TOWER_TOP = 88.6;
+// The tower tapers from ~2.32 m radius at the base to ~1.6 m under the nacelle.
+export const towerRadiusAt = (y) => 2.32 - 0.72 * THREE.MathUtils.clamp(y / TOWER_TOP, 0, 1);
 const geo = {
   box: new THREE.BoxGeometry(1, 1, 1),
   cyl: new THREE.CylinderGeometry(1, 1, 1, 20),
@@ -53,7 +55,8 @@ function buildTower() {
 
   // Platforms every ~22 m.
   for (let y = 22; y < TOWER_TOP; y += 22) {
-    const p = part(new THREE.Mesh(new THREE.CylinderGeometry(2.05 - y * 0.004, 2.05 - y * 0.004, 0.12, 32), null), "metal");
+    const r = towerRadiusAt(y) - 0.14;
+    const p = part(new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.12, 32), null), "metal");
     p.position.y = y;
     g.add(p);
   }
@@ -157,7 +160,7 @@ export function buildInteriors(nodes, towerPivot) {
     { id: "hub", text: "Hub & blade pitch", detail: "Blades twist to catch or spill wind", anchor: anchor(nodes.yaw, "lbl-hub", 6.2, 3.2, 2.6) },
     { id: "cabinets", text: "Control cabinets", detail: "The turbine's brain", anchor: anchor(nodes.yaw, "lbl-cab", -4.2, 4.0, 1.5) },
     { id: "yaw", text: "Yaw drives", detail: "Turn the nacelle to face the wind", anchor: anchor(nodes.yaw, "lbl-yaw", 1.6, 0.6, 2.0) },
-    { id: "ladder", text: "Ladder & service lift", detail: "88 m climb to the top", anchor: anchor(towerPivot, "lbl-ladder", 0, 40, 0) },
+    { id: "ladder", text: "Ladder & service lift", detail: "About 150 m up to the nacelle", anchor: anchor(towerPivot, "lbl-ladder", 0, 40, 0) },
     { id: "converter", text: "Converter", detail: "Matches the power to the grid", anchor: anchor(towerPivot, "lbl-conv", 0, 2.4, 0) },
   ];
 
