@@ -2,8 +2,8 @@ const SPECS = [
   ["Model", "Enercon E-115 EP3"],
   ["Rated power", "4,245 kW"],
   ["Rotor diameter", "115.7 m"],
-  ["Hub height", "≈ 150 m"],
-  ["Tip height", "≈ 207.8 m"],
+  ["Hub height", "≈ 92 m"],
+  ["Tip height", "150 m"],
   ["Drive train", "Gearless, annular generator"],
   ["Commissioned", "March 2023"],
 ];

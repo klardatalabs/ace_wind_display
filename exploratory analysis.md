@@ -84,7 +84,7 @@ The following section answers the 10 core questions regarding the Zenodo dataset
   - Asset ID: `wec-1` ("ACE Wind Turbine")
   - Model: Enercon E-115 EP3 (WEC Type `EP3-CS02`, Serial No. `1160104`)
   - Rated capacity: 4.2 MW (nominal power 4,245 kW)
-  - Dimensions: Hub height 150m, rotor diameter 115.7m (tallest onshore wind turbine in England)
+  - Dimensions: Tip height 150m (hub ~92m), rotor diameter 115.7m (tallest onshore wind turbine in England)
   - OPC Node Path: `Loc/Wec/Plant1`
 - **Accompanied by ONE Substation Site Controller:**
   - Asset ID: `controller-2` ("ACE Site Controller")

@@ -9,7 +9,7 @@
 ACE was created to build and operate a **4.2 MW onshore wind turbine** situated in Avonmouth/Lawrence Weston, Bristol. 
 - **Capacity:** 4.2 MW (nominal power 4,245 kW)
 - **Model:** Enercon E-115 EP3 (WEC Type EP3-CS02)
-- **Dimensions:** Hub height 150 meters (490 ft), rotor diameter 115.7 meters (380 ft), tip height ~207.8 meters — the tallest onshore wind turbine in England.
+- **Dimensions:** Tip height 150 meters (492 ft), hub height ~92 meters (≈302 ft), rotor diameter 115.7 meters (380 ft) — the tallest onshore wind turbine in England.
 - **Commissioned:** Spring 2023 (operational data begins March 29, 2023).
 - **Mission:** Its sole purpose is to generate clean energy and long-term income to support ALW's work tackling deprivation, fuel poverty, and inequality in Lawrence Weston.
 

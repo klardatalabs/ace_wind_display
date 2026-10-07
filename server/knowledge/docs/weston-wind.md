@@ -13,8 +13,10 @@ tackling deprivation, fuel poverty and inequality in Lawrence Weston.
 ## The machine
 - Model: Enercon E-115 EP3 (WEC type EP3-CS02), a gearless direct-drive turbine.
 - Capacity: 4.2 MW (nominal power 4,245 kW, grid setpoint 4,200 kW).
-- Hub height about 150 metres; rotor diameter 115.7 metres; tip height about 207.8 metres.
-  It is described as the tallest onshore wind turbine in England.
+- Tip height 150 metres (the tallest onshore wind turbine in England); hub height about 92 metres;
+  rotor diameter 115.7 metres; the tower is about 89 metres tall. Some older project notes say
+  "hub 150 m / tip 208 m" — that is wrong; 150 m is the tip height (source: Thrive Renewables and
+  Bristol24/7 coverage of the build).
 - Location: Avonmouth / Lawrence Weston, Bristol, near the Severn Estuary.
 - Commissioned: spring 2023 (operational data begins 29 March 2023).
 

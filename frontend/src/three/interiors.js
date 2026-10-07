@@ -160,7 +160,7 @@ export function buildInteriors(nodes, towerPivot) {
     { id: "hub", text: "Hub & blade pitch", detail: "Blades twist to catch or spill wind", anchor: anchor(nodes.yaw, "lbl-hub", 6.2, 3.2, 2.6) },
     { id: "cabinets", text: "Control cabinets", detail: "The turbine's brain", anchor: anchor(nodes.yaw, "lbl-cab", -4.2, 4.0, 1.5) },
     { id: "yaw", text: "Yaw drives", detail: "Turn the nacelle to face the wind", anchor: anchor(nodes.yaw, "lbl-yaw", 1.6, 0.6, 2.0) },
-    { id: "ladder", text: "Ladder & service lift", detail: "About 150 m up to the nacelle", anchor: anchor(towerPivot, "lbl-ladder", 0, 40, 0) },
+    { id: "ladder", text: "Ladder & service lift", detail: "About 90 m up to the nacelle", anchor: anchor(towerPivot, "lbl-ladder", 0, 40, 0) },
     { id: "converter", text: "Converter", detail: "Matches the power to the grid", anchor: anchor(towerPivot, "lbl-conv", 0, 2.4, 0) },
   ];
 
