@@ -1,2313 +1,753 @@
-# ACE Wind Turbine Public Energy Platform --- System Design
+# ACE Wind Turbine Public Energy Platform — System Design
 
-**Status:** Architecture baseline / implementation-ready design\
-**Deployment:** Contabo --- single VPS initially\
-**Primary audience:** Public community display, students, community
-members, developers, researchers\
-**Core principles:** live data, durability, graceful degradation,
-scalable event-driven architecture, provider-agnostic AI
+**Document Status:** Production Baseline / Implementation-Ready Architectural Specification  
+**Deployment Target:** Single Contabo VPS (2–4 vCPU, 4–8 GB RAM) via Docker Compose  
+**Primary Audiences:** Community kiosk visitors, local residents, primary/secondary school pupils, university engineering researchers  
+**Core Principles:** Sub-second live telemetry, durability, single ingestion boundary, minimal operational complexity, bulletproof concurrency for 100+ simultaneous visitors
 
-------------------------------------------------------------------------
+---
+
+## Table of Contents
+1. [Executive Summary](#1-executive-summary)
+2. [Goals and Non-Goals](#2-goals-and-non-goals)
+3. [System Architecture Overview](#3-system-architecture-overview)
+4. [Data Flow & End-to-End Lifecycles](#4-data-flow--end-to-end-lifecycles)
+5. [Event Streaming & Decoupling Architecture](#5-event-streaming--decoupling-architecture)
+6. [Data Ingestion & Single Fetcher Boundary](#6-data-ingestion--single-fetcher-boundary)
+7. [TimescaleDB Time-Series Data Model](#7-timescaledb-time-series-data-model)
+8. [Redis Hot Cache & Session Architecture](#8-redis-hot-cache--session-architecture)
+9. [WebSocket Protocol & Real-Time Broadcasting](#9-websocket-protocol--real-time-broadcasting)
+10. [Public Frontend Architecture & Visualizations](#10-public-frontend-architecture--visualizations)
+11. [3D Turbine Mechanics & Physics Simulation](#11-3d-turbine-mechanics--physics-simulation)
+12. [Audience Personas & Storytelling Engines](#12-audience-personas--storytelling-engines)
+13. ["Ask the Turbine" AI Conversational Architecture](#13-ask-the-turbine-ai-conversational-architecture)
+14. [Multi-User Concurrency & Rate Limiting](#14-multi-user-concurrency--rate-limiting)
+15. [Knowledge Retrieval (RAG via pgvector)](#15-knowledge-retrieval-rag-via-pgvector)
+16. [Historical Dataset Storage & Email Delivery](#16-historical-dataset-storage--email-delivery)
+17. [Fault Tolerance & Graceful Degradation](#17-fault-tolerance--graceful-degradation)
+18. [Deployment & Container Orchestration (Contabo VPS)](#18-deployment--container-orchestration-contabo-vps)
+19. [Security, Anonymous Sessions & Compliance](#19-security-anonymous-sessions--compliance)
+20. [Public REST API & Developer Specification](#20-public-rest-api--developer-specification)
+21. [Technology Matrix & Architectural Pruning Rationale](#21-technology-matrix--architectural-pruning-rationale)
+22. [Locked Decisions & Implementation Roadmap](#22-locked-decisions--implementation-roadmap)
+
+---
 
 ## 1. Executive Summary
 
-This system turns live and historical data from the **Ambition Community
-Energy (ACE) wind turbine** into a public-facing digital experience.
+The Ambition Community Energy (ACE) wind turbine is an Enercon E-115/E-126 3.5 MW, 4.2 MW turbine erected in Lawrence Weston, Bristol. It is the largest onshore community-owned wind turbine in England, generating 100% of its profits for local community development, fuel-poverty alleviation, and social projects.
 
-The platform has four major capabilities:
+This platform turns live OPC-UA SCADA telemetry and multi-year historical datasets into a public-facing, interactive digital experience and academic research repository.
 
-1.  **Live turbine experience** --- live power, wind and turbine status
-    are streamed to the frontend.
-2.  **Audience experiences** --- dedicated storytelling for children,
-    university students and the community.
-3.  **Ask the Turbine** --- a conversational AI experience using live
-    turbine data, historical data, curated knowledge, Mem0 memory and
-    Tavily for current web research.
-4.  **Developer/data access** --- a developer portal, API documentation
-    and a dataset delivery workflow.
+### Key Capabilities
+1. **Live Hoarding & Kiosk Display:** Sub-second streaming of real-time power (kW), wind speed (m/s), rotor RPM, blade pitch, and operational status, rendered in a 3D WebGL PBR turbine.
+2. **Audience-Specific Personas:** Dedicated educational modes for children and schools (SVG physics game), university engineering and data science students (time-series exploration and power curves), and community residents (homes powered, revenue, and carbon offsets).
+3. **"Ask the Turbine" AI Chatbot:** An interactive, conversational voice/text assistant grounded in live telemetry, historical SQL records, and local community knowledge via vector search.
+4. **Automated Academic Dataset Delivery:** Automated delivery of verified 10-minute historical Parquet/CSV SCADA datasets to researchers via tokenized email links.
 
-The architecture is deliberately event-driven:
+---
 
-``` mermaid
-flowchart LR
-    ACE["ACE Live API"] --> C["ACE Collector"]
-    C --> K["Apache Kafka"]
+## 2. Goals and Non-Goals
 
-    K --> RAW["Raw Archive"]
-    K --> TS["TimescaleDB"]
-    K --> REDIS["Redis"]
-    K --> FAIL["Failure Pipeline"]
+### 2.1 Functional Goals
+- **Single Ingestion Boundary:** Fetch live turbine data from the upstream ACE API once at 1 Hz, and 10-minute SCADA intervals once every 12 minutes. Never allow public visitors to directly trigger upstream API calls.
+- **Durable Time-Series:** Ingest, index, and continuously aggregate all historical and real-time SCADA intervals into TimescaleDB.
+- **Sub-Second Latency:** Broadcast 1 Hz updates to connected browsers with < 100 ms transmission latency via WebSockets.
+- **Concurrent Multi-User Chat:** Support 100+ simultaneous visitors chatting with the turbine without exhausting external LLM rate limits or leaking conversational memory across visitors.
+- **Grounding & Zero Hallucination:** Prevent AI hallucinations by enforcing parameterized database query tools rather than raw SQL generation.
+- **Dataset Access:** Enable students and researchers to request full SCADA datasets via a lightweight web form with automated delivery via transactional email.
 
-    TS --> API["FastAPI"]
-    REDIS --> API
-    API --> FE["Next.js Frontend"]
+### 2.2 Non-Goals (What We Explicitly Avoid)
+- **No Heavy Message Brokers (No Kafka):** The single-turbine data rate (1 msg/sec = ~0.5 KB/s) does not justify a 1.5 GB JVM Kafka cluster. In-memory event loops and Redis Streams provide identical decoupling with 98% less memory.
+- **No Cloud Object Storage (No AWS S3 / MinIO):** The entire multi-year historical dataset is under 25 MB. Serving directly from the VPS NVMe SSD is instantaneous, free, and eliminates external cloud credentials.
+- **No Heavy Frontend Framework Rewrite (No Next.js SSR):** The current vanilla HTML5, ES Modules, and Three.js frontend loads in < 200 ms and consumes 0 MB of server SSR memory.
+- **No User Accounts or Logins:** The public display and website require no passwords or sign-ups; chat sessions are anonymous and ephemeral.
+- **No Permanent Cross-Session Tracking (No Mem0):** Anonymous kiosk visitors do not persist permanent cross-session profiles, preventing context leakage between different visitors.
 
-    TS --> AI["AI / LangGraph"]
-    PGV["pgvector"] --> AI
-    MEM["Mem0"] --> AI
-    TAV["Tavily"] --> AI
+---
 
-    AI --> WS["WebSocket"]
-    API --> WS
-    WS --> FE
+## 3. System Architecture Overview
 
-    FE --> KIDS["Kids"]
-    FE --> UNI["University"]
-    FE --> COMM["Community"]
-    FE --> DEV["Developer"]
-```
+The system is deployed on a single Contabo VPS running three tightly orchestrated Docker containers:
 
-The ACE API is fetched **once** by the collector. Other services never
-independently poll ACE.
-
-------------------------------------------------------------------------
-
-# 2. Goals
-
-### Functional goals
-
--   Consume live ACE turbine data.
--   Preserve raw data for durability and reproducibility.
--   Store queryable time-series data.
--   Maintain 5-minute, hourly, daily and monthly aggregates.
--   Display live data directly on the frontend.
--   Support real-time WebSocket updates.
--   Provide historical exploration.
--   Provide a 3D turbine visualization.
--   Support three main public experiences:
-    -   Kids
-    -   University students
-    -   Community
--   Provide an AI chatbot.
--   Maintain short-term chat context with Redis.
--   Maintain useful longer-term memory with Mem0.
--   Use embeddings and pgvector for semantic knowledge retrieval.
--   Use Tavily for current external web research.
--   Keep the LLM provider-agnostic so Gemini, Groq or another compatible
-    provider can be selected later.
--   Provide a developer page.
--   Provide dataset download through a simple form and email.
--   Send dataset links using Resend.
--   Record ingestion and system failures durably.
--   Continue serving cached/historical data when the ACE API is
-    unavailable.
--   Deploy everything on a single Contabo VPS initially.
-
-### Non-functional goals
-
--   Durable
--   Horizontally scalable
--   Observable
--   Recoverable
--   Idempotent
--   Provider-agnostic
--   Secure
--   Low operational complexity initially
-
-------------------------------------------------------------------------
-
-# 3. Non-Goals
-
-The first version does **not** require:
-
--   Public user authentication.
--   An admin dashboard.
--   Manual dataset approval.
--   Microservices for every individual feature.
--   Multiple VPS nodes initially.
--   A separate vector database.
--   Direct frontend-to-ACE API communication.
--   The LLM directly querying the database.
--   Permanent personal profiles for anonymous public-screen users.
-
-------------------------------------------------------------------------
-
-# 4. Core Architecture Principles
-
-## 4.1 ACE is fetched once
-
-``` mermaid
-flowchart LR
-    ACE["ACE API"] --> COL["Single Collector"]
-    COL --> K["Kafka"]
-
-    K --> A["Aggregation"]
-    K --> DB["Database"]
-    K --> CACHE["Redis"]
-    K --> ARCHIVE["Object Storage"]
-    K --> MON["Monitoring / Failure"]
-```
-
-No other application component polls ACE.
-
-This prevents:
-
--   duplicated requests
--   unnecessary upstream traffic
--   inconsistent values between services
--   coupling between the public UI and ACE availability
-
-------------------------------------------------------------------------
-
-## 4.2 Database is the durable source of truth
-
-Redis is a hot cache and session layer.
-
-Kafka is the event backbone.
-
-Object storage preserves source files.
-
-TimescaleDB stores queryable turbine history.
-
-PostgreSQL stores application state.
-
-pgvector stores semantic knowledge.
-
-``` mermaid
+```mermaid
 flowchart TB
-    K["Kafka"] --> TS["TimescaleDB"]
-    K --> OBJ["Object Storage"]
-
-    TS --> R["Redis Cache"]
-
-    PG["PostgreSQL"] --> APP["Application State"]
-    PGV["pgvector"] --> RAG["Semantic Retrieval"]
-```
-
-------------------------------------------------------------------------
-
-# 5. Complete System Architecture
-
-``` mermaid
-flowchart TB
-    subgraph External
-        ACE["ACE Live API"]
-        TAV["Tavily"]
-        EMAIL["Resend"]
-        DATA["Historical Dataset Files"]
+    subgraph External["External Services & APIs"]
+        ACE["ACE Live SCADA API"]
+        LLM["Provider-Agnostic LLM (Gemini / Groq)"]
+        RESEND["Resend Transactional Email API"]
     end
 
-    subgraph Ingestion
-        COL["ACE Collector"]
-        VAL["Validation / Normalization"]
-        K["Apache Kafka"]
+    subgraph Host["Contabo VPS (Single Host: 4-8 GB RAM)"]
+        NGINX["NGINX Reverse Proxy (Port 80/443 + TLS)"]
+
+        subgraph Container1["1. Application Server (Node.js ESM) ~80MB RAM"]
+            COL["Live Collector (1 Hz)"]
+            SYNC["Sync Worker (12 min)"]
+            WS["WebSocket Gateway (ws)"]
+            API["REST API (Express)"]
+            STATIC["Static File Server (HTML5/Three.js)"]
+            AI["Chat Engine & Tool Router"]
+        end
+
+        subgraph Container2["2. Hot State & Session Store (Redis 7) ~30MB RAM"]
+            HOT["Live Telemetry Cache (1s)"]
+            SESS["Active Chat Sessions (TTL 20m)"]
+            RATELIMIT["Sliding Window Rate Limiter"]
+            PUBSUB["Inter-Process Event Stream"]
+        end
+
+        subgraph Container3["3. Database (PostgreSQL 16 + TimescaleDB + pgvector) ~500MB RAM"]
+            TS["scada_10m Hypertable"]
+            ROLLUP["daily_rollup Continuous Aggregate"]
+            EVENTS["status_events Table"]
+            VEC["Knowledge Base (pgvector)"]
+        end
+
+        LOCAL_FS["Durable NVMe Disk (/data/zenodo/)"]
     end
 
-    subgraph DurableData["Durable Data"]
-        TS["PostgreSQL + TimescaleDB"]
-        PGV["pgvector"]
-        OBJ["S3-compatible Object Storage"]
-        FAILDB["Failure Records"]
+    subgraph Clients["100+ Concurrent Public Visitors"]
+        C1["Community Kiosk (3D Three.js)"]
+        C2["Schools Kiosk (SVG Physics)"]
+        C3["Data Science Portal (Charts)"]
+        C4["Ask the Turbine (Chat Users)"]
     end
 
-    subgraph HotData["Hot / Ephemeral"]
-        REDIS["Redis"]
-        MEM0["Mem0"]
-    end
-
-    subgraph Backend
-        API["FastAPI"]
-        WS["WebSocket Gateway"]
-        CHAT["Chat / LangGraph"]
-        JOBS["Background Workers"]
-        DATASET["Dataset Service"]
-    end
-
-    subgraph Frontend
-        WEB["Next.js / React"]
-        THREE["3D Turbine"]
-        STORIES["Story Engine"]
-        DEV["Developer Portal"]
-    end
-
-    ACE --> COL
-    COL --> VAL
-    VAL --> K
-
-    DATA --> JOBS
-    JOBS --> OBJ
-    JOBS --> TS
-    JOBS --> PGV
-
-    K --> TS
-    K --> OBJ
-    K --> JOBS
-    K --> FAILDB
-
-    TS --> REDIS
-    API --> REDIS
-    API --> TS
-
-    WEB <--> WS
-    WS --> REDIS
-
-    WEB --> API
-    API --> CHAT
-
-    CHAT --> TS
-    CHAT --> PGV
-    CHAT --> REDIS
-    CHAT --> MEM0
-    CHAT --> TAV
-
-    API --> DATASET
-    DATASET --> OBJ
-    DATASET --> EMAIL
-
-    WEB --> THREE
-    WEB --> STORIES
-    WEB --> DEV
-```
-
-------------------------------------------------------------------------
-
-# 6. Data Flow
-
-``` mermaid
-sequenceDiagram
-    participant ACE as ACE API
-    participant C as Collector
-    participant K as Kafka
-    participant T as TimescaleDB
-    participant R as Redis
-    participant WS as WebSocket
-    participant UI as Frontend
-
-    ACE->>C: Fetch latest data
-    C->>C: Validate + normalize
-    C->>K: Publish telemetry event
-    K->>T: Persist telemetry
-    K->>R: Update live state
-    R->>WS: Publish latest state
-    WS->>UI: Live update
-```
-
-The frontend therefore receives live information without contacting ACE.
-
-------------------------------------------------------------------------
-
-# 7. Historical Dataset Architecture
-
-The uploaded historical datasets are first-class inputs to the platform.
-
-Current files include:
-
--   `ace-wind-2026-events.parquet`
--   `ace-wind-2026-events-latest.parquet`
--   `ace-wind-2026-daily.parquet`
--   `ace-wind-2026-daily-latest.parquet`
--   `ace-wind-2026-10m.parquet`
--   `ace-wind-2026-10m-latest.parquet`
-
-The exact column mapping should be finalized during ingestion
-implementation from the dataset schema. The architecture deliberately
-supports events, daily data and 10-minute time-series data.
-
-``` mermaid
-flowchart LR
-    F["Historical Parquet Files"] --> DISC["Schema Discovery"]
-    DISC --> VALID["Validation"]
-    VALID --> RAW["Original File Archive"]
-    VALID --> PARSE["Structured Parser"]
-
-    PARSE --> TS["TimescaleDB"]
-    PARSE --> EVENT["Event Tables"]
-    PARSE --> AGG["Aggregation Pipeline"]
-
-    TS --> API["Historical API"]
-    TS --> CHAT["Chat Tools"]
-
-    F --> DL["Dataset Delivery"]
-    DL --> EMAIL["Resend"]
-```
-
-------------------------------------------------------------------------
-
-# 8. Historical Data Has Three Representations
-
-## 8.1 Original representation
-
-Preserve the original dataset exactly in object storage.
-
-Purpose:
-
--   reproducibility
--   research
--   downloads
--   reprocessing
--   auditability
-
-``` text
-object-storage/
-  ace/
-    historical/
-      2026/
-        events/
-        daily/
-        10m/
-```
-
-## 8.2 Structured representation
-
-Convert relevant telemetry into TimescaleDB.
-
-Purpose:
-
--   SQL queries
--   charts
--   statistics
--   chatbot tools
--   API access
-
-## 8.3 Semantic representation
-
-Only appropriate textual/semantic information is embedded.
-
-Examples:
-
--   dataset descriptions
--   turbine documentation
--   event explanations
--   educational material
--   community information
--   historical context
--   metadata
-
-Raw numerical time-series should **not** be blindly embedded.
-
-------------------------------------------------------------------------
-
-# 9. Kafka Architecture
-
-Kafka is the central event backbone.
-
-``` mermaid
-flowchart TB
-    C["ACE Collector"] --> P["Kafka Producer"]
-
-    P --> RAW["ace.telemetry.raw"]
-    P --> EVT["ace.turbine.events"]
-    P --> QUALITY["ace.data.quality"]
-
-    RAW --> RAWC["Raw Storage Consumer"]
-    RAW --> AGG["Aggregation Consumer"]
-    RAW --> CACHE["Live Cache Consumer"]
-    RAW --> ANALYTICS["Analytics Consumer"]
-
-    EVT --> EVENTDB["Event Storage"]
-    QUALITY --> MON["Monitoring"]
-```
-
-## Initial topics
-
-  Topic                        Purpose
-  ---------------------------- -------------------------------
-  `ace.telemetry.raw`          Raw normalized telemetry
-  `ace.turbine.events`         Turbine operational events
-  `ace.data.quality`           Validation and quality events
-  `ace.telemetry.aggregated`   Aggregated measurements
-  `ace.forecast`               Future forecasting pipeline
-  `ace.analytics`              Future analytics consumers
-
-Kafka partitioning should use `turbine_id` as the key so events for a
-turbine retain ordering.
-
-------------------------------------------------------------------------
-
-# 10. Kafka Durability
-
-Initially there is one Contabo VPS, so Kafka does not provide physical
-fault tolerance against VPS loss.
-
-Nevertheless, the architecture should use:
-
--   persistent Kafka volumes
--   appropriate replication configuration when brokers are expanded
--   producer acknowledgements
--   consumer offsets
--   idempotent consumers
--   dead-letter topics
--   backups / exported durable data
-
-When infrastructure expands:
-
-``` mermaid
-flowchart LR
-    subgraph FutureKafka["Future Multi-Node Kafka"]
-        B1["Broker 1"]
-        B2["Broker 2"]
-        B3["Broker 3"]
-    end
-
-    P["Producer"] --> B1
-    P --> B2
-    P --> B3
-
-    B1 <--> B2
-    B2 <--> B3
-    B1 <--> B3
-```
-
-A three-broker cluster should only be described as genuinely highly
-available when the brokers are on independent failure domains.
-
-------------------------------------------------------------------------
-
-# 11. Data Ingestion Pipeline
-
-``` mermaid
-flowchart TD
-    A["ACE API"] --> F["Fetcher"]
-    F --> V["Schema Validation"]
-
-    V -->|Invalid| DLQ["Data Quality / DLQ"]
-    V -->|Valid| N["Normalize"]
-
-    N --> D["Deduplication"]
-    D --> K["Kafka"]
-
-    K --> TS["TimescaleDB"]
-    K --> R["Redis"]
-    K --> O["Object Storage"]
-```
-
-The collector should attach:
-
--   source timestamp
--   ingestion timestamp
--   source identifier
--   turbine identifier
--   schema/version information
--   correlation/event identifier
-
-------------------------------------------------------------------------
-
-# 12. Idempotency
-
-A duplicate upstream record must not create duplicate application data.
-
-Logical uniqueness should be based on the source event identity or a
-deterministic key such as:
-
-``` text
-turbine_id + source_timestamp + measurement identity
-```
-
-Consumer operations must be idempotent.
-
-``` mermaid
-flowchart LR
-    E["Kafka Event"] --> C["Consumer"]
-    C --> CHECK{"Already processed?"}
-    CHECK -->|Yes| SKIP["Skip"]
-    CHECK -->|No| WRITE["Write"]
-    WRITE --> OFFSET["Commit Offset"]
-```
-
-------------------------------------------------------------------------
-
-# 13. TimescaleDB Design
-
-The database is PostgreSQL with TimescaleDB.
-
-## Main tables
-
-### Turbine metadata
-
-``` text
-turbines
-turbine_configurations
-```
-
-### Time-series
-
-``` text
-telemetry_raw
-telemetry_10m
-telemetry_5m
-telemetry_hourly
-telemetry_daily
-telemetry_monthly
-```
-
-### Events
-
-``` text
-turbine_events
-```
-
-### Application
-
-``` text
-stories
-story_scenes
-chat_sessions
-chat_messages
-conversation_summaries
-experience_events
-```
-
-### Dataset delivery
-
-``` text
-datasets
-dataset_versions
-dataset_downloads
-```
-
-### Knowledge
-
-``` text
-knowledge_documents
-knowledge_chunks
-embeddings
-```
-
-### Reliability
-
-``` text
-ingestion_runs
-system_failures
-data_quality_events
-```
-
-------------------------------------------------------------------------
-
-# 14. Time-Series Data Model
-
-``` mermaid
-erDiagram
-    TURBINES ||--o{ TELEMETRY_RAW : has
-    TURBINES ||--o{ TELEMETRY_10M : has
-    TURBINES ||--o{ TELEMETRY_5M : has
-    TURBINES ||--o{ TELEMETRY_HOURLY : has
-    TURBINES ||--o{ TELEMETRY_DAILY : has
-    TURBINES ||--o{ TELEMETRY_MONTHLY : has
-    TURBINES ||--o{ TURBINE_EVENTS : produces
-
-    TURBINES {
-        uuid id PK
-        string external_id UK
-        string name
-        decimal rated_power_kw
-        string timezone
-        timestamp commissioned_at
-    }
-
-    TELEMETRY_RAW {
-        timestamptz time
-        uuid turbine_id FK
-        bigint sequence_id
-        decimal power_kw
-        decimal wind_speed_ms
-        decimal wind_direction_deg
-        decimal rotor_speed_rpm
-        decimal temperature_c
-        string status
-        jsonb metadata
-    }
-
-    TELEMETRY_10M {
-        timestamptz bucket PK
-        uuid turbine_id FK
-        decimal power_avg_kw
-        decimal power_min_kw
-        decimal power_max_kw
-        decimal wind_avg_ms
-        decimal energy_kwh
-        integer sample_count
-    }
-
-    TELEMETRY_5M {
-        timestamptz bucket PK
-        uuid turbine_id FK
-        decimal power_avg_kw
-        decimal power_min_kw
-        decimal power_max_kw
-        decimal wind_avg_ms
-        decimal energy_kwh
-        integer sample_count
-    }
-
-    TELEMETRY_HOURLY {
-        timestamptz bucket PK
-        uuid turbine_id FK
-        decimal power_avg_kw
-        decimal power_peak_kw
-        decimal wind_avg_ms
-        decimal energy_kwh
-        integer sample_count
-    }
-
-    TELEMETRY_DAILY {
-        date day PK
-        uuid turbine_id FK
-        decimal energy_kwh
-        decimal power_avg_kw
-        decimal power_peak_kw
-        decimal wind_avg_ms
-        decimal capacity_factor
-        decimal operating_hours
-    }
-
-    TELEMETRY_MONTHLY {
-        date month PK
-        uuid turbine_id FK
-        decimal energy_kwh
-        decimal power_avg_kw
-        decimal power_peak_kw
-        decimal capacity_factor
-        decimal operating_hours
-    }
-
-    TURBINE_EVENTS {
-        uuid id PK
-        uuid turbine_id FK
-        timestamptz event_time
-        string event_type
-        string severity
-        string code
-        text message
-        jsonb metadata
-    }
-```
-
-------------------------------------------------------------------------
-
-# 15. Why Multiple Aggregation Levels?
-
-We should not query raw telemetry for every chart.
-
-``` mermaid
-flowchart LR
-    RAW["Raw"] --> TEN["10 minute"]
-    TEN --> FIVE["5 minute"]
-    FIVE --> HOUR["Hourly"]
-    HOUR --> DAY["Daily"]
-    DAY --> MONTH["Monthly"]
-```
-
-Typical use:
-
-  Query             Source
-  ----------------- -----------------
-  Current value     Redis
-  Last hour         5m / 10m
-  Last 24 hours     10m / hourly
-  Last 30 days      Daily
-  Last year         Daily / monthly
-  Research export   Raw/archive
-
-------------------------------------------------------------------------
-
-# 16. Redis Architecture
-
-Redis is a hot-state system, not the durable source of truth.
-
-``` mermaid
-flowchart TB
-    K["Kafka"] --> LC["Live Cache Consumer"]
-    LC --> R["Redis"]
-
-    R --> LIVE["Live Turbine State"]
-    R --> WS["WebSocket Gateway"]
-
-    CHAT["Chat Service"] <--> R
-    R --> CTX["Recent Chat Context"]
-
-    DB["TimescaleDB"] --> R
-    DB -. rebuild cache .-> R
-```
-
-Possible key namespaces:
-
-``` text
-live:turbine:{id}
-live:summary:{id}
-chat:session:{id}
-chat:messages:{id}
-ws:room:{id}
-```
-
-Redis loss should not destroy turbine history.
-
-------------------------------------------------------------------------
-
-# 17. Live Frontend Data
-
-``` mermaid
-sequenceDiagram
-    participant K as Kafka
-    participant R as Redis
-    participant W as WebSocket Gateway
-    participant F as Frontend
-
-    K->>R: New turbine telemetry
-    R->>W: Updated live state
-    W->>F: turbine:update
-    F->>F: Update metrics
-    F->>F: Update charts
-    F->>F: Update 3D turbine
-```
-
-Frontend receives a state object containing at least:
-
-``` json
-{
-  "turbineId": "ace-01",
-  "timestamp": "...",
-  "power": 2840,
-  "windSpeed": 8.7,
-  "status": "generating",
-  "isLive": true,
-  "ageSeconds": 12
-}
-```
-
-The exact field names should follow the final ACE API schema.
-
-------------------------------------------------------------------------
-
-# 18. WebSocket Architecture
-
-WebSocket has two primary uses:
-
-1.  Live turbine updates.
-2.  Streaming chatbot responses.
-
-``` mermaid
-flowchart TB
-    F["Frontend"] <-->|WebSocket| G["WebSocket Gateway"]
-
-    G --> LIVE["Live Data Channel"]
-    G --> CHAT["Chat Channel"]
-
-    LIVE --> R["Redis"]
-    CHAT --> LG["LangGraph"]
-
-    LG --> R
-```
-
-Suggested event types:
-
-``` text
-turbine.snapshot
-turbine.update
-turbine.status
-chat.started
-chat.token
-chat.tool_call
-chat.tool_result
-chat.completed
-chat.error
-system.degraded
-```
-
-------------------------------------------------------------------------
-
-# 19. Public Frontend Architecture
-
-``` mermaid
-flowchart TB
-    APP["Next.js Application"]
-
-    APP --> HOME["Home / Live"]
-    APP --> STORIES["Stories"]
-    APP --> KIDS["Kids"]
-    APP --> STUDENTS["Students"]
-    APP --> COMMUNITY["Community"]
-    APP --> CHAT["Ask the Turbine"]
-    APP --> DATA["Data Explorer"]
-    APP --> DEV["Developer Portal"]
-    APP --> DATASETS["Datasets"]
-
-    HOME --> LIVE["Live Data"]
-    HOME --> THREE["3D Turbine"]
-
-    STORIES --> STORY["Story Engine"]
-    STORY --> LIVE
-
-    CHAT --> WS["WebSocket"]
-    DATA --> API["REST API"]
-    DEV --> API
-```
-
-------------------------------------------------------------------------
-
-# 20. 3D Turbine
-
-The 3D component should represent actual data.
-
-``` mermaid
-flowchart LR
-    D["Live Turbine State"] --> MAP["State Mapper"]
-
-    MAP --> ROTOR["Rotor Speed"]
-    MAP --> WIND["Wind Particles"]
-    MAP --> POWER["Power Visualisation"]
-    MAP --> STATUS["Status State"]
-
-    ROTOR --> THREE["Three.js / React Three Fiber"]
-    WIND --> THREE
-    POWER --> THREE
-    STATUS --> THREE
-```
-
-The 3D experience is therefore a visualization layer, not a separate
-data source.
-
-------------------------------------------------------------------------
-
-# 21. Story Engine
-
-The same platform powers multiple audiences.
-
-``` mermaid
-flowchart TB
-    DATA["Live + Historical Data"] --> ENGINE["Story Engine"]
-
-    ENGINE --> K["Kids Story"]
-    ENGINE --> U["University Story"]
-    ENGINE --> C["Community Story"]
-
-    K --> R["Frontend Renderer"]
-    U --> R
-    C --> R
-```
-
-Stories should be configuration-driven.
-
-Example conceptual structure:
-
-``` json
-{
-  "audience": "community",
-  "scene": "today",
-  "components": [
-    "live_power",
-    "energy_today",
-    "community_message",
-    "turbine_story"
-  ]
-}
-```
-
-------------------------------------------------------------------------
-
-# 22. Chatbot Architecture
-
-The chatbot is a controlled data/knowledge agent.
-
-``` mermaid
-flowchart TB
-    U["User"] --> WS["WebSocket"]
-    WS --> S["Session Manager"]
-    S --> R["Redis"]
-
-    S --> LG["LangGraph"]
-
-    LG --> ROUTER["Intent / Query Router"]
-
-    ROUTER --> SQL["Turbine Data Tools"]
-    ROUTER --> RAG["Knowledge Retrieval"]
-    ROUTER --> WEB["Web Search"]
-
-    SQL --> TS["TimescaleDB"]
-    RAG --> V["pgvector"]
-    WEB --> T["Tavily"]
-
-    TS --> LG
-    V --> LG
-    T --> LG
-
-    LG --> LLM["Provider-Agnostic LLM Adapter"]
-    LLM --> WS
-```
-
-------------------------------------------------------------------------
-
-# 23. LLM Provider Abstraction
-
-The model must not be hardcoded into the architecture.
-
-``` mermaid
-flowchart TB
-    LG["LangGraph"] --> ADAPTER["LLM Provider Adapter"]
-
-    ADAPTER --> GEMINI["Gemini"]
-    ADAPTER --> GROQ["Groq"]
-    ADAPTER --> OTHER["Other Compatible Provider"]
-```
-
-Application code should depend on the adapter/interface, not on one
-provider.
-
-Conceptually:
-
-``` text
-LLMProvider
-  ├── GeminiProvider
-  ├── GroqProvider
-  └── FutureProvider
-```
-
-This lets us switch providers without redesigning the agent workflow.
-
-**OpenAI SDK is not the system LLM requirement.** The architecture keeps
-the model provider replaceable.
-
-------------------------------------------------------------------------
-
-# 24. LangGraph Workflow
-
-``` mermaid
-stateDiagram-v2
-    [*] --> ReceiveQuestion
-    ReceiveQuestion --> LoadContext
-    LoadContext --> ClassifyIntent
-
-    ClassifyIntent --> TurbineData
-    ClassifyIntent --> Knowledge
-    ClassifyIntent --> WebSearch
-    ClassifyIntent --> Mixed
-
-    TurbineData --> ToolResult
-    Knowledge --> ToolResult
-    WebSearch --> ToolResult
-
-    Mixed --> TurbineData
-    Mixed --> Knowledge
-    Mixed --> WebSearch
-
-    ToolResult --> BuildContext
-    BuildContext --> GenerateAnswer
-    GenerateAnswer --> UpdateMemory
-    UpdateMemory --> StreamAnswer
-    StreamAnswer --> [*]
-```
-
-------------------------------------------------------------------------
-
-# 25. AI Tool Boundary
-
-The LLM must not have arbitrary SQL access.
-
-Instead:
-
-``` mermaid
-flowchart LR
-    LLM["LLM"] --> TOOLS["Controlled Tools"]
-
-    TOOLS --> CURRENT["get_current_status()"]
-    TOOLS --> ENERGY["get_energy(period)"]
-    TOOLS --> HISTORY["get_power_history(period)"]
-    TOOLS --> EVENTS["get_events(period)"]
-    TOOLS --> DAILY["get_daily_summary(date)"]
-
-    CURRENT --> DB["TimescaleDB / Redis"]
-    ENERGY --> DB
-    HISTORY --> DB
-    EVENTS --> DB
-    DAILY --> DB
-```
-
-This improves:
-
--   security
--   correctness
--   observability
--   testability
--   provider independence
-
-------------------------------------------------------------------------
-
-# 26. Redis + Mem0
-
-Redis and Mem0 solve different problems.
-
-``` mermaid
-flowchart TB
-    USER["Anonymous User"] --> CHAT["Chat Session"]
-
-    CHAT --> REDIS["Redis"]
-    CHAT --> MEM0["Mem0"]
-
-    REDIS --> SHORT["Short-term context"]
-    REDIS --> ACTIVE["Active session state"]
-
-    MEM0 --> LONG["Useful longer-term memory"]
-```
-
-Redis should hold hot context.
-
-Mem0 should hold only useful memory that is appropriate to retain.
-
-Because users are anonymous, memory retention should be conservative.
-
-------------------------------------------------------------------------
-
-# 27. RAG Architecture
-
-``` mermaid
-flowchart LR
-    DOC["ACE / Educational Documents"] --> CHUNK["Chunk"]
-    CHUNK --> EMB["Embedding Model"]
-    EMB --> V["pgvector"]
-
-    Q["User Question"] --> QE["Query Embedding"]
-    QE --> V
-    V --> CONTEXT["Relevant Context"]
-
-    CONTEXT --> LG["LangGraph"]
-```
-
-Do not embed raw numerical telemetry as the primary retrieval mechanism.
-
-Numerical questions should use database tools.
-
-------------------------------------------------------------------------
-
-# 28. Tavily Integration
-
-``` mermaid
-flowchart TB
-    Q["User Question"] --> ROUTER["LangGraph Router"]
-
-    ROUTER -->|Current external information needed| T["Tavily"]
-    T --> RESULTS["Search Results"]
-    RESULTS --> VERIFY["Context / Source Handling"]
-    VERIFY --> LLM["LLM"]
-
-    ROUTER -->|ACE-specific data| DB["TimescaleDB"]
-    ROUTER -->|Known documentation| RAG["pgvector"]
-```
-
-Tavily is not the source of truth for ACE turbine measurements.
-
-------------------------------------------------------------------------
-
-# 29. Dataset Delivery
-
-There is intentionally **no admin panel or approval workflow**.
-
-``` mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant API as Dataset API
-    participant DB as PostgreSQL
-    participant S as Object Storage
-    participant R as Resend
-
-    U->>F: Select dataset
-    U->>F: Submit name/email/purpose
-    F->>API: Dataset request
-    API->>DB: Save request
-    API->>S: Generate secure download reference
-    API->>R: Send email
-    R->>U: Dataset download link
-    U->>S: Download dataset
-```
-
-------------------------------------------------------------------------
-
-# 30. Dataset Tables
-
-``` mermaid
-erDiagram
-    DATASETS ||--o{ DATASET_VERSIONS : contains
-    DATASET_VERSIONS ||--o{ DATASET_DOWNLOADS : downloaded_as
-
-    DATASETS {
-        uuid id PK
-        string name
-        text description
-        string licence
-        string access_level
-        timestamp created_at
-    }
-
-    DATASET_VERSIONS {
-        uuid id PK
-        uuid dataset_id FK
-        string version
-        string object_key
-        bigint size_bytes
-        string checksum
-        timestamp created_at
-    }
-
-    DATASET_DOWNLOADS {
-        uuid id PK
-        uuid dataset_version_id FK
-        string requester_email
-        string requester_name
-        string organisation
-        text purpose
-        timestamp requested_at
-        timestamp downloaded_at
-        timestamp expires_at
-    }
-```
-
-------------------------------------------------------------------------
-
-# 31. Dataset Storage
-
-``` mermaid
-flowchart TB
-    DB["Dataset Metadata"] --> OBJ["S3-Compatible Object Storage"]
-
-    OBJ --> V1["Dataset v1"]
-    OBJ --> V2["Dataset v2"]
-    OBJ --> V3["Dataset v3"]
-
-    API["Dataset API"] --> SIGN["Signed URL Generator"]
-    SIGN --> EMAIL["Resend"]
-    EMAIL --> USER["Requester"]
-    USER --> SIGNED["Signed Download"]
-    SIGNED --> OBJ
-```
-
-The original historical files remain available for reproducibility.
-
-------------------------------------------------------------------------
-
-# 32. Email Reliability
-
-Email sending must not block the core request.
-
-``` mermaid
-flowchart TD
-    FORM["Dataset Form"] --> API["Dataset API"]
-    API --> DB["Save Request"]
-    DB --> JOB["Email Job"]
-
-    JOB --> RESEND["Resend"]
-
-    RESEND -->|Success| DONE["Delivered"]
-    RESEND -->|Temporary Failure| RETRY["Retry"]
-    RETRY --> RESEND
-
-    RETRY -->|Permanent Failure| FAIL["Failure Record"]
-```
-
-------------------------------------------------------------------------
-
-# 33. Failure Architecture
-
-Failures are durable data.
-
-``` mermaid
-flowchart TB
-    SYS["Any System Component"] --> ERR["Failure Event"]
-
-    ERR --> K["Kafka / Failure Topic"]
-    K --> DB["system_failures"]
-
-    DB --> OBS["Observability"]
-    DB --> ALERT["Alerts"]
-    DB --> REC["Recovery Logic"]
-```
-
-------------------------------------------------------------------------
-
-# 34. Failure Categories
-
-Examples:
-
-``` text
-ACE_API_TIMEOUT
-ACE_API_UNAVAILABLE
-ACE_API_INVALID_RESPONSE
-
-KAFKA_PUBLISH_FAILURE
-KAFKA_CONSUMER_FAILURE
-
-DATABASE_CONNECTION_FAILURE
-DATABASE_WRITE_FAILURE
-
-REDIS_FAILURE
-
-OBJECT_STORAGE_FAILURE
-
-RESEND_FAILURE
-
-TAVILY_FAILURE
-
-LLM_PROVIDER_FAILURE
-
-WEBSOCKET_FAILURE
-
-RAG_FAILURE
-```
-
-------------------------------------------------------------------------
-
-# 35. ACE API Failure
-
-The public system should degrade gracefully.
-
-``` mermaid
-stateDiagram-v2
-    [*] --> Live
-
-    Live --> APIUnavailable : ACE API failure
-    APIUnavailable --> Retry : retry
-    Retry --> Live : recovered
-    Retry --> Degraded : retries exhausted
-
-    Degraded --> CachedData
-    CachedData --> Live : API recovered
-```
-
-During degradation:
-
-``` text
-Live status = false
-Last known value = displayed
-Last successful update = displayed
-Historical data = available
-```
-
-The UI must never claim stale data is live.
-
-------------------------------------------------------------------------
-
-# 36. Redis Failure
-
-Redis is rebuildable.
-
-``` mermaid
-flowchart LR
-    REDIS["Redis unavailable"] --> DB["TimescaleDB"]
-    DB --> REBUILD["Rebuild Hot Cache"]
-    REBUILD --> REDIS2["Redis restored"]
-```
-
-The durable data remains safe.
-
-------------------------------------------------------------------------
-
-# 37. Database Failure
-
-For a database failure:
-
-``` mermaid
-flowchart TB
-    API["API"] --> DB["PostgreSQL / TimescaleDB"]
-
-    DB -->|failure| RETRY["Retry / Connection Pool"]
-    RETRY --> DB
-
-    RETRY -->|persistent failure| DEG["Degraded Mode"]
-
-    DEG --> CACHE["Redis cached data"]
-    DEG --> UI["Frontend status"]
-```
-
-The system should expose a degraded state rather than silently returning
-incorrect data.
-
-------------------------------------------------------------------------
-
-# 38. Data Freshness
-
-Every live value should carry freshness information.
-
-``` text
-timestamp
-source_timestamp
-ingested_at
-last_successful_fetch
-age_seconds
-is_live
-```
-
-Conceptual response:
-
-``` json
-{
-  "powerKw": 2840,
-  "sourceTimestamp": "...",
-  "ingestedAt": "...",
-  "ageSeconds": 12,
-  "isLive": true
-}
-```
-
-------------------------------------------------------------------------
-
-# 39. Developer Portal
-
-``` mermaid
-flowchart TB
-    DEV["Developer"] --> PORTAL["Developer Portal"]
-
-    PORTAL --> APIREF["API Reference"]
-    PORTAL --> LIVE["Live API"]
-    PORTAL --> HIST["Historical API"]
-    PORTAL --> DATA["Dataset Catalogue"]
-    PORTAL --> EXAMPLE["Examples"]
-    PORTAL --> DOWNLOAD["Dataset Request"]
-```
-
-Suggested sections:
-
-``` text
-/developers
-/developers/api
-/developers/live
-/developers/history
-/developers/datasets
-/developers/examples
-```
-
-------------------------------------------------------------------------
-
-# 40. Public API
-
-The API should expose stable application-level contracts.
-
-Conceptual endpoints:
-
-``` text
-GET /api/v1/turbines
-GET /api/v1/turbines/{id}/live
-GET /api/v1/turbines/{id}/summary/today
-GET /api/v1/turbines/{id}/history
-GET /api/v1/turbines/{id}/events
-GET /api/v1/turbines/{id}/statistics
-GET /api/v1/datasets
-POST /api/v1/datasets/{id}/request
-```
-
-WebSocket:
-
-``` text
-/ws/turbines/{id}
-/ws/chat/{session_id}
-```
-
-The exact API contract should be versioned independently of the upstream
-ACE API.
-
-------------------------------------------------------------------------
-
-# 41. Application Data Model
-
-``` mermaid
-erDiagram
-    STORIES ||--o{ STORY_SCENES : contains
-    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
-    CHAT_SESSIONS ||--o| CONVERSATION_SUMMARIES : has
-    CHAT_SESSIONS ||--o{ EXPERIENCE_EVENTS : generates
-
-    STORIES {
-        uuid id PK
-        string slug UK
-        string audience
-        string title
-        text description
-        boolean enabled
-    }
-
-    STORY_SCENES {
-        uuid id PK
-        uuid story_id FK
-        integer sequence
-        string title
-        jsonb content
-        integer duration_seconds
-        boolean enabled
-    }
-
-    CHAT_SESSIONS {
-        uuid id PK
-        string audience
-        timestamp created_at
-        timestamp last_activity_at
-        timestamp expires_at
-    }
-
-    CHAT_MESSAGES {
-        uuid id PK
-        uuid session_id FK
-        string role
-        text content
-        timestamp created_at
-        jsonb metadata
-    }
-
-    CONVERSATION_SUMMARIES {
-        uuid session_id PK
-        text summary
-        timestamp updated_at
-    }
-
-    EXPERIENCE_EVENTS {
-        uuid id PK
-        uuid session_id FK
-        string event_type
-        string screen
-        timestamp timestamp
-        jsonb metadata
-    }
-```
-
-------------------------------------------------------------------------
-
-# 42. Knowledge Data Model
-
-``` mermaid
-erDiagram
-    KNOWLEDGE_DOCUMENTS ||--o{ KNOWLEDGE_CHUNKS : contains
-
-    KNOWLEDGE_DOCUMENTS {
-        uuid id PK
-        string title
-        string source
-        string licence
-        string document_type
-        timestamp created_at
-    }
-
-    KNOWLEDGE_CHUNKS {
-        uuid id PK
-        uuid document_id FK
-        integer chunk_index
-        text content
-        vector embedding
-        jsonb metadata
-    }
-```
-
-------------------------------------------------------------------------
-
-# 43. Ingestion Reliability
-
-``` mermaid
-sequenceDiagram
-    participant C as Collector
-    participant K as Kafka
-    participant DB as TimescaleDB
-    participant R as Redis
-    participant F as Failure Store
-
-    C->>K: Publish event
-
-    alt Kafka success
-        K->>DB: Consume
-        DB-->>K: Commit successful
-        K->>R: Update live state
-    else Kafka failure
-        C->>F: Record failure
-        C->>C: Retry with backoff
-    end
-```
-
-------------------------------------------------------------------------
-
-# 44. Background Worker Architecture
-
-Not every task belongs inside the API request lifecycle.
-
-``` mermaid
-flowchart TB
-    API["FastAPI"] --> Q["Background Job / Queue"]
-
-    Q --> ING["Historical Ingestion"]
-    Q --> AGG["Aggregation"]
-    Q --> EMAIL["Email Delivery"]
-    Q --> EMB["Embedding Jobs"]
-    Q --> EXPORT["Dataset Export"]
-    Q --> CLEAN["Retention / Cleanup"]
-```
-
-Workers should be restartable and idempotent.
-
-------------------------------------------------------------------------
-
-# 45. Deployment --- Contabo
-
-Initial deployment is one Contabo VPS.
-
-``` mermaid
-flowchart TB
-    INTERNET["Internet"] --> PROXY["Reverse Proxy / TLS"]
-
-    PROXY --> FRONT["Next.js"]
-    PROXY --> API["FastAPI"]
-    PROXY --> WS["WebSocket"]
-
-    subgraph CONTABO["Contabo VPS"]
-        FRONT
-        API
-        WS
-
-        KAFKA["Kafka"]
-        REDIS["Redis"]
-        PG["PostgreSQL"]
-        TIMESCALE["TimescaleDB"]
-        WORKER["Workers"]
-        MON["Monitoring"]
-
-        PG --> TIMESCALE
-        API --> PG
-        API --> REDIS
-        WORKER --> KAFKA
-        WORKER --> TIMESCALE
-        WORKER --> REDIS
-    end
-
-    API --> EXT["External Providers"]
-    EXT --> ACE["ACE API"]
-    EXT --> TAV["Tavily"]
-    EXT --> EMAIL["Resend"]
-```
-
-------------------------------------------------------------------------
-
-# 46. Container Architecture
-
-Everything should be containerized.
-
-``` mermaid
-flowchart TB
-    subgraph Docker["Contabo Docker Host"]
-        NGINX["Reverse Proxy"]
-
-        FE["frontend"]
-        API["backend"]
-        ING["collector"]
-        WORKER["worker"]
-        CHAT["chat-service"]
-
-        K["kafka"]
-        REDIS["redis"]
-        PG["postgres-timescaledb"]
-
-        MON["monitoring"]
-    end
-
-    NGINX --> FE
+    NGINX --> STATIC
     NGINX --> API
+    NGINX --> WS
 
-    API --> REDIS
-    API --> PG
-    API --> CHAT
+    ACE -->|1 Hz HTTP| COL
+    ACE -->|10m Range| SYNC
 
-    ING --> K
-    WORKER --> K
-    WORKER --> PG
-    WORKER --> REDIS
+    COL -->|Set live:turbine:ace-01| HOT
+    HOT -->|Push to Clients| WS
+    SYNC -->|Upsert 10m Records| TS
 
-    CHAT --> REDIS
-    CHAT --> PG
+    WS <--> Clients
+    API <--> Clients
+    STATIC --> Clients
+
+    AI <--> SESS
+    AI <--> RATELIMIT
+    AI --> HOT
+    AI --> TS
+    AI --> VEC
+    AI <--> LLM
+
+    API --> LOCAL_FS
+    API --> RESEND
 ```
 
-The first deployment can use Docker Compose.
+---
 
-------------------------------------------------------------------------
+## 4. Data Flow & End-to-End Lifecycles
 
-# 47. Container Persistence
+### 4.1 Live Telemetry Broadcast Lifecycle (1 Hz)
+Every second, live power and rotational data flows from the turbine to every connected client display:
 
-Stateful services require persistent volumes.
-
-``` mermaid
-flowchart TB
-    K["Kafka Container"] --> KV["Kafka Persistent Volume"]
-    PG["PostgreSQL / TimescaleDB"] --> PV["Postgres Persistent Volume"]
-    R["Redis"] --> RV["Redis Persistence"]
-    MON["Monitoring"] --> MV["Monitoring Volume"]
-```
-
-Containers can be recreated without destroying the underlying state.
-
-------------------------------------------------------------------------
-
-# 48. Contabo Deployment Evolution
-
-### Phase 1
-
-``` text
-One Contabo VPS
-    │
-    └── Docker Compose
-```
-
-### Phase 2
-
-``` text
-Multiple Contabo VPS nodes
-    │
-    ├── API nodes
-    ├── Worker nodes
-    ├── Kafka nodes
-    └── Database infrastructure
-```
-
-### Phase 3
-
-``` mermaid
-flowchart TB
-    LB["Load Balancer"] --> A1["API Node 1"]
-    LB --> A2["API Node 2"]
-    LB --> A3["API Node 3"]
-
-    A1 --> K["Kafka Cluster"]
-    A2 --> K
-    A3 --> K
-
-    K --> DB["Durable Database"]
-```
-
-The application should be designed statelessly from the beginning so
-this transition does not require a rewrite.
-
-------------------------------------------------------------------------
-
-# 49. Durability Strategy
-
-Durability is a first-class requirement.
-
-## Source data
-
-Preserve raw ACE responses/events where useful.
-
-## Historical datasets
-
-Preserve original files in object storage.
-
-## Database
-
-Use persistent volumes and automated backups.
-
-## Kafka
-
-Use persistent logs and durable consumer offsets.
-
-## Redis
-
-Treat as rebuildable.
-
-## Chat
-
-Persist only what is necessary; Redis handles hot context and Mem0
-handles explicitly useful memory.
-
-## Dataset links
-
-Store dataset metadata and versions so delivery can be reproduced.
-
-------------------------------------------------------------------------
-
-# 50. Backup Architecture
-
-``` mermaid
-flowchart TB
-    PG["PostgreSQL / TimescaleDB"] --> BACKUP["Automated Backups"]
-    BACKUP --> OFFSITE["Off-host / External Backup"]
-
-    OBJ["Object Storage"] --> VERSION["Versioning / Retention"]
-
-    K["Kafka"] --> ARCH["Important Event Archive"]
-
-    CONFIG["Infrastructure Config"] --> GIT["Git Repository"]
-```
-
-A single Contabo VPS is a single physical failure domain, so backups
-must not exist only on the same VPS.
-
-------------------------------------------------------------------------
-
-# 51. Observability
-
-``` mermaid
-flowchart LR
-    APP["Applications"] --> OTEL["OpenTelemetry"]
-
-    OTEL --> METRICS["Metrics"]
-    OTEL --> LOGS["Logs"]
-    OTEL --> TRACES["Traces"]
-
-    METRICS --> PROM["Prometheus"]
-    PROM --> GRAF["Grafana"]
-
-    LOGS --> LOGSTORE["Log Storage"]
-    TRACES --> TRACESTORE["Trace Storage"]
-```
-
-Important metrics:
-
-``` text
-ACE fetch success rate
-ACE fetch latency
-ACE data freshness
-Kafka consumer lag
-Kafka publish failures
-Database latency
-Redis hit rate
-WebSocket connections
-Chat latency
-LLM latency
-Tavily latency
-Email success/failure
-Dataset downloads
-API error rate
-```
-
-------------------------------------------------------------------------
-
-# 52. Health Checks
-
-Every service should expose health/readiness information.
-
-``` text
-/health
-/ready
-```
-
-Readiness should verify only the dependencies necessary for that service
-to operate.
-
-Example:
-
-``` mermaid
-flowchart LR
-    HEALTH["Health Check"] --> API["API"]
-    HEALTH --> DB["Database"]
-    HEALTH --> REDIS["Redis"]
-    HEALTH --> KAFKA["Kafka"]
-```
-
-------------------------------------------------------------------------
-
-# 53. Security
-
-Even without public authentication, the platform still requires
-security.
-
-### Public APIs
-
--   rate limiting
--   request validation
--   input size limits
--   CORS policy
--   secure headers
--   TLS
-
-### Chat
-
--   prompt/input limits
--   abuse controls
--   tool allowlists
--   no arbitrary SQL
--   no arbitrary shell execution
-
-### Dataset downloads
-
--   signed URLs
--   expiry
--   rate limits
--   download tracking
-
-### Secrets
-
-Never store secrets in the repository.
-
-Use environment variables/secrets management.
-
-------------------------------------------------------------------------
-
-# 54. No Authentication Does Not Mean No Session
-
-The public chatbot can create an anonymous session.
-
-``` mermaid
+```mermaid
 sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant API as Backend
-    participant R as Redis
+    autonumber
+    participant ACE as ACE Upstream API
+    participant Col as Collector (Node.js)
+    participant Redis as Redis (Hot Cache)
+    participant WS as WebSocket Gateway
+    participant UI as Connected Browsers (100+)
 
-    U->>F: Open chat
-    F->>API: Create anonymous session
-    API->>R: Store session
-    API-->>F: session_id
-    F->>API: Connect WebSocket
+    loop Every 1000 ms
+        Col->>ACE: GET /wec/live
+        ACE-->>Col: OPC-UA Tag Snapshot (power, wind, rpm, status)
+        Col->>Col: Normalize & compute derived metrics (homes powered)
+        Col->>Redis: SETEX live:turbine:ace-01 10 (JSON state)
+        Col->>WS: Broadcast turbine.update payload
+        WS-->>UI: WebSocket JSON Frame (< 5 ms)
+        UI->>UI: Update 3D blade velocity, gauges, and counters
+    end
 ```
 
-No account is required.
+### 4.2 Historical SCADA Ingestion Lifecycle (Every 12 Minutes)
+Continuous rollups and raw 10-minute intervals are preserved without duplicating records:
 
-------------------------------------------------------------------------
-
-# 55. Rate Limiting
-
-Apply rate limits at multiple levels.
-
-``` text
-IP
-session
-endpoint
-chat
-dataset requests
-WebSocket connections
-```
-
-Example conceptual limits:
-
-``` text
-Public API → moderate
-Chat → stricter
-Dataset email requests → strict
-WebSocket → connection/message limits
-```
-
-Exact limits should be tuned after observing real usage.
-
-------------------------------------------------------------------------
-
-# 56. End-to-End Chat Example
-
-Question:
-
-> "How much electricity did the turbine produce yesterday, and why does
-> wind speed affect that?"
-
-``` mermaid
+```mermaid
 sequenceDiagram
-    participant U as User
-    participant W as WebSocket
-    participant L as LangGraph
+    autonumber
+    participant Sync as Sync Worker
     participant TS as TimescaleDB
-    participant V as pgvector
-    participant M as LLM
+    participant ACE as ACE Upstream API
 
-    U->>W: Question
-    W->>L: Question + session context
-
-    L->>TS: Query yesterday's generation
-    TS-->>L: Energy result
-
-    L->>V: Retrieve wind-energy explanation
-    V-->>L: Relevant context
-
-    L->>M: Data + knowledge context
-    M-->>L: Answer
-
-    L->>W: Stream response
-    W-->>U: Answer
+    loop Every 12 Minutes + On Startup
+        Sync->>TS: SELECT MAX(bucket) FROM scada_10m
+        TS-->>Sync: Last stored timestamp (e.g., 2026-10-07 08:20:00Z)
+        Sync->>ACE: GET /wecstd/range?from=2026-10-07T08:20:00Z&to=now
+        ACE-->>Sync: Array of 10-minute SCADA intervals
+        Sync->>Sync: Validate, sanitize & convert to UTC timestamptz
+        Sync->>TS: INSERT INTO scada_10m ON CONFLICT (bucket) DO UPDATE
+        TS->>TS: Refresh daily_rollup continuous aggregate
+    end
 ```
 
-------------------------------------------------------------------------
+---
 
-# 57. Live Display Example
+## 5. Event Streaming & Decoupling Architecture
 
-``` mermaid
+### 5.1 Why Kafka is Excluded
+The original draft proposed Apache Kafka with 6 topics. An audit showed that:
+1. **Source Data Rate:** Exactly **1 message per second** (~500 bytes/sec).
+2. **Resource Cost:** Running Kafka with JVM/KRaft requires **1.5 GB to 2.0 GB of RAM**. On a 4–8 GB VPS, this consumes 25%–50% of total memory.
+3. **Audience Boundary:** End users connect to WebSockets, never Kafka.
+
+### 5.2 The Lean Replacement: Redis Streams & Pub/Sub
+Using the existing Redis container (using only 30 MB of RAM), we achieve complete architectural decoupling:
+
+```mermaid
+flowchart LR
+    COL["Collector"] -->|XADD ace:telemetry:raw| STREAM["Redis Stream"]
+    
+    STREAM -->|XREADGROUP| C1["Timescale Ingestion Worker"]
+    STREAM -->|XREADGROUP| C2["Anomaly Detector"]
+    STREAM -->|XREADGROUP| C3["Future ML Forecaster"]
+
+    COL -->|PUBLISH ace:live:broadcast| PUBSUB["Redis Pub/Sub"]
+    PUBSUB -->|SUBSCRIBE| WS1["WebSocket Node 1"]
+    PUBSUB -->|SUBSCRIBE| WS2["WebSocket Node 2"]
+```
+
+| Stream / Channel Key | Format | Producer | Consumer(s) | Retention / TTL |
+| :--- | :--- | :--- | :--- | :--- |
+| `ace:stream:telemetry` | Redis Stream (`XADD`) | Collector | TimescaleDB Writer, Anomaly Monitor | `MAXLEN ~ 10000` (~3 hours) |
+| `ace:live:broadcast` | Redis Pub/Sub | Collector | WebSocket Gateway instances | Instant Fan-out |
+| `live:turbine:ace-01` | String (JSON) | Collector | REST API, AI Tool Calling | `TTL = 10s` |
+
+---
+
+## 6. Data Ingestion & Single Fetcher Boundary
+
+To prevent denial-of-service against the upstream ACE server:
+1. **All Inbound Requests Blocked from ACE API:** Browsers, chatbots, and administrative dashboards read exclusively from Redis or TimescaleDB.
+2. **Idempotent Ingestion Keys:** All SCADA 10-minute records are keyed on `(bucket)`, preventing duplicate rows.
+3. **Resilience to Upstream Failures:** If the ACE API returns HTTP 500 or times out, the collector serves the last known state from Redis, flagged with `is_stale: true`, while the sync job retries with exponential backoff.
+
+---
+
+## 7. TimescaleDB Time-Series Data Model
+
+The database runs in Docker as `ace_timescaledb` (`timescale/timescaledb:latest-pg16`).
+
+### 7.1 Schema: `scada_10m` Hypertable
+```sql
+CREATE TABLE IF NOT EXISTS scada_10m (
+    bucket               TIMESTAMPTZ NOT NULL,
+    wind_speed_avg       NUMERIC(5,2),
+    wind_speed_min       NUMERIC(5,2),
+    wind_speed_max       NUMERIC(5,2),
+    wind_speed_std       NUMERIC(5,2),
+    power_avg            NUMERIC(6,1),
+    power_min            NUMERIC(6,1),
+    power_max            NUMERIC(6,1),
+    energy_kwh           NUMERIC(7,1),
+    reactive_power_avg   NUMERIC(6,1),
+    wind_direction_avg   NUMERIC(5,1),
+    ambient_temp_avg     NUMERIC(4,1),
+    pitch_angle_avg      NUMERIC(4,1),
+    rotor_rpm_avg        NUMERIC(4,1),
+    sample_count         INTEGER DEFAULT 600,
+    source               TEXT DEFAULT 'live_sync',
+    CONSTRAINT scada_10m_pk PRIMARY KEY (bucket)
+);
+
+-- Convert to TimescaleDB Hypertable partitioned in 3-month chunks
+SELECT create_hypertable('scada_10m', 'bucket', chunk_time_interval => INTERVAL '3 months', if_not_exists => TRUE);
+```
+
+### 7.2 Continuous Aggregate: `daily_rollup`
+Pre-calculates daily metrics grouped by local **Europe/London** calendar day:
+```sql
+CREATE MATERIALIZED VIEW IF NOT EXISTS daily_rollup
+WITH (timescaledb.continuous) AS
+SELECT
+    time_bucket('1 day', bucket, 'Europe/London')::date AS day,
+    SUM(energy_kwh)                                     AS energy_total_kwh,
+    ROUND(AVG(power_avg), 1)                            AS power_avg_kw,
+    ROUND(MAX(power_max), 1)                            AS power_max_kw,
+    ROUND(AVG(wind_speed_avg), 2)                       AS wind_speed_avg,
+    ROUND(MAX(wind_speed_max), 2)                       AS wind_speed_max,
+    ROUND(SUM(energy_kwh) / (3500.0 * 24.0) * 100.0, 2) AS capacity_factor,
+    COUNT(*)                                            AS active_intervals
+FROM scada_10m
+GROUP BY 1;
+
+-- Refresh policy: continuously refresh the last 7 days every 15 minutes
+SELECT add_continuous_aggregate_policy('daily_rollup',
+    start_offset => INTERVAL '7 days',
+    end_offset   => INTERVAL '10 minutes',
+    schedule_interval => INTERVAL '15 minutes');
+```
+
+### 7.3 Operational Status Events Table
+```sql
+CREATE TABLE IF NOT EXISTS status_events (
+    id            BIGSERIAL PRIMARY KEY,
+    observed_at   TIMESTAMPTZ NOT NULL,
+    opc_node_id   TEXT NOT NULL,
+    description   TEXT,
+    status_type   TEXT, -- 'RUN', 'STOP', 'WARNING', 'ERROR'
+    metadata      JSONB,
+    CONSTRAINT status_events_unique UNIQUE (observed_at, opc_node_id)
+);
+CREATE INDEX IF NOT EXISTS idx_status_events_time ON status_events (observed_at DESC);
+```
+
+---
+
+## 8. Redis Hot Cache & Session Architecture
+
+Redis 7 runs as `ace_redis` on port 6379, configured with append-only file (AOF) persistence.
+
+### Key Namespaces and TTL Policies
+```text
+live:turbine:ace-01              -> String (JSON, TTL: 10 seconds)
+chat:session:{session_id}:meta    -> Hash (Created, LastActive, TurnCount, TTL: 20 min)
+chat:session:{session_id}:history -> List (Last 6 JSON turns, TTL: 20 min)
+ratelimit:session:{session_id}   -> Integer (Sliding window counter, TTL: 60s)
+ratelimit:ip:{ip_address}        -> Integer (Sliding window counter, TTL: 600s)
+cache:query:{query_hash}         -> String (Cached analytical JSON result, TTL: 300s)
+```
+
+---
+
+## 9. WebSocket Protocol & Real-Time Broadcasting
+
+The server exposes a single WebSocket endpoint at `ws://<domain>/ws`.
+
+### 9.1 Handshake & Snapshot
+Upon connection, the server immediately pushes a `turbine.snapshot` frame containing current status and 24-hour summary metrics:
+```json
+{
+  "type": "turbine.snapshot",
+  "data": {
+    "timestamp": "2026-10-07T13:50:00.000Z",
+    "power_kw": 2840.5,
+    "wind_speed_ms": 9.4,
+    "wind_direction_deg": 235.0,
+    "rotor_rpm": 14.2,
+    "pitch_deg": 3.2,
+    "status": "RUNNING",
+    "homes_powered": 2680,
+    "energy_today_kwh": 34820.0,
+    "is_live": true,
+    "age_seconds": 1
+  }
+}
+```
+
+### 9.2 Periodic Broadcast (`turbine.update`)
+Every second, connected clients receive an incremental diff:
+```json
+{
+  "type": "turbine.update",
+  "data": {
+    "timestamp": "2026-10-07T13:50:01.000Z",
+    "power_kw": 2855.0,
+    "wind_speed_ms": 9.5,
+    "rotor_rpm": 14.3
+  }
+}
+```
+
+### 9.3 Chat Streaming Events
+Chat interactions use structured sub-protocols over the same WebSocket:
+- `chat.send`: Client sends a prompt.
+- `chat.started`: Server acknowledges and assigns stream ID.
+- `chat.tool_call`: Server informs UI that a tool is being queried (e.g. `Fetching yesterday's power...`).
+- `chat.token`: Server streams partial markdown text tokens.
+- `chat.completed`: Final response delivered with token usage.
+- `chat.error`: Rate limit or execution failure alert.
+
+---
+
+## 10. Public Frontend Architecture & Visualizations
+
+The frontend is built on **Vanilla HTML5, CSS Grid, and ES Modules**, served statically by the Node.js Express server. It achieves **sub-200 ms initial paint** without build step complexity or SSR memory penalties.
+
+```mermaid
+flowchart TD
+    INDEX["Landing Page / Kiosk Hub"] --> COMM["community.html (Community Display)"]
+    INDEX --> SCH["schools.html (Kids & Education)"]
+    INDEX --> SCI["datascience.html (Researchers & Students)"]
+    INDEX --> ADM["admin.html (SCADA Tag Browser)"]
+
+    COMM --> THREE["Three.js PBR 3D Turbine View"]
+    COMM --> CHAT["Ask the Turbine Chat Modal"]
+    
+    SCH --> SVG["SVG Interactive Physics Engine"]
+    SCH --> QUIZ["Clean Energy Quiz"]
+    
+    SCI --> CHART["Chart.js Time-Series & Power Curve"]
+    SCI --> EXPORT["Dataset Request Form"]
+```
+
+---
+
+## 11. 3D Turbine Mechanics & Physics Simulation
+
+Implemented in [`public/community.html`](file:///c:/Users/Shashi%20kiran/Grinding/windmill/public/community.html) using Three.js WebGL:
+1. **GLB Model (`ACE_Turbine.glb`):** Physically Based Rendering (PBR) metallic/roughness material shaders representing the 150m hub height and 115m rotor diameter.
+2. **Rotational Physics:** Rotor blade rotation speed ($\omega$) dynamically maps to live SCADA RPM:
+   $$\omega = \text{rotor\_rpm} \times \frac{2\pi}{60} \text{ rad/s}$$
+3. **Wind Vector Particles:** Instanced buffer geometry renders 500 wind particle vectors travelling across the viewport, with speed proportional to `wind_speed_ms` and angle aligned to `wind_direction_deg`.
+4. **Power Illumination:** Nacelle beacon and blade tip warning strobes pulse at frequencies mapped to instantaneous generation.
+
+---
+
+## 12. Audience Personas & Storytelling Engines
+
+### 12.1 Community Display (`community.html`)
+- **Focus:** Social and economic return to Lawrence Weston.
+- **Equivalency Calculations:**
+  - **Homes Powered:** $\text{Homes} = \frac{\text{Power (kW)}}{0.9 \text{ kW}}$ (average UK household draw).
+  - **Bread Loaves Baked:** Energy equivalent based on 1.2 kWh per loaf.
+  - **Electric Vehicle Miles:** Miles added per minute of generation based on 0.3 kWh/mile.
+  - **Fuel Poverty Fund:** Cumulative revenue accrued to the Ambition Lawrence Weston charity fund.
+
+### 12.2 Kids & Schools (`schools.html`)
+- **Focus:** Interactive educational physics.
+- **Features:** Drag-to-adjust wind slider, interactive Betz Limit explanation, animated turbine cutaway showing gearbox and generator, audio narration, and interactive quiz.
+
+### 12.3 University & Data Science (`datascience.html`)
+- **Focus:** Rigorous academic SCADA exploration.
+- **Features:** 
+  - Dual-axis time-series (Wind Speed vs. Power Output).
+  - Empirical Power Curve scatter plots compared against the manufacturer Enercon E-115 theoretical curve.
+  - Turbulence Intensity ($TI = \sigma / \mu$) calculations.
+  - Direct dataset export forms.
+
+---
+
+## 13. "Ask the Turbine" AI Conversational Architecture
+
+"Ask the Turbine" provides an interactive persona that speaks as the community wind turbine itself ("I am the Lawrence Weston turbine...").
+
+```mermaid
+flowchart TD
+    Q["User Question"] --> WS["WebSocket Gateway"]
+    WS --> RATELIMIT{"Redis Rate Limiter"}
+    
+    RATELIMIT -->|Allowed| SESSION["Load Last 6 Turns (Redis)"]
+    RATELIMIT -->|Exceeded| REJECT["Emit chat.error (429)"]
+    
+    SESSION --> ROUTER["Intent Router (LangGraph / Router Node)"]
+    
+    ROUTER -->|Turbine Query| T_TOOL["Controlled SQL Tool Execution"]
+    ROUTER -->|Community/History| T_RAG["pgvector Semantic Retrieval"]
+    ROUTER -->|Greeting/Conversational| T_DIRECT["Direct Persona Prompt"]
+    
+    T_TOOL --> TS["TimescaleDB / Redis Hot Cache"]
+    T_RAG --> PGV["PostgreSQL pgvector"]
+    
+    T_TOOL --> CONTEXT["Consolidated Context Builder"]
+    T_RAG --> CONTEXT
+    T_DIRECT --> CONTEXT
+    
+    CONTEXT --> ADAPTER["Provider-Agnostic LLM Adapter"]
+    ADAPTER --> GEMINI["Gemini 1.5 Flash (Primary)"]
+    ADAPTER -. Fallback .-> GROQ["Groq Llama 3 70B (Secondary)"]
+    
+    GEMINI -->|Stream Chunks| WS
+    GROQ -->|Stream Chunks| WS
+    WS -->|chat.token Frames| BROWSER["Browser UI (Auto-Scroll)"]
+```
+
+### 13.1 Strict AI Tool Boundary
+The LLM does not generate SQL. It only issues tool calls to these predefined functions:
+
+```javascript
+const turbineTools = {
+  // Returns instantaneous live telemetry from Redis (0 ms latency)
+  async getCurrentStatus() {
+    return await redis.get('live:turbine:ace-01');
+  },
+
+  // Returns daily energy, peak power, and wind speed for a given date
+  async getDailySummary({ date }) {
+    const res = await db.query('SELECT * FROM daily_rollup WHERE day = $1', [date]);
+    return res.rows[0];
+  },
+
+  // Returns aggregated 10m generation history for last 24h, 7d, or 30d
+  async getPowerHistory({ range }) {
+    const hours = range === '7d' ? 168 : range === '30d' ? 720 : 24;
+    const res = await db.query(
+      `SELECT bucket, power_avg, wind_speed_avg 
+       FROM scada_10m 
+       WHERE bucket >= NOW() - INTERVAL '${hours} hours' 
+       ORDER BY bucket ASC`
+    );
+    return res.rows;
+  },
+
+  // Returns record highs (e.g. highest daily production, storm peaks)
+  async getTurbineRecords() {
+    const res = await db.query(
+      `SELECT day, energy_total_kwh, wind_speed_max 
+       FROM daily_rollup 
+       ORDER BY energy_total_kwh DESC LIMIT 5`
+    );
+    return res.rows;
+  }
+};
+```
+
+---
+
+## 14. Multi-User Concurrency & Rate Limiting
+
+To support 100+ simultaneous chat visitors on a single VPS:
+
+### 14.1 Ephemeral Session Isolation
+- Every visitor generates a UUID `session_id`.
+- The last 6 conversational turns are stored in Redis key `chat:session:{session_id}:history` with an automatic **20-minute sliding TTL**.
+- When an anonymous user leaves, their conversation automatically cleans itself up in Redis, preventing memory leaks and avoiding permanent disk consumption.
+
+### 14.2 Dual-Tier Sliding Window Rate Limiting
+Implemented in Redis using atomic Lua scripts:
+- **Per-Session Limit:** Max **6 messages per minute**. Prevents fast-looping automation.
+- **Per-IP Limit:** Max **30 messages per 10 minutes**. Prevents a single device or bot from exhausting LLM quotas.
+- If triggered, the server immediately returns a polite `chat.error`:
+  > *"I am receiving a lot of questions right now! Please wait 30 seconds before asking again."*
+
+### 14.3 Hot-State Query Deduplication
+When 30 visitors simultaneously ask *"How much power are you generating right now?"*, the tool reads directly from Redis (`live:turbine:ace-01`), resolving in **0.1 ms** without querying PostgreSQL 30 times.
+
+---
+
+## 15. Knowledge Retrieval (RAG via pgvector)
+
+Curated documentation (turbine engineering specs, Lawrence Weston local history, community benefit fund details, and school FAQ sheets) is indexed into PostgreSQL using the `vector` extension.
+
+### 15.1 Schema
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS knowledge_documents (
+    id         BIGSERIAL PRIMARY KEY,
+    title      TEXT NOT NULL,
+    category   TEXT NOT NULL, -- 'SPECS', 'HISTORY', 'COMMUNITY', 'EDUCATION'
+    chunk_text TEXT NOT NULL,
+    embedding  VECTOR(768),   -- Sized for standard embeddings (e.g. text-embedding-004)
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Fast cosine similarity search index
+CREATE INDEX IF NOT EXISTS idx_knowledge_embedding 
+ON knowledge_documents USING hnsw (embedding vector_cosine_ops);
+```
+
+### 15.2 Retrieval Query
+```sql
+SELECT title, chunk_text, (1 - (embedding <=> $1)) AS similarity
+FROM knowledge_documents
+WHERE (1 - (embedding <=> $1)) > 0.65
+ORDER BY similarity DESC
+LIMIT 3;
+```
+
+---
+
+## 16. Historical Dataset Storage & Email Delivery
+
+### 16.1 Local Durable SSD Storage
+- Multi-year Parquet and CSV archives are housed locally in `/data/zenodo/` (~16 MB total).
+- No external S3 buckets, AWS IAM keys, or MinIO emulator containers are required.
+
+### 16.2 Delivery Workflow
+```mermaid
 sequenceDiagram
-    participant A as ACE API
-    participant C as Collector
-    participant K as Kafka
-    participant R as Redis
-    participant W as WebSocket
-    participant S as Community Screen
+    actor User as Researcher / Student
+    participant Web as REST API
+    participant DB as PostgreSQL
+    participant Email as Resend Email API
+    participant FS as Local SSD (/data/zenodo/)
 
-    A->>C: Current telemetry
-    C->>K: telemetry.raw
-    K->>R: Update live state
-    R->>W: New state
-    W->>S: Update screen
-
-    Note over S: 2.84 MW<br/>8.7 m/s<br/>Generating
+    User->>Web: POST /api/datasets/request (Name, Email, Purpose)
+    Web->>DB: INSERT INTO dataset_downloads (records audit trail)
+    Web->>Web: Generate HMAC token (valid for 24 hours)
+    Web->>Email: Send email with download link
+    Email-->>User: Receives email: "Download ACE Wind SCADA Dataset"
+    
+    User->>Web: GET /api/datasets/download?token=xyz
+    Web->>Web: Validate signature & expiration
+    Web->>FS: Stream ace-wind-2026-10m-latest.parquet (8.7 MB)
+    FS-->>User: File downloaded via zero-copy stream (< 200 ms)
 ```
 
-------------------------------------------------------------------------
+---
 
-# 58. Graceful Degradation
+## 17. Fault Tolerance & Graceful Degradation
 
-The experience should degrade by capability, not simply fail.
+The platform is designed to degrade gracefully across various component failure modes:
 
-``` mermaid
-flowchart TB
-    LIVE["Live ACE Data"] --> FULL["Full Live Experience"]
+| Failure Mode | Impact | Automated Recovery / Fallback Behavior |
+| :--- | :--- | :--- |
+| **ACE Upstream API Down** | No live data | WebSocket pushes last known state with `is_live: false` and `age_seconds`. UI displays a subtle "Telemetry Paused" badge. Replay mode activated for historical exploration. |
+| **Redis Container Restarts** | Hot cache & sessions lost | App continues running; live state re-created on next 1-second poll. Active chat sessions reset without server crash. Historical data untouched. |
+| **TimescaleDB Down** | Historical queries fail | Live 1 Hz broadcasting continues uninterrupted (runs in-memory via Redis/Node). Chat engine informs users that historical queries are temporarily unavailable. |
+| **Primary LLM (Gemini) 429** | Chat requests rejected | LLM adapter catches 429 and immediately routes prompt to Groq (Llama 3 70B) in < 500 ms. |
+| **Client Disconnects** | Stale WebSocket | Client UI initiates exponential backoff reconnection (`1s, 2s, 4s... max 30s`) and fetches fresh state on reconnect. |
 
-    LIVE -->|Unavailable| CACHE["Last Known Cached Data"]
-    CACHE --> DEG["Degraded Live Experience"]
+---
 
-    DEG --> HIST["Historical Data"]
-    HIST --> HISTORY["Historical Experience"]
+## 18. Deployment & Container Orchestration (Contabo VPS)
 
-    CHAT["Chat"] -->|LLM unavailable| FALLBACK["Structured Data Responses"]
+The platform is managed via a single `docker-compose.yml` on a Contabo VPS running Ubuntu 22.04 LTS:
 
-    WEB["Tavily"] -->|Unavailable| RAG["Local Knowledge / RAG"]
+```yaml
+version: '3.8'
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: ace_timescaledb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ace_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ace_secure_password}
+      POSTGRES_DB: ace_wind
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./scripts/init_timescaledb.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  redis:
+    image: redis:7-alpine
+    container_name: ace_redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  app:
+    build: .
+    container_name: ace_app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4100:4100"
+    environment:
+      NODE_ENV: production
+      PORT: 4100
+      DATABASE_URL: postgres://ace_user:${POSTGRES_PASSWORD:-ace_secure_password}@timescaledb:5432/ace_wind
+      REDIS_URL: redis://redis:6379
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+    volumes:
+      - ./data:/app/data:ro
+    depends_on:
+      - timescaledb
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+volumes:
+  timescaledb_data:
+  redis_data:
 ```
 
-Examples:
+### Production NGINX Reverse Proxy
+NGINX terminates TLS, compresses text assets, and manages WebSocket upgrades:
+```nginx
+server {
+    server_name acewind.org www.acewind.org;
+    listen 443 ssl http2;
 
--   ACE unavailable → show cached latest data + historical charts.
--   Tavily unavailable → answer using ACE knowledge/data.
--   LLM unavailable → keep live dashboard functional.
--   Redis unavailable → query durable storage where possible.
--   WebSocket unavailable → fallback to periodic REST refresh.
--   Resend unavailable → persist email job and retry.
+    ssl_certificate /etc/letsencrypt/live/acewind.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/acewind.org/privkey.pem;
 
-------------------------------------------------------------------------
-
-# 59. WebSocket Fallback
-
-WebSocket is preferred, but not the only path.
-
-``` mermaid
-flowchart TB
-    UI["Frontend"] --> WS{"WebSocket available?"}
-
-    WS -->|Yes| REAL["Real-time stream"]
-    WS -->|No| POLL["Periodic REST polling"]
-
-    REAL --> UI
-    POLL --> UI
+    location / {
+        proxy_pass http://127.0.0.1:4100;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 86400s;
+    }
+}
 ```
 
-This makes the public screen more robust.
+---
 
-------------------------------------------------------------------------
+## 19. Security, Anonymous Sessions & Compliance
 
-# 60. Scaling Model
+1. **Zero Personally Identifiable Information (PII) on Display:** Kiosks and website chats collect no names or emails.
+2. **Download Email Minimal Retention:** When researchers request datasets, their email is stored solely in `dataset_downloads` for access auditing, never shared or marketed to.
+3. **Internal Port Binding:** PostgreSQL and Redis ports are bound strictly to `127.0.0.1` and are never exposed directly to the public internet.
+4. **Parameterized SQL Queries:** All SQL calls use parameterized prepared statements (`$1, $2`), preventing SQL injection attacks.
 
-The initial architecture is one VPS, but components are logically
-separable.
+---
 
-``` mermaid
-flowchart TB
-    subgraph Initial["Phase 1 — One Contabo VPS"]
-        APP1["Frontend + API"]
-        DATA1["Postgres + TimescaleDB"]
-        K1["Kafka"]
-        R1["Redis"]
-        W1["Workers"]
-    end
+## 20. Public REST API & Developer Specification
 
-    subgraph Scale["Phase 2 — Scale Out"]
-        LB["Load Balancer"]
-        A1["API 1"]
-        A2["API 2"]
-        A3["API 3"]
-        K2["Kafka Cluster"]
-        DB2["Database HA"]
-        R2["Redis"]
-    end
+The platform exposes read-only endpoints for developers and educational institutions:
 
-    Initial --> Scale
-```
+| Method | Endpoint | Description | Cache Header |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Health status of Node app, Redis, and TimescaleDB | `no-cache` |
+| `GET` | `/api/live` | Current 1-second telemetry snapshot | `max-age=1` |
+| `GET` | `/api/history` | Recent 10-minute intervals (`range=24h, 7d`) | `max-age=60` |
+| `GET` | `/api/daily-rollup` | Daily continuous aggregate records | `max-age=300` |
+| `GET` | `/api/records` | All-time generation records & peaks | `max-age=3600` |
+| `POST` | `/api/datasets/request` | Submit researcher dataset download form | `no-cache` |
+| `GET` | `/api/datasets/download` | Verify HMAC token & stream Parquet dataset | `private, no-transform` |
 
-------------------------------------------------------------------------
+---
 
-# 61. Why Kafka if there is only one turbine?
+## 21. Technology Matrix & Architectural Pruning Rationale
 
-Kafka is not being added merely because it sounds scalable.
+| Layer | Original Proposal | Final Approved Architecture | Strategic Rationale |
+| :--- | :--- | :--- | :--- |
+| **Streaming** | Apache Kafka | Redis Pub/Sub + Streams | Saves 1.8 GB RAM; 1 msg/sec source rate makes Kafka an unnecessary operational burden. |
+| **Dataset Storage** | AWS S3 / MinIO | Local NVMe SSD (`/data/zenodo/`) | Entire dataset is < 25 MB; local disk is faster, free, and needs no cloud credentials. |
+| **Frontend** | Next.js / TypeScript | Vanilla HTML5 / ES Modules / Three.js | Eliminates SSR memory overhead (300MB); loads in < 200 ms with zero build friction. |
+| **Chat Memory** | Mem0 SaaS | Ephemeral Redis TTL (20 min) | Anonymous public users must not have cross-session memory contamination or SaaS fees. |
+| **Web Search** | Tavily API | Local `pgvector` RAG + SCADA Tools | Turbine domain questions are strictly local; eliminates 3s latency and per-query costs. |
+| **Containers** | 10 Microservices | 3 Lean Containers | Drops total idle RAM from **~5.0 GB** down to **~600 MB** on a single Contabo VPS. |
 
-It gives us decoupling between:
+---
 
--   ingestion
--   storage
--   aggregation
--   live cache
--   analytics
--   forecasting
--   future research consumers
--   future turbines
--   monitoring
+## 22. Locked Decisions & Implementation Roadmap
 
-For one turbine, Kafka is operational overhead. Therefore the
-implementation should keep Kafka deployment simple initially while
-preserving the event-driven boundary.
-
-------------------------------------------------------------------------
-
-# 62. Future Turbines
-
-The schema should never assume one turbine.
-
-``` mermaid
+```mermaid
 flowchart LR
-    A["ACE Turbine 1"] --> K["Kafka"]
-    B["Future Turbine 2"] --> K
-    C["Future Turbine 3"] --> K
+    P1["Phase 1: TimescaleDB Ingest (DONE)"]
+    P2["Phase 2: Historical Endpoints"]
+    P3["Phase 3: Redis Sessions & Rate Limits"]
+    P4["Phase 4: 'Ask the Turbine' AI Engine"]
+    P5["Phase 5: Resend Email Delivery"]
+    P6["Phase 6: Contabo Deployment"]
 
-    K --> TS["TimescaleDB"]
-
-    TS --> API["API"]
-    API --> UI["Frontend"]
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6
 ```
 
-Every telemetry event carries `turbine_id`.
-
-------------------------------------------------------------------------
-
-# 63. Future Forecasting
-
-The architecture can later support short-term wind-power forecasting
-without changing ingestion.
-
-``` mermaid
-flowchart LR
-    K["Kafka Telemetry"] --> FEAT["Feature Pipeline"]
-    FEAT --> ML["Forecast Model"]
-    ML --> FTOPIC["ace.forecast"]
-    FTOPIC --> DB["Forecast Storage"]
-    DB --> API["Forecast API"]
-    API --> UI["Frontend"]
-```
-
-------------------------------------------------------------------------
-
-# 64. Technology Stack
-
-## Frontend
-
-  Technology                     Role
-  ------------------------------ --------------------------
-  Next.js                        Web application
-  React                          UI
-  TypeScript                     Type safety
-  Three.js / React Three Fiber   3D turbine
-  WebSocket client               Realtime
-  Charting library               Historical visualization
-
-## Backend
-
-  Technology           Role
-  -------------------- -----------------------
-  Python               Backend language
-  FastAPI              REST + WebSocket
-  Pydantic             Validation
-  Background workers   Data processing
-  LangChain            AI tooling
-  LangGraph            AI workflow/state
-  Mem0                 Conversational memory
-
-## AI
-
-  Technology                        Role
-  --------------------------------- -------------------------
-  Provider-agnostic LLM adapter     Model abstraction
-  Gemini / Groq / future provider   Replaceable LLM backend
-  Embedding model                   Semantic indexing
-  pgvector                          Vector retrieval
-  Tavily                            External web research
-
-The specific LLM provider is intentionally **not locked**.
-
-## Data
-
-  Technology       Role
-  ---------------- ---------------------------
-  PostgreSQL       Application data
-  TimescaleDB      Time-series
-  pgvector         Semantic search
-  Redis            Cache + hot session state
-  Object storage   Historical files
-
-## Streaming
-
-  Technology        Role
-  ----------------- ----------------
-  Apache Kafka      Event backbone
-  Kafka consumers   Processing
-  Kafka DLQ         Failed events
-
-## Communication
-
-  Technology   Role
-  ------------ ------------------
-  Resend       Dataset emails
-  WebSocket    Realtime updates
-
-## Infrastructure
-
-  Technology       Role
-  ---------------- -----------------------
-  Contabo VPS      Initial deployment
-  Docker           Containerization
-  Docker Compose   Initial orchestration
-  Reverse proxy    TLS/routing
-  Prometheus       Metrics
-  Grafana          Monitoring
-  OpenTelemetry    Observability
-
-------------------------------------------------------------------------
-
-# 65. Final Architecture
-
-``` mermaid
-flowchart TB
-    ACE["ACE API"]
-
-    ACE --> COL["Single ACE Collector"]
-    COL --> K["Apache Kafka"]
-
-    K --> RAW["Raw Archive"]
-    K --> TS["TimescaleDB"]
-    K --> AGG["Aggregation Workers"]
-    K --> FAIL["Failure Pipeline"]
-
-    AGG --> TS
-
-    TS --> REDIS["Redis"]
-    TS --> API["FastAPI"]
-
-    REDIS --> API
-    REDIS --> WS["WebSocket"]
-
-    API --> FRONT["Next.js"]
-    WS --> FRONT
-
-    FRONT --> THREE["3D Turbine"]
-    FRONT --> STORIES["Kids / Students / Community"]
-    FRONT --> DEV["Developer Portal"]
-
-    FRONT --> CHAT["Ask the Turbine"]
-
-    CHAT --> LANG["LangGraph"]
-    LANG --> LLM["Provider-Agnostic LLM"]
-    LANG --> TOOLS["Turbine Tools"]
-    TOOLS --> TS
-
-    LANG --> VEC["pgvector"]
-    LANG --> MEM["Mem0"]
-    LANG --> TAV["Tavily"]
-
-    FRONT --> DATASET["Dataset Form"]
-    DATASET --> RESEND["Resend"]
-    DATASET --> OBJ["Object Storage"]
-
-    HIST["Historical Parquet"] --> ING["Historical Ingestion"]
-    ING --> OBJ
-    ING --> TS
-    ING --> VEC
-```
-
-------------------------------------------------------------------------
-
-# 66. Locked Decisions
-
-  Decision                       Status
-  ------------------------------ -------------------------------
-  ACE API fetched once           **LOCKED**
-  Kafka event backbone           **LOCKED**
-  PostgreSQL                     **LOCKED**
-  TimescaleDB                    **LOCKED**
-  pgvector                       **LOCKED**
-  Redis                          **LOCKED**
-  Mem0                           **LOCKED**
-  WebSocket                      **LOCKED**
-  Tavily                         **LOCKED**
-  LangChain                      **LOCKED**
-  LangGraph                      **LOCKED**
-  LLM provider                   **NOT LOCKED**
-  Gemini/Groq/etc.               **Pluggable**
-  Next.js/React                  **LOCKED**
-  Three.js / R3F                 **LOCKED**
-  Resend                         **LOCKED**
-  Developer page                 **LOCKED**
-  Public user authentication     **NOT REQUIRED**
-  Admin panel                    **NOT REQUIRED**
-  Dataset approval               **NOT REQUIRED**
-  Dataset email delivery         **LOCKED**
-  Object storage                 **S3-compatible abstraction**
-  Deployment                     **Contabo**
-  Initial infrastructure         **One VPS**
-  Containerization               **Docker**
-  Initial orchestration          **Docker Compose**
-  Durable failure records        **LOCKED**
-  Historical dataset ingestion   **LOCKED**
-  Live frontend data             **LOCKED**
-
-------------------------------------------------------------------------
-
-# 67. Final Data Philosophy
-
-The system has a clear hierarchy:
-
-``` text
-                    SOURCE OF TRUTH
-                         │
-             ┌───────────┴───────────┐
-             │                       │
-       ACE Live Data          Historical Data
-             │                       │
-             └───────────┬───────────┘
-                         ▼
-                       Kafka
-                         │
-              ┌──────────┼──────────┐
-              ▼          ▼          ▼
-          Timescale    Archive    Events
-              │
-        ┌─────┴─────┐
-        ▼           ▼
-      Redis       APIs
-        │           │
-        └─────┬─────┘
-              ▼
-          Experience
-              │
-      ┌───────┼────────┐
-      ▼       ▼        ▼
-    Public   Chat    Developer
-```
-
-The AI is **not the source of truth**.
-
-The LLM explains data; it does not invent it.
-
-The chatbot uses tools to retrieve actual turbine values.
-
-The database stores the durable history.
-
-Kafka connects the system.
-
-Redis makes it fast.
-
-WebSockets make it live.
-
-Mem0 makes conversations contextual.
-
-pgvector makes knowledge searchable.
-
-Tavily provides current external information.
-
-Object storage preserves the datasets.
-
-And the public frontend turns all of this into an understandable
-experience for Lawrence Weston.
-
-------------------------------------------------------------------------
-
-# 68. Implementation Order
-
-The architecture should be implemented in this order:
-
-``` mermaid
-flowchart LR
-    A["1. Infrastructure"] --> B["2. Database"]
-    B --> C["3. ACE Collector"]
-    C --> D["4. Kafka Pipeline"]
-    D --> E["5. Aggregation"]
-    E --> F["6. Redis + WebSocket"]
-    F --> G["7. Live Frontend"]
-    G --> H["8. Historical Data"]
-    H --> I["9. Story Engine"]
-    I --> J["10. Developer Portal"]
-    J --> K["11. RAG"]
-    K --> L["12. LangGraph Chat"]
-    L --> M["13. Mem0"]
-    M --> N["14. Tavily"]
-    N --> O["15. Dataset Email"]
-    O --> P["16. Monitoring + Hardening"]
-```
-
-This order gets the **data backbone working before AI**, which is
-important. The chatbot should be built on top of a reliable turbine data
-platform, not become the foundation of it.
+### Phase Breakdown
+1. **Phase 1 (Completed):** TimescaleDB hypertable (`scada_10m`), continuous aggregate (`daily_rollup`), 11,213 rows ingested, automated 12-minute live sync job running.
+2. **Phase 2 (Immediate):** Expose analytical endpoints (`/api/history/compare`, `/api/history/records`, `/api/history/power-curve`).
+3. **Phase 3:** Spin up Redis container; configure session TTL and sliding-window rate limiters.
+4. **Phase 4:** Build "Ask the Turbine" streaming chat with tool router and `pgvector` knowledge search.
+5. **Phase 5:** Add dataset request form with Resend transactional email links.
+6. **Phase 6:** Configure NGINX reverse proxy and systemd service on Contabo VPS.
