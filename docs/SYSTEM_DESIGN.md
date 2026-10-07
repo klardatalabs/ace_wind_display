@@ -8,7 +8,7 @@
 ---
 
 ## Table of Contents
-1. [Executive Summary](#1-executive-summary)
+1. [Executive Summary & High-Level Flow](#1-executive-summary--high-level-flow)
 2. [Goals and Non-Goals](#2-goals-and-non-goals)
 3. [System Architecture Overview](#3-system-architecture-overview)
 4. [Data Flow & End-to-End Lifecycles](#4-data-flow--end-to-end-lifecycles)
@@ -33,13 +33,23 @@
 
 ---
 
-## 1. Executive Summary
+## 1. Executive Summary & High-Level Flow
 
 The Ambition Community Energy (ACE) wind turbine is an Enercon E-115/E-126 3.5 MW, 4.2 MW turbine erected in Lawrence Weston, Bristol. It is the largest onshore community-owned wind turbine in England, generating 100% of its profits for local community development, fuel-poverty alleviation, and social projects.
 
 This platform turns live OPC-UA SCADA telemetry and multi-year historical datasets into a public-facing, interactive digital experience and academic research repository.
 
-### Key Capabilities
+### 1.1 The System at a Glance (Simple 4-Step Pipeline)
+Here is the entire system from wind turbine to user screen in 4 simple steps:
+
+```mermaid
+flowchart LR
+    A["1. Wind Turbine<br><b>Generates Power</b><br>Emits live SCADA values"] -->|1 Hz HTTP Telemetry| B["2. Node.js Ingestion Server<br><b>Validates & Calculates</b><br>Homes powered, RPM, etc."]
+    B -->|Caches live state & 10m rollups| C["3. Redis & TimescaleDB<br><b>Durable & Hot Storage</b><br>Instant cache + time-series"]
+    C -->|WebSockets & REST APIs| D["4. Public Displays (100+ Users)<br><b>Interactive Experience</b><br>3D windmill, graphs, AI chat"]
+```
+
+### 1.2 Key Platform Capabilities
 1. **Live Hoarding & Kiosk Display:** Sub-second streaming of real-time power (kW), wind speed (m/s), rotor RPM, blade pitch, and operational status, rendered in a 3D WebGL PBR turbine.
 2. **Audience-Specific Personas:** Dedicated educational modes for children and schools (SVG physics game), university engineering and data science students (time-series exploration and power curves), and community residents (homes powered, revenue, and carbon offsets).
 3. **"Ask the Turbine" AI Chatbot:** An interactive, conversational voice/text assistant grounded in live telemetry, historical SQL records, and local community knowledge via vector search.
@@ -144,7 +154,19 @@ flowchart TB
 
 ## 4. Data Flow & End-to-End Lifecycles
 
-### 4.1 Live Telemetry Broadcast Lifecycle (1 Hz)
+### 4.1 Simple Visitor Flow (Opening the Website / Display)
+Here is what happens in simple terms from the moment a visitor opens the screen:
+
+```mermaid
+flowchart TD
+    START(["Visitor Opens Website / Kiosk"]) --> LOAD["Browser Downloads 3D Windmill & Page (< 200ms)"]
+    LOAD --> CONNECT["Browser Opens WebSocket to Server (/ws)"]
+    CONNECT --> SNAPSHOT["Server Sends Instant Snapshot (Power, Wind Speed, RPM)"]
+    SNAPSHOT --> STREAM["Server Sends 1-Second Updates Continuously"]
+    STREAM --> SPIN["3D Turbine Blades Spin at Exact Real-World Speed"]
+```
+
+### 4.2 Live Telemetry Broadcast Lifecycle (1 Hz)
 Every second, live power and rotational data flows from the turbine to every connected client display:
 
 ```mermaid
@@ -167,7 +189,7 @@ sequenceDiagram
     end
 ```
 
-### 4.2 Historical SCADA Ingestion Lifecycle (Every 12 Minutes)
+### 4.3 Historical SCADA Ingestion Lifecycle (Every 12 Minutes)
 Continuous rollups and raw 10-minute intervals are preserved without duplicating records:
 
 ```mermaid
@@ -228,6 +250,17 @@ To prevent denial-of-service against the upstream ACE server:
 1. **All Inbound Requests Blocked from ACE API:** Browsers, chatbots, and administrative dashboards read exclusively from Redis or TimescaleDB.
 2. **Idempotent Ingestion Keys:** All SCADA 10-minute records are keyed on `(bucket)`, preventing duplicate rows.
 3. **Resilience to Upstream Failures:** If the ACE API returns HTTP 500 or times out, the collector serves the last known state from Redis, flagged with `is_stale: true`, while the sync job retries with exponential backoff.
+
+### 6.1 Simple Flowchart: How 10-Minute Historical Data is Saved
+
+```mermaid
+flowchart TD
+    TICK(["Every 12 Minutes Trigger"]) --> CHECK["Check Last Stored Time in TimescaleDB (scada_10m)"]
+    CHECK --> FETCH["Fetch Missing 10m Intervals from ACE API (/wecstd/range)"]
+    FETCH --> INSERT["Upsert Intervals into scada_10m Table (Idempotent)"]
+    INSERT --> AGG["TimescaleDB Continuous Aggregate Recalculates daily_rollup"]
+    AGG --> READY(["Data Ready for Charts, Power Curves & AI Queries"])
+```
 
 ---
 
@@ -429,6 +462,29 @@ Implemented in [`public/community.html`](file:///c:/Users/Shashi%20kiran/Grindin
 
 "Ask the Turbine" provides an interactive persona that speaks as the community wind turbine itself ("I am the Lawrence Weston turbine...").
 
+### 13.1 Simple Chat Interaction Flowchart
+
+```mermaid
+flowchart TD
+    MSG(["Visitor Asks: 'How much energy did you make yesterday?'"]) --> RATE{"Rate Limiter Check (Max 6/min)"}
+    RATE -->|Too Fast| WARN["Return Alert: 'Please wait a moment'"]
+    RATE -->|Allowed| INTENT{"What does the question need?"}
+    
+    INTENT -->|Live Status (Power, Wind)| LIVE["Read Hot Cache from Redis (0 ms)"]
+    INTENT -->|Historical Generation| SQL["Query TimescaleDB daily_rollup (2 ms)"]
+    INTENT -->|About the Turbine / Community| RAG["Search pgvector Knowledge Base (< 5 ms)"]
+    INTENT -->|Friendly Greeting| PROMPT["System Persona Prompt"]
+    
+    LIVE --> COMBINE["Assemble Grounded Prompt Context"]
+    SQL --> COMBINE
+    RAG --> COMBINE
+    PROMPT --> COMBINE
+    
+    COMBINE --> LLM["LLM (Gemini 1.5 Flash / Groq Llama 3 70B)"]
+    LLM --> STREAM["Stream Markdown Tokens Live to Screen (< 800ms)"]
+```
+
+### 13.2 Detailed Agent Architecture
 ```mermaid
 flowchart TD
     Q["User Question"] --> WS["WebSocket Gateway"]
@@ -459,7 +515,7 @@ flowchart TD
     WS -->|chat.token Frames| BROWSER["Browser UI (Auto-Scroll)"]
 ```
 
-### 13.1 Strict AI Tool Boundary
+### 13.3 Strict AI Tool Boundary
 The LLM does not generate SQL. It only issues tool calls to these predefined functions:
 
 ```javascript
@@ -561,7 +617,20 @@ LIMIT 3;
 - Multi-year Parquet and CSV archives are housed locally in `/data/zenodo/` (~16 MB total).
 - No external S3 buckets, AWS IAM keys, or MinIO emulator containers are required.
 
-### 16.2 Delivery Workflow
+### 16.2 Simple Flowchart: Researcher Dataset Download
+Here is the automated download flow in 4 simple steps:
+
+```mermaid
+flowchart TD
+    REQUEST(["Student/Researcher Fills Out Download Form"]) --> TOKEN["Server Creates 24h Signed HMAC Token"]
+    TOKEN --> EMAIL["Resend Sends Email with One-Click Link"]
+    EMAIL --> CLICK(["User Clicks Link in Email"])
+    CLICK --> VERIFY{"Verify Token & Expiration"}
+    VERIFY -->|Valid| STREAM["Stream 8.7 MB Parquet File in < 100ms (Kernel Zero-Copy)"]
+    VERIFY -->|Expired / Invalid| REJECT["Show 'Link Expired' Notice"]
+```
+
+### 16.3 Sequence Diagram
 ```mermaid
 sequenceDiagram
     actor User as Researcher / Student
@@ -586,7 +655,20 @@ sequenceDiagram
 
 ## 17. Fault Tolerance & Graceful Degradation
 
-The platform is designed to degrade gracefully across various component failure modes:
+### 17.1 Simple Outage Handling Flowchart
+Here is how the platform automatically handles common unexpected outages:
+
+```mermaid
+flowchart TD
+    EVENT{"What component experienced an issue?"}
+    
+    EVENT -->|Turbine API Down| S1["Serve Last-Known State with 'Telemetry Paused' Badge<br>Allow Full Exploration of Historical Charts"]
+    EVENT -->|Primary LLM Busy (429 Rate Limit)| S2["Auto-Failover to Groq Llama 3 70B in < 500ms<br>Visitor Chat Experiences Zero Disruption"]
+    EVENT -->|Redis Container Restarts| S3["Collector Re-Populates Hot Cache on Next 1-Second Poll<br>Zero Data Loss (TimescaleDB Unaffected)"]
+    EVENT -->|Visitor Network Flap| S4["Client Automatically Reconnects with Exponential Backoff<br>Fetches Fresh Snapshot Immediately"]
+```
+
+### 17.2 Detailed Failure Matrix
 
 | Failure Mode | Impact | Automated Recovery / Fallback Behavior |
 | :--- | :--- | :--- |
