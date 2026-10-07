@@ -43,6 +43,7 @@ import microchip from "line-awesome/svg/microchip-solid.svg?raw";
 import handPointer from "line-awesome/svg/hand-pointer.svg?raw";
 import search from "line-awesome/svg/search-solid.svg?raw";
 import fan from "line-awesome/svg/fan-solid.svg?raw";
+import walk from "line-awesome/svg/walking-solid.svg?raw";
 import thermometer from "line-awesome/svg/thermometer-half-solid.svg?raw";
 import clock from "line-awesome/svg/clock.svg?raw";
 import calendar from "line-awesome/svg/calendar.svg?raw";
@@ -54,7 +55,7 @@ const ICONS = {
   wind, bolt, leaf, home, school, graduation, users, code, terminal, qrcode, comments, commentDots,
   robot, chart, tree, sun, moon, arrowRight, play, eye, cogs, database, mapPin, heart, seedling, gauge,
   plug, industry, lightbulb, book, github, copy, check, close, menu, globe, cube, layers, microchip,
-  handPointer, search, fan, thermometer, clock, calendar, download, cloud, child,
+  handPointer, search, fan, walk, thermometer, clock, calendar, download, cloud, child,
 };
 
 const withCurrentColor = Object.fromEntries(

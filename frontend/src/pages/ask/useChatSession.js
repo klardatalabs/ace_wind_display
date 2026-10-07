@@ -144,10 +144,10 @@ export function useChatSession(screen) {
 
   /** Ask the big screen this chat belongs to to animate. */
   const remote = useCallback(
-    async (action) => {
+    async (action, value) => {
       try {
         const t = token.current || (await mint());
-        return await api.screenCommand(t, action);
+        return await api.screenCommand(t, action, value);
       } catch (err) {
         return { ok: false, reason: err.data?.reason || err.message };
       }

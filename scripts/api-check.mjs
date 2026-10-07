@@ -97,6 +97,14 @@ await check("GET  /api/weather", async () => {
   return res.ok && json?.source ? pass(json.source) : fail(`HTTP ${res.status}`);
 });
 
+await check("GET  /api/photos?q=wind+turbine", async () => {
+  const { res, json } = await http("/api/photos?q=wind+turbine&count=2");
+  if (res.status === 503) return warn("photos not available (no UNSPLASH_ACCESS_KEY, or Unsplash unreachable)");
+  if (!res.ok) return fail(`HTTP ${res.status}`);
+  if (JSON.stringify(json).includes("downloadLocation")) return fail("response leaks the Unsplash download endpoint");
+  return json.photos?.length ? pass(`${json.photos.length} photos`) : warn("no photos found");
+});
+
 // ---------------------------------------------------------------- history
 await check("GET  /api/history?hours=24", async () => {
   const { res, json } = await http("/api/history?hours=24");

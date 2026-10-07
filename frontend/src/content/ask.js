@@ -19,6 +19,7 @@ export const ASK = {
 };
 
 export const REMOTE_ACTIONS = [
+  { action: "walk_start", label: "Walk inside", icon: "walk" },
   { action: "look_inside", label: "Look inside", icon: "eye" },
   { action: "tower_inside", label: "Inside the tower", icon: "layers" },
   { action: "spin_blades", label: "Spin the blades", icon: "fan" },

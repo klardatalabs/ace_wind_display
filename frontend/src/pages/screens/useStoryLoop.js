@@ -15,9 +15,10 @@ export function useStoryLoop(chapters, sceneRef) {
   // ?still keeps the story from running (for demos, screenshots and testing the 3D scene by hand)
   const still = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("still");
 
+  // A visitor's phone or touch: a single named action.
   const runAction = useCallback(
-    (action) => {
-      if (action) sceneRef.current?.command(action);
+    (action, value) => {
+      if (action) sceneRef.current?.command(action, value);
     },
     [sceneRef]
   );
@@ -28,14 +29,16 @@ export function useStoryLoop(chapters, sceneRef) {
     started.current = performance.now();
     setProgress(0);
     // The scene may still be loading on the very first chapter; retry briefly.
+    // A walk chapter waits a few seconds so its opening line can be read first.
+    const chapter = chapters[index];
     let tries = 0;
     const attempt = () => {
-      if (sceneRef.current?.lookInside) runAction(chapters[index].action);
+      if (sceneRef.current?.lookInside) sceneRef.current.applyStage(chapter.stage);
       else if (tries++ < 40) timer = setTimeout(attempt, 250);
     };
-    let timer = setTimeout(attempt, 0);
+    let timer = setTimeout(attempt, chapter.walk ? 4500 : 0);
     return () => clearTimeout(timer);
-  }, [index, chapters, runAction, sceneRef]);
+  }, [index, chapters, sceneRef]);
 
   // Tick the progress ring and advance.
   useEffect(() => {
@@ -58,10 +61,10 @@ export function useStoryLoop(chapters, sceneRef) {
 
   /** A visitor (phone or touch) took control: run their action and hold the story. */
   const yieldTo = useCallback(
-    (action) => {
+    (action, value) => {
       pausedUntil.current = performance.now() + PAUSE_AFTER_VISITOR_MS;
       setPaused(true);
-      runAction(action);
+      runAction(action, value);
     },
     [runAction]
   );

@@ -13,11 +13,10 @@ Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (se
 | --- | --- |
 | `/` | Website: live figures, how it works, the screens, a scroll-driven "look inside", day in the life |
 | `/developers` | Developer portal: live endpoint explorer, code samples, open-data downloads |
-| `/screen/students` | Hoarding screen — cartoon turbine, kid-friendly story |
-| `/screen/community` | Hoarding screen — realistic turbine standing in the Lawrence Weston 3D scan |
-| `/screen/college` | Hoarding screen — blueprint turbine, power curve, technical story |
+| `/screen/students` | Hoarding screen: kid-friendly story told over the live 3D place |
+| `/screen/community` | Hoarding screen: the community story (homes powered, this week, since 2023) |
+| `/screen/college` | Hoarding screen: spec, power curve, tip-speed ratio, generator, open data |
 | `/ask/:screen` | Phone chat opened from each screen's QR code (no login) |
-| `/admin` | Operator console: simulator, weather scenarios, presets, screen remote, endpoint health |
 
 ## The hoarding screens
 
@@ -32,9 +31,7 @@ Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (se
   in the machine room or at the tower base.
 - **Story loop**: chapters with live copy and camera moves advance on their own (GSAP). Touching the
   screen or a phone command pauses the loop so the visitor stays in control.
-- **Three looks, one hue**: cartoon (toon shading + ink outlines), realistic (PBR in the gaussian-splat
-  scan of the site, via Spark), blueprint (glowing edges over translucent solids).
-- Drag to orbit, pinch / wheel to zoom, double-tap to look inside.
+- Drag to orbit, pinch / wheel to zoom, double-tap to look inside, tap any item to read about it.
 
 ## Ask Ace — the phone chat
 
@@ -43,7 +40,7 @@ Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (se
   reload keeps the conversation.
 - Replies **stream** over Server-Sent Events. The agent calls tools for live status, history,
   Tavily web search (the source for every non-live fact: the turbine, the project, the community, wind
-  energy), and `show_on_big_screen`, which sends a fixed animation name (never text) to the screen the visitor scanned.
+  energy), `show_photos` (Unsplash), and `show_on_big_screen`, which sends a fixed animation name (never text) to the screen the visitor scanned.
 - Works with Anthropic (Claude Haiku by default), OpenAI, Groq, Gemini or any OpenAI-compatible
   endpoint; without a key it answers from templates.
 
@@ -67,28 +64,46 @@ chromium --kiosk --noerrdialogs --disable-session-crashed-bubble --incognito htt
 
 Set `PUBLIC_ORIGIN` to the public URL so the QR codes point phones at the right place.
 
-## Admin and simulation
+## The place, the story and the walk-through
 
-`/admin` drives every screen with demo data (protect it with `ADMIN_TOKEN`):
+Every hoarding shows the same procedural 3D place around the turbine: terrain and shore, estate,
+industrial units, a solar farm, pylons, hedges and woodland. The estate, units, solar farm and
+pylons are **illustrations** (tapping them says so), not a survey.
 
-- **Wind simulator**: choose wind speed and bearing; power and rotor speed come from the E-115
-  reference curve (`shared/physics.js`). Toggles for curtailment, fault, technicians on site,
-  warning, or manual power / rpm.
-- **Weather scenarios**: morning wind-up, gusty afternoon, storm front (storm control above 28 m/s),
-  wind veering north, evening lull.
-- **Presets**, a **remote** for each connected screen, a **live 3D preview**, and an
-  **endpoint health** check of every API route.
+- **Real time**: the sun is where it really is over Bristol (`frontend/src/three/environment.js`),
+  and clouds, rain and haze follow OpenWeather at the site (`OPENWEATHER_API_KEY`). Windows light
+  up at night in proportion to the homes the turbine is powering.
+- **Story**: each screen plays chapters (`frontend/src/content/screens.js`): camera moves, drawn
+  measurements, wind streamlines, a day time-lapse, and live figures that hang off the part of the
+  scene they describe (blade tip, nacelle, homes).
+- **Walk inside**: a first-person climb through the tower door, up the ladder and through the hatch
+  into the machine room. A phone can start it and scrub it with a slider ("Walk inside").
+- **Tap anything** (the blades, nacelle, tower, track, estate, the sky) for a description card; "Ask
+  Ace more" fetches a fuller answer with photos through the chatbot.
+
+## Chat sources
+
+Ace answers live questions from the turbine's own data tools. Facts about the turbine, the project
+and the area come from a **web search** (Tavily, `TAVILY_API_KEY`), not from local documents, and
+photos come from **Unsplash** (`UNSPLASH_ACCESS_KEY`), always with the photographer's credit.
+
+## Demo and simulation API
+
+There is no admin page. For demos and testing, `/api/admin/*` can still drive every screen
+(protect it with `ADMIN_TOKEN`, or leave `NODE_ENV` unset for local use): simulate wind speed and
+bearing, apply presets, force the time of day, cloud, rain and fog (`/api/admin/environment`),
+and send commands to a connected screen. `npm run check:api` tests every endpoint.
 
 ## Project layout
 
 ```
 server/            Express API, WebSocket hub, chat agent, data jobs
   chat/            sessions, history store, agent loop, LLM providers, tools, personas
-  routes/          state, history, datasets, chat (SSE), screens, admin
+  routes/          state, history, datasets, chat (SSE), screens, environment, photos, admin (demo API)
 shared/            constants, impact maths and turbine physics used by server and frontend
 frontend/          Vite + React + Tailwind v4 + GSAP
-  src/three/       TurbineScene, camera rig, look-inside, interiors, landscape, splat, themes
-  src/pages/       landing, developers, screens, ask, admin
+  src/three/       TurbineScene, camera rig, world (terrain, trees, buildings), sky, walk, hotspots
+  src/pages/       landing, developers, screens, ask
 assets/source/     the turbine in .blend / .glb / .fbx / .obj
 scripts/           GLB export, Zenodo ingest, landing-page 3D stills (render-stills.mjs)
 ```
@@ -186,12 +201,11 @@ This project transforms raw SCADA telemetry and historical research datasets int
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                               FRONTEND DISPLAY SURFACES                                │
 │                                                                                        │
-│   • 🏘️ /screen/community : PBR turbine in the site scan, impact story, QR to chat      │
-│   • 🎒 /screen/students  : Cartoon turbine, kid-friendly story, look-inside cutaway    │
-│   • 🔬 /screen/college   : Blueprint turbine, live power curve, technical story        │
+│   • 🏘️ /screen/community : Live place, community story, QR to chat                     │
+│   • 🎒 /screen/students  : Kid-friendly story, walk inside the tower                   │
+│   • 🔬 /screen/college   : Spec, live power curve, technical story                     │
 │   • 💬 /ask/:screen      : Private streaming phone chat opened from each screen's QR   │
 │   • 🌐 / and /developers : Website and developer portal (endpoint explorer, datasets)  │
-│   • 🎛️ /admin            : Wind simulator, scenarios, presets, screen remote, health   │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 

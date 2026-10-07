@@ -1,6 +1,6 @@
 // Buttons that animate the big screen this chat belongs to (rate-limited per screen).
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Icon from "../../../components/ui/Icon.jsx";
 import { REMOTE_ACTIONS } from "../../../content/ask.js";
 
@@ -8,6 +8,18 @@ export default function RemotePanel({ onRemote, screenName }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState(null);
   const [busy, setBusy] = useState(null);
+
+  const [climb, setClimb] = useState(0);
+  const lastSent = useRef(0);
+
+  // The climb slider scrubs the walk on the big screen; sent at most every 150 ms.
+  const scrub = (v) => {
+    setClimb(v);
+    const t = performance.now();
+    if (t - lastSent.current < 150) return;
+    lastSent.current = t;
+    onRemote("walk_to", v);
+  };
 
   const run = async (action) => {
     setBusy(action);
@@ -47,6 +59,26 @@ export default function RemotePanel({ onRemote, screenName }) {
                 {a.label}
               </button>
             ))}
+          </div>
+          <div className="mt-2 rounded-2xl bg-white p-3 ring-1 ring-moss-100">
+            <label className="flex items-center justify-between text-xs font-medium text-moss-800" htmlFor="climb">
+              <span>Climb the tower</span>
+              <span className="tabular-nums text-moss-600">{Math.round(climb * 92)} m up</span>
+            </label>
+            <input
+              id="climb"
+              type="range"
+              min="0"
+              max="1"
+              step="0.005"
+              value={climb}
+              onChange={(e) => scrub(Number(e.target.value))}
+              onPointerUp={() => onRemote("walk_to", climb)}
+              className="mt-2 w-full accent-[var(--color-moss-600)]"
+            />
+            <button type="button" onClick={() => { setClimb(0); run("walk_stop"); }} className="mt-1 text-xs font-medium text-moss-600 underline underline-offset-2">
+              Climb back down
+            </button>
           </div>
         </div>
       </div>

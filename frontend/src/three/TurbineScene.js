@@ -81,7 +81,8 @@ export class TurbineScene {
 
     // The environment: where the sun is, what the sky and weather are doing. Set from outside.
     this.env = { cloud: 0.45, rain: 0, fog: 0, windMs: 4, windDeg: 230, litFraction: 0.5, hour: null };
-    this.timeOverride = null; // a Date to show instead of "now" (time-lapse, demos)
+    this.timeOverride = null; // a Date to show instead of "now" (story time-lapse)
+    this.serverHour = null; // a demo hour from the server's environment override
     this.envDirty = true;
     this.envClock = 0;
     this.lastEnvMap = { elevation: 99, cloud: 99, at: -999 };
@@ -357,6 +358,12 @@ export class TurbineScene {
     this.envDirty = true;
   }
 
+  /** The demo hour from the server's override (null = real time); a running time-lapse takes priority. */
+  setServerHour(hour) {
+    this.serverHour = hour == null ? null : londonHourToDate(hour);
+    this.envDirty = true;
+  }
+
   /** Smoothly sweeps the sun through the day (used by the "a day in the life" chapter). */
   timeLapse(fromHour, toHour, seconds, onDone) {
     this.timeLapseTween?.kill();
@@ -375,7 +382,7 @@ export class TurbineScene {
 
   /** The instant being shown: the real "now", or the demo / time-lapse time. */
   get shownDate() {
-    return this.timeOverride ?? new Date();
+    return this.timeOverride ?? this.serverHour ?? new Date();
   }
 
   #applyEnvironment(time) {
@@ -620,6 +627,9 @@ export class TurbineScene {
     if (stage.lapse) {
       const [from, to, seconds] = stage.lapse;
       this.timeLapse(from, to, seconds, () => this.setTimeOfDay(null));
+    } else if (this.timeLapseTween?.isActive()) {
+      this.timeLapseTween.kill();
+      this.setTimeOfDay(null);
     }
     if (stage.action) return this.command(stage.action, stage.value);
   }
@@ -745,7 +755,7 @@ export class TurbineScene {
     }
 
     this.envClock += dt;
-    if (this.envDirty || this.timeOverride || this.envClock > 0.5) {
+    if (this.envDirty || this.timeOverride || this.serverHour || this.envClock > 0.5) {
       this.#applyEnvironment(t);
       this.envDirty = false;
       this.envClock = 0;
