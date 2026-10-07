@@ -2,19 +2,19 @@
 
 import * as liveStatus from "./liveStatus.js";
 import * as generationHistory from "./generationHistory.js";
-import * as knowledgeSearch from "./knowledgeSearch.js";
 import * as webSearch from "./webSearch.js";
 import * as bigScreen from "./bigScreen.js";
 
-const ALL = [liveStatus, generationHistory, knowledgeSearch, webSearch, bigScreen];
+const ALL = [liveStatus, generationHistory, webSearch, bigScreen];
 
 const STATUS_TEXT = {
   get_live_status: "Reading my live sensors…",
   get_generation_history: "Checking my history…",
-  search_knowledge: "Looking it up in my notes…",
-  web_search: "Searching the web…",
+  web_search: "Searching the web for that…",
   show_on_big_screen: "Moving the big screen…",
 };
+
+const isWebSearchEnabled = () => webSearch.isEnabled();
 
 function enabledTools() {
   return ALL.filter((t) => (t.isEnabled ? t.isEnabled() : true));
@@ -39,4 +39,4 @@ export async function runTool(name, args, ctx) {
   }
 }
 
-export { liveStatus, generationHistory, knowledgeSearch };
+export { liveStatus, generationHistory, webSearch, isWebSearchEnabled };

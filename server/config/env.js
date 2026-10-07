@@ -57,5 +57,7 @@ export const config = {
 
   tavily: {
     apiKey: env.TAVILY_API_KEY || "",
+    baseUrl: (env.TAVILY_BASE_URL || "https://api.tavily.com").replace(/\/$/, ""),
+    timeoutMs: Number(env.TAVILY_TIMEOUT_MS) || 10_000,
   },
 };

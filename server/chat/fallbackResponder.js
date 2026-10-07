@@ -1,7 +1,7 @@
 // Answers without an LLM (no API key, or the provider is down). Uses the same tools,
 // so the facts stay grounded; only the wording is templated.
 
-import { liveStatus, generationHistory, knowledgeSearch } from "./tools/index.js";
+import { liveStatus, generationHistory, webSearch, isWebSearchEnabled } from "./tools/index.js";
 import { triggerScreen } from "./tools/bigScreen.js";
 
 const fmt = (n) => Number(n || 0).toLocaleString("en-GB");
@@ -49,13 +49,17 @@ async function answerFor(intent, prompt, ctx) {
       return `Right now I'm making **${fmt(s.power_kw)} kW** — enough for about **${fmt(s.homes_powered_now)} homes**. The wind is **${s.wind_speed_ms} m/s** and my blade tips are moving at about **${s.blade_tip_speed_mph} mph**!`;
     }
     default: {
-      const { results } = await knowledgeSearch.run({ query: prompt });
-      if (results?.length) {
-        const top = results[0];
-        const excerpt = top.content.replace(/\s+/g, " ").slice(0, 420);
-        return `Here's what my notes say about **${top.heading}**:\n\n${excerpt}${top.content.length > 420 ? "…" : ""}`;
+      if (!isWebSearchEnabled()) {
+        return "I can tell you what I'm doing right now — how much power I'm making, the wind, today's total, my records — but I can't look up other facts at the moment. Try asking about my live numbers!";
       }
-      return "I'm Ace, Weston Wind's turbine! Ask me how much power I'm making, what's inside me, who owns me, or about my records.";
+      ctx.onStatus?.("Searching the web for that…");
+      const found = await webSearch.run({ query: `Lawrence Weston Ambition Community Energy wind turbine ${prompt}` }, ctx);
+      if (found.error || (!found.answer && !found.results?.length)) {
+        return "I couldn't find a reliable answer to that just now. Ask me about my live numbers instead, or try rephrasing!";
+      }
+      const lead = found.answer || found.results[0].snippet;
+      const links = found.results.slice(0, 3).map((r) => `- [${r.title}](${r.url})`).join("\n");
+      return `${lead}\n\n**Sources**\n${links}`;
     }
   }
 }

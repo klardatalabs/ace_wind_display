@@ -42,8 +42,8 @@ Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (se
   History is stored per session id only, so two visitors never see each other's messages, and a
   reload keeps the conversation.
 - Replies **stream** over Server-Sent Events. The agent calls tools for live status, history,
-  the project knowledge base (BM25 RAG over the docs in this repo), optional Tavily web search, and
-  `show_on_big_screen`, which sends a fixed animation name (never text) to the screen the visitor scanned.
+  Tavily web search (the source for every non-live fact: the turbine, the project, the community, wind
+  energy), and `show_on_big_screen`, which sends a fixed animation name (never text) to the screen the visitor scanned.
 - Works with Anthropic (Claude Haiku by default), OpenAI, Groq, Gemini or any OpenAI-compatible
   endpoint; without a key it answers from templates.
 
@@ -170,9 +170,9 @@ This project transforms raw SCADA telemetry and historical research datasets int
 │       • GET /api/history/power-curve   -> 11,219 empirical points in 0.5m/s bins       │
 │       • GET /api/history/compare       -> August vs. September generation comparison   │
 │                                                                                        │
-│   [2. Hybrid RAG Chat Agent (server/chat/agent.js & server/knowledge/knowledgeBase.js)]│
+│   [2. Chat Agent with live tools + web search (server/chat/agent.js)]                   │
 │       • Structured SQL Tools           -> Live speed, power, daily kWh, all records    │
-│       • Markdown Knowledge RAG         -> BM25 over the fact sheet + repo docs         │
+│       • Tavily Web Search              -> facts about the turbine, project, community  │
 │       • Typo Tolerance                 -> Handles "yesterdat", "spining", slang        │
 │       • Multi-Provider LLM Adapter     -> Claude Haiku, OpenAI, Groq, Gemini, or Local │
 │       • Streaming                      -> POST /api/chat/stream (Server-Sent Events)   │
@@ -232,11 +232,11 @@ This project transforms raw SCADA telemetry and historical research datasets int
 - **Audit Logging**: Logs all dataset requests and download counts in the `dataset_downloads` table.
 - **Zero-Copy Streaming**: Directly streams the verified 8.74 MB Parquet dataset (`ace-wind-2026-10m-latest.parquet`) to researchers via Node.js kernel streams.
 
-### Step 6: Hybrid RAG Engine (`server/knowledge/knowledgeBase.js` & `server/chat/agent.js`)
+### Step 6: Chat Agent (`server/chat/agent.js`)
 - **Why Pure Vector RAG Fails for Turbines**: Vector embeddings cannot compute numbers, aggregate sensor intervals, or read live RPM.
 - **The Hybrid Solution**:
   1. **Structured SQL Tools**: Query TimescaleDB directly for live telemetry, past 24-hour generation, records, and monthly comparisons.
-  2. **Unstructured Document RAG**: BM25 search over a curated fact sheet (`server/knowledge/docs/weston-wind.md`) and the repo's Markdown docs (`DATA_SOURCES.md`, `API_REFERENCE.md`, `PROJECT_OVERVIEW.md`, etc.).
+  2. **Web Search for Everything Else**: Facts about the turbine, the project and the community come from Tavily web search (cached for 15 minutes), cited on the phone. The project's own Markdown docs are *not* used, because some contained wrong dimensions; if search is unavailable the bot says so instead of guessing.
   3. **Typo Tolerance**: The offline intent router tolerates typos (e.g., *"how much did u generated yesterdat"* still triggers the 24-hour SCADA aggregation); the LLM handles them natively.
   4. **Multi-Provider LLM Integration**: Pre-wired for Anthropic Claude Haiku, OpenAI, Groq (Llama 3.3 70B), Google Gemini and any OpenAI-compatible endpoint, backed by a templated responder if external APIs are unavailable.
 
