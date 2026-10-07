@@ -3,6 +3,7 @@
 // portal last set ("simulate" mode) - display pages don't know which.
 
 import { getSiteLatest, getWecLatest, getStatusLatest, getWecStdRange } from "../clients/aceClient.js";
+import { londonDayStart } from "../../shared/time.js";
 import { POLL_NOW_MS, POLL_TODAY_MS, POLL_STATUS_MS, OFFLINE_AFTER_FAILURES } from "../../shared/constants.js";
 
 const listeners = new Set();
@@ -97,20 +98,6 @@ async function pollNowOnce() {
     onFetchFailure(err, "now");
   }
   publish();
-}
-
-/** Start of "today" in London (UK time, including summer time), as a UTC instant. */
-export function londonDayStart(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const get = (type) => Number(parts.find((p) => p.type === type).value);
-  const sinceMidnightMs = ((get("hour") * 60 + get("minute")) * 60 + get("second")) * 1000;
-  return new Date(now.getTime() - now.getMilliseconds() - sinceMidnightMs);
 }
 
 async function pollTodayOnce() {

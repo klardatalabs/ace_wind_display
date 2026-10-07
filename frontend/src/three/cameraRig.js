@@ -9,9 +9,9 @@ import gsap from "gsap";
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 
 export const SHOTS = {
-  overview: { pos: v(120, 78, 175), target: v(0, 56, 0) },
-  hero: { pos: v(70, 18, 118), target: v(0, 62, 0) },
-  low: { pos: v(26, 4, 46), target: v(0, 40, 0) },
+  overview: { pos: v(320, 130, 450), target: v(0, 62, 0) },
+  hero: { pos: v(175, 42, 255), target: v(0, 72, 0) },
+  low: { pos: v(48, 3, 78), target: v(0, 66, 0) },
   base: { pos: v(9, 5, 17), target: v(0, 9, 0) },
   towerInside: { pos: v(0.2, 2.4, 0.9), target: v(0, 70, -0.4) },
   tower: { pos: v(14, 52, 34), target: v(0, 50, 0) },

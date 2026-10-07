@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLiveStore } from "../../store/useLiveStore.js";
 import { useReducedMotion } from "../../hooks/useReducedMotion.js";
 
-export default function TurbineCanvas({ theme = "realistic", sceneRef, useSplat = true, interactive = true, showLabels = true, frameShift = 0, onLookInside, className = "" }) {
+export default function TurbineCanvas({ theme = "realistic", sceneRef, interactive = true, showLabels = true, frameShift = 0, onLookInside, className = "" }) {
   const canvas = useRef(null);
   const labelRefs = useRef(new Map());
   const [labels, setLabels] = useState([]);
@@ -23,7 +23,6 @@ export default function TurbineCanvas({ theme = "realistic", sceneRef, useSplat 
       if (cancelled) return;
       scene = new TurbineScene(canvas.current, {
         theme,
-        useSplat,
         interactive,
         frameShift,
         onLookInside: (u) => lookInsideCb.current?.(u),

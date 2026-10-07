@@ -1,27 +1,27 @@
 // The hoarding screens' 3D view, in plain Three.js (no React inside).
-// Owns the renderer, the turbine, its procedural interior, the landscape / Lawrence Weston
-// scan around it, the camera rig and the "Look inside" effect. React talks to it through a
+// Owns the renderer, the turbine, its procedural interior, the world around it (terrain,
+// estuary, woods, estate) lit by the real sun and weather, the camera rig and the "Look inside" effect. React talks to it through a
 // handful of methods: setTheme, setLive, command, bindLabels, dispose.
 
 import * as THREE from "three";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import gsap from "gsap";
 import { loadTurbine, meshesOf } from "./loadTurbine.js";
 import { splitShell } from "./splitShell.js";
 import { buildInteriors } from "./interiors.js";
 import { LookInside } from "./lookInside.js";
 import { CameraRig, SHOTS } from "./cameraRig.js";
-import { ENVIRONMENTS, MOSS, roleOf, createMaterial, addOutline, addEdges, isLandscapeRole } from "./themes.js";
+import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS } from "./themes.js";
 import { createSky } from "./sky.js";
-import { buildLandscape } from "./landscape.js";
+import { buildWorld } from "./world/index.js";
 import { markBands, applyBands, blinkAviationLight } from "./accents.js";
-import { loadSiteSplat } from "./splat.js";
+import { sunPosition, sunDirection, skyState } from "./environment.js";
+import { londonHourToDate } from "@shared/time.js";
 
 // The camera shots are composed for the turbine facing this bearing (the prevailing
 // south-westerly). The model's yaw is the live nacelle bearing relative to it.
 const YAW_REFERENCE_DEG = 215;
 const RPM_TO_RAD_PER_SEC = (2 * Math.PI) / 60;
-// Where the scan's second turbine stands, so the stand-in landscape puts one there too.
+// Where the second, smaller turbine nearby stands.
 const NEIGHBOUR_POSITION = new THREE.Vector3(-314, 0, -185);
 
 export const SCREEN_ACTIONS = ["look_inside", "tower_inside", "close_inside", "fly_to_nacelle", "fly_to_base", "overview", "hero", "spin_blades"];
@@ -36,18 +36,16 @@ export class TurbineScene {
    * @param {HTMLCanvasElement} canvas
    * @param {object} [options]
    * @param {"cartoon"|"realistic"|"blueprint"} [options.theme]
-   * @param {boolean} [options.useSplat]     stream the Lawrence Weston scan in the realistic look
    * @param {boolean} [options.interactive]  drag to orbit, pinch / wheel to zoom, double-tap to open
    * @param {number} [options.frameShift]     on wide screens, push the subject this fraction of the width to the right (room for text)
    * @param {(u: number) => void} [options.onLookInside]
-   * @param {(info: { splat: boolean }) => void} [options.onReady]
+   * @param {() => void} [options.onReady]
    * @param {(err: Error) => void} [options.onError]
    */
-  constructor(canvas, { theme = "realistic", useSplat = true, interactive = true, frameShift = 0, onLookInside, onReady, onError } = {}) {
+  constructor(canvas, { theme = "realistic", interactive = true, frameShift = 0, onLookInside, onReady, onError } = {}) {
     this.canvas = canvas;
     this.frameShift = frameShift;
     this.theme = theme;
-    this.useSplat = useSplat;
     this.callbacks = { onLookInside, onReady, onError };
     this.live = { rpm: 0, yaw: 0 };
     this.shown = { rpm: 0, yaw: 0 }; // eased toward live, so jumps in the data look mechanical
@@ -72,19 +70,21 @@ export class TurbineScene {
     this.#buildLights();
     this.sky = createSky();
     this.scene.add(this.sky);
-    this.landscape = buildLandscape();
-    this.scene.add(this.landscape);
-    this.grid = new THREE.GridHelper(3000, 150, MOSS[500], MOSS[800]);
-    this.grid.material.transparent = true;
-    this.grid.material.opacity = 0.35;
-    this.grid.position.y = 0.25;
-    this.scene.add(this.grid);
+    this.world = buildWorld();
+    this.scene.add(this.world.group);
 
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    pmrem.dispose();
+    // The environment: where the sun is, what the sky and weather are doing. Set from outside.
+    this.env = { cloud: 0.45, rain: 0, fog: 0, windMs: 4, windDeg: 230, litFraction: 0.5, hour: null };
+    this.timeOverride = null; // a Date to show instead of "now" (time-lapse, demos)
+    this.envDirty = true;
+    this.envClock = 0;
+    this.lastEnvMap = { elevation: 99, cloud: 99, at: -999 };
+    this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.envScene = new THREE.Scene();
+    this.envScene.add(new THREE.Mesh(this.sky.geometry, this.sky.material));
+    this.envMap = null;
 
-    this.applyTheme(theme); // landscape materials now; the turbine's once it has loaded
+    this.applyTheme(theme);
     this.#observeSize();
     if (interactive) this.#bindPointer();
     this.timer = new THREE.Timer();
@@ -94,15 +94,15 @@ export class TurbineScene {
   // ---------------------------------------------------------------- setup
 
   #buildLights() {
-    this.hemi = new THREE.HemisphereLight(0xffffff, MOSS[200], 1);
+    this.hemi = new THREE.HemisphereLight(0xffffff, 0x4a5a3a, 1);
     this.sun = new THREE.DirectionalLight(0xffffff, 2);
     this.sun.position.set(160, 260, 120);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
-    Object.assign(this.sun.shadow.camera, { left: -90, right: 90, top: 130, bottom: -40, near: 10, far: 700 });
+    Object.assign(this.sun.shadow.camera, { left: -110, right: 110, top: 150, bottom: -50, near: 20, far: 1400 });
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.04;
-    this.sun.target.position.set(0, 40, 0);
+    this.sun.target.position.set(0, 45, 0);
     this.scene.add(this.hemi, this.sun, this.sun.target);
   }
 
@@ -146,32 +146,12 @@ export class TurbineScene {
       root.updateMatrixWorld(true);
       this.lookInside = new LookInside(shells, (u) => this.callbacks.onLookInside?.(u));
 
-      this.callbacks.onReady?.({ splat: false });
-      this.#maybeLoadSplat();
+      this.callbacks.onReady?.({});
       // Opening move: drift from the wide establishing shot into the hero framing.
       this.rig.flyTo("hero", { duration: 5, ease: "power2.inOut" });
     } catch (err) {
       console.error("[3d] failed to load turbine", err);
       this.callbacks.onError?.(err);
-    }
-  }
-
-  /** The scan is 14 MB, so it is only fetched once the realistic look is actually shown. */
-  #maybeLoadSplat() {
-    if (!this.useSplat || this.splat || this.splatLoading || this.theme !== "realistic" || !this.nodes) return;
-    this.splatLoading = true;
-    this.#loadSplat();
-  }
-
-  async #loadSplat() {
-    try {
-      const { splat } = await loadSiteSplat(this.renderer, this.scene);
-      if (this.disposed) return;
-      this.splat = splat;
-      this.#updateBackdrop();
-      this.callbacks.onReady?.({ splat: true });
-    } catch (err) {
-      console.warn("[3d] scan unavailable, keeping the stand-in landscape", err);
     }
   }
 
@@ -257,21 +237,10 @@ export class TurbineScene {
 
   // ---------------------------------------------------------------- theme
 
+  /** Styles the turbine (the world around it is always natural). */
   applyTheme(theme) {
     this.theme = theme;
-    const env = ENVIRONMENTS[theme];
-    this.sky.userData.setColors(env.skyTop, env.skyBottom);
-    this.scene.fog = new THREE.Fog(env.fog, env.fogNear, env.fogFar);
-    this.renderer.toneMappingExposure = env.exposure;
-    this.scene.environment = theme === "realistic" ? this.envMap : null;
-    this.grid.visible = theme === "blueprint";
-
-    const lit = theme !== "blueprint";
-    this.hemi.intensity = theme === "cartoon" ? 1.5 : theme === "realistic" ? 0.9 : 1;
-    this.sun.intensity = theme === "cartoon" ? 1.6 : theme === "realistic" ? 2.6 : 0;
-    this.sun.castShadow = lit;
-
-    const roots = [this.nodes?.root, this.neighbour, this.landscape].filter(Boolean);
+    const roots = [this.nodes?.root, this.neighbour].filter(Boolean);
     const meshes = [];
     for (const r of roots) r.traverse((o) => o.isMesh && !o.userData.isOutline && !o.userData.isEdges && meshes.push(o));
 
@@ -283,35 +252,102 @@ export class TurbineScene {
           child.material.dispose();
         }
       }
-      const role = roleOf(mesh);
-      const landscapeRole = isLandscapeRole(role);
       mesh.material?.dispose?.();
-      mesh.material = createMaterial(theme, role);
-      if (theme === "realistic" && mesh.material.isMeshStandardMaterial) mesh.material.envMapIntensity = 0.55;
+      mesh.material = createMaterial(theme, roleOf(mesh));
+      if (mesh.material.isMeshStandardMaterial) mesh.material.envMapIntensity = 0.9;
       applyBands(mesh, theme);
-      if (!landscapeRole) mesh.castShadow = lit && !mesh.userData.neighbour;
+      mesh.castShadow = theme !== "blueprint" && !mesh.userData.neighbour;
 
-      const plain = !mesh.isInstancedMesh && !landscapeRole && !mesh.userData.part;
+      const plain = !mesh.isInstancedMesh && !mesh.userData.part;
       if (theme === "cartoon" && plain) addOutline(mesh, mesh.userData.neighbour ? 0.002 : 0.0035);
       if (theme === "blueprint" && plain) addEdges(mesh);
     }
 
+    this.lookInside?.setTheme(theme);
     this.lookInside?.rebind();
-    this.#updateBackdrop();
-    this.#maybeLoadSplat();
   }
 
   setTheme(theme) {
-    if (theme !== this.theme && ENVIRONMENTS[theme]) this.applyTheme(theme);
+    if (theme !== this.theme) this.applyTheme(theme);
   }
 
-  #updateBackdrop() {
-    // The scan replaces the stand-in landscape and neighbour turbine in the realistic look.
-    const scan = Boolean(this.splat) && this.theme === "realistic";
-    if (this.splat) this.splat.visible = scan;
-    this.landscape.visible = !scan;
-    if (this.neighbour) this.neighbour.visible = !scan;
-    if (scan) this.scene.fog.far = 6000;
+  // ---------------------------------------------------------------- the real place in real time
+
+  /**
+   * Weather and wind for the sky, light and ground.
+   * @param {{ cloud?: number, rain?: number, fog?: number, windMs?: number, windDeg?: number, litFraction?: number }} env
+   */
+  setEnvironment(env = {}) {
+    Object.assign(this.env, Object.fromEntries(Object.entries(env).filter(([, v]) => v != null && !Number.isNaN(v))));
+    this.envDirty = true;
+  }
+
+  /** Shows a given UK clock hour today (0–24) instead of the real time; null returns to real time. */
+  setTimeOfDay(hour) {
+    this.timeOverride = hour == null ? null : londonHourToDate(hour);
+    this.envDirty = true;
+  }
+
+  /** Smoothly sweeps the sun through the day (used by the "a day in the life" chapter). */
+  timeLapse(fromHour, toHour, seconds, onDone) {
+    this.timeLapseTween?.kill();
+    const state = { h: fromHour };
+    this.timeLapseTween = gsap.to(state, {
+      h: toHour,
+      duration: seconds,
+      ease: "sine.inOut",
+      onUpdate: () => this.setTimeOfDay(state.h),
+      onComplete: () => {
+        if (toHour == null || onDone) onDone?.();
+      },
+    });
+    return this.timeLapseTween;
+  }
+
+  /** The instant being shown: the real "now", or the demo / time-lapse time. */
+  get shownDate() {
+    return this.timeOverride ?? new Date();
+  }
+
+  #applyEnvironment(time) {
+    const date = this.shownDate;
+    const sun = sunPosition(date);
+    const sunDir = sunDirection(sun, this._sunDir || (this._sunDir = new THREE.Vector3()));
+    const sky = skyState({ elevation: sun.elevation, cloud: this.env.cloud, rain: this.env.rain, fog: this.env.fog, windMs: this.env.windMs });
+
+    // the air moves toward (windDeg + 180); scene x = east, z = south
+    const to = THREE.MathUtils.degToRad(this.env.windDeg + 180);
+    const windVec = (this._windVec ||= new THREE.Vector2()).set(Math.sin(to), -Math.cos(to));
+    this.sky.userData.apply(sky, sunDir, windVec);
+
+    // sun by day, a faint moon at night; it always comes from above the horizon
+    const lightDir = (this._lightDir ||= new THREE.Vector3()).copy(sunDir);
+    if (sun.elevation < 0.02) lightDir.set(-sunDir.x, Math.max(0.35, -sunDir.y), -sunDir.z).normalize();
+    this.sun.position.copy(this.sun.target.position).addScaledVector(lightDir, 700);
+    this.sun.color.copy(sky.lightColor);
+    this.sun.intensity = sky.lightIntensity;
+    this.hemi.color.copy(sky.hemiSky);
+    this.hemi.groundColor.copy(sky.hemiGround);
+    this.hemi.intensity = sky.hemiIntensity;
+
+    if (!this.scene.fog) this.scene.fog = new THREE.Fog(0xffffff, 100, 3000);
+    this.scene.fog.color.copy(sky.horizon);
+    this.scene.fog.near = sky.fogNear;
+    this.scene.fog.far = sky.fogFar;
+    this.renderer.toneMappingExposure = 0.92 + 0.25 * (1 - sky.day);
+
+    this.world.update({ time, sky, sunDir, windMs: this.env.windMs, windVec, rain: this.env.rain, litFraction: this.env.litFraction });
+    this.skyNow = sky;
+
+    // Re-light the reflections on the turbine when the sky has changed enough to matter.
+    const last = this.lastEnvMap;
+    if (!this.envMap || Math.abs(sky.elevationDeg - last.elevation) > 3 || Math.abs(sky.cloudCover - last.cloud) > 0.15 || time - last.at > 600) {
+      this.envMap?.dispose();
+      this.envMap = this.pmrem.fromScene(this.envScene, 0.02, 1, 6000).texture;
+      this.scene.environment = this.envMap;
+      this.scene.environmentIntensity = 0.55 + 0.45 * sky.day;
+      this.lastEnvMap = { elevation: sky.elevationDeg, cloud: sky.cloudCover, at: time };
+    }
   }
 
   // ---------------------------------------------------------------- live data
@@ -444,6 +480,15 @@ export class TurbineScene {
       this.lookInside?.updatePlanes();
     }
 
+    this.envClock += dt;
+    if (this.envDirty || this.timeOverride || this.envClock > 0.5) {
+      this.#applyEnvironment(t);
+      this.envDirty = false;
+      this.envClock = 0;
+    }
+    this.sky.userData.uniforms.uTime.value = t;
+    this.world.tick(t);
+
     this.rig.update(dt);
     this.sky.position.copy(this.camera.position);
     this.#updateLabels();
@@ -463,7 +508,7 @@ export class TurbineScene {
       const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
       mats.forEach((m) => m.dispose?.());
     });
-    this.splat?.dispose?.();
+    this.pmrem?.dispose();
     this.envMap?.dispose();
     this.renderer.dispose();
   }

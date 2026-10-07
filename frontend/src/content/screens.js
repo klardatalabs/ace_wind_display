@@ -12,7 +12,7 @@ export const SCREENS = {
   students: {
     key: "students",
     name: "Students",
-    theme: "cartoon",
+    theme: "realistic",
     askLabel: "Ask Ace anything!",
     askHint: "Point your phone camera here",
     chapters: [
@@ -175,7 +175,7 @@ export const SCREENS = {
   college: {
     key: "college",
     name: "College",
-    theme: "blueprint",
+    theme: "realistic",
     askLabel: "Query Ace",
     askHint: "Scan to ask about the data, the physics or the engineering",
     chapters: [
