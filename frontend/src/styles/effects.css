@@ -1,0 +1,101 @@
+/* Effects that are awkward as utility classes: glass borders, glows, brushstrokes, duotone. */
+
+/* Hairline gradient border used on glass pills (masked so the fill stays clear). */
+.glass-ring {
+  position: relative;
+}
+.glass-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.8), rgb(255 255 255 / 0.12));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Soft green wash that fades down from the top of the page (and up from the footer). */
+.sky-wash {
+  background: linear-gradient(100deg, var(--color-moss-200) 0%, var(--color-moss-100) 30%, rgb(255 255 255 / 0) 65%);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+.sky-wash-up {
+  -webkit-mask-image: linear-gradient(to top, #000, transparent);
+  mask-image: linear-gradient(to top, #000, transparent);
+}
+
+/* Animated glow behind the primary CTA. */
+.cta-glow {
+  background: conic-gradient(from var(--glow-angle, 0deg), var(--color-moss-300), var(--color-moss-500), var(--color-moss-200), var(--color-moss-300));
+  animation: glow-spin 4s linear infinite;
+}
+@property --glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes glow-spin {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+
+/* Highlighter strokes behind key words. */
+.brushstroke {
+  background-image: linear-gradient(104deg, transparent 0.6em, var(--color-moss-200) 0.8em, var(--color-moss-100) 92%, transparent 100%);
+  background-size: 100% 58%;
+  background-position: 0 85%;
+  background-repeat: no-repeat;
+  border-radius: 0.4em;
+  padding: 0 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Green duotone for any photo, so imagery always sits in the single brand hue. */
+.duotone {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.duotone > img,
+.duotone > video {
+  filter: grayscale(1) contrast(1.08) brightness(1.02);
+}
+.duotone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, var(--color-moss-300), var(--color-moss-800));
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.duotone-soft::after {
+  background: linear-gradient(160deg, var(--color-moss-100), var(--color-moss-500));
+}
+
+/* Progress ring on step pills (driven by --p, 0..100). */
+.progress-ring circle {
+  stroke-dasharray: 100;
+  stroke-dashoffset: calc(100 - var(--p, 0));
+}
+
+@keyframes nudge {
+  0%, 70%, 100% { transform: translateX(0); }
+  80% { transform: translateX(4px); }
+  90% { transform: translateX(0); }
+}
+.animate-nudge {
+  animation: nudge 2.6s ease-in-out 1.2s 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-glow,
+  .animate-nudge {
+    animation: none;
+  }
+}
