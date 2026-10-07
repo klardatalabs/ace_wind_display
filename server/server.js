@@ -1,8 +1,26 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Load .env if present
+const __envPath = path.resolve(process.cwd(), ".env");
+if (fs.existsSync(__envPath)) {
+  const envContent = fs.readFileSync(__envPath, "utf8");
+  for (const line of envContent.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+      const idx = trimmed.indexOf("=");
+      const key = trimmed.slice(0, idx).trim();
+      const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
+      if (!process.env[key]) process.env[key] = val;
+    }
+  }
+}
+
 import express from "express";
 import { WebSocketServer } from "ws";
 import { createServer } from "node:http";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+
 import { getState, onStateChange, startPolling, setSimulatedState, resumeLive, applyPreset, PRESETS } from "./state.js";
 import { getWecStdRange } from "./aceClient.js";
 import { getComparisonMetrics, getDailyRollups } from "./db.js";
