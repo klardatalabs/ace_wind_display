@@ -24,7 +24,11 @@
       <!-- Live Power Curve Canvas -->
       <div class="chart-container">
         <div class="chart-title-bar">
-          <span class="chart-label">WIND SPEED (m/s) vs ACTIVE POWER (kW)</span>
+          <div class="chart-legend-wrap">
+            <span class="legend-item"><span class="legend-color cyan"></span> Enercon E-115 Theory</span>
+            <span class="legend-item"><span class="legend-color amber"></span> Empirical SCADA 10m Bins (11,219 pts)</span>
+            <span class="legend-item"><span class="legend-color green"></span> Live Telemetry</span>
+          </div>
           <span class="chart-current" id="chart-marker-label">Live Point: -- m/s @ -- kW</span>
         </div>
         <canvas id="power-curve-canvas" width="800" height="340"></canvas>
@@ -35,7 +39,7 @@
         <div class="tech-stat-card">
           <span class="t-lbl">CAPACITY FACTOR</span>
           <span class="t-val" id="t-cf">--%</span>
-          <span class="t-sub">Lifetime benchmark</span>
+          <span class="t-sub" id="t-cf-sub">Benchmark</span>
         </div>
         <div class="tech-stat-card">
           <span class="t-lbl">BLADE TIP SPEED</span>
@@ -43,15 +47,22 @@
           <span class="t-sub" id="t-tip-mph">-- mph</span>
         </div>
         <div class="tech-stat-card">
-          <span class="t-lbl">GRID SETPOINT</span>
-          <span class="t-val" id="t-grid">4,200 kW</span>
-          <span class="t-sub" id="t-curtail-flag">Unconstrained</span>
+          <span class="t-lbl">ALL-TIME PEAK POWER</span>
+          <span class="t-val" id="t-grid">4,357 kW</span>
+          <span class="t-sub" id="t-curtail-flag">Recorded 30 Sep 2026</span>
         </div>
         <div class="tech-stat-card">
-          <span class="t-lbl">LIFETIME YIELD</span>
-          <span class="t-val" id="t-lifetime">-- GWh</span>
-          <span class="t-sub">Exported since Mar 2023</span>
+          <span class="t-lbl">MONITORED YIELD</span>
+          <span class="t-val" id="t-lifetime">1.77 GWh</span>
+          <span class="t-sub" id="t-yield-sub">78 Days · 2,924 Homes</span>
         </div>
+      </div>
+
+      <!-- All-Time Records Subrow from TimescaleDB -->
+      <div class="records-subrow" id="records-subrow">
+        <span>🌪️ <b>Max Wind Gust:</b> <span class="record-pill-val" id="rec-wind">22.1 m/s (4 Sep)</span></span>
+        <span>⚡ <b>Best Single Day:</b> <span class="record-pill-val" id="rec-day">76,239 kWh (18 Sep · 75.6% CF)</span></span>
+        <span>📈 <b>September vs August:</b> <span class="record-pill-val" id="rec-compare">+32.5% Generation</span></span>
       </div>
     </section>
 

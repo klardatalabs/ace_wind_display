@@ -150,8 +150,38 @@ function getAvailableStories() {
   // 6. 100% Resident-Owned Community Pride
   stories.push(landmarkPrideStory());
 
+  // 7. All-time Historical Generation Record from TimescaleDB
+  if (historicalRecords && historicalRecords.highest_daily_energy) {
+    const bestDay = historicalRecords.highest_daily_energy;
+    const totals = historicalRecords.totals || {};
+    stories.push({
+      badge: "COMMUNITY RECORD",
+      icon: "🌟",
+      headline: `Our Record Day: ${fmtInt(bestDay.energy_kwh)} kWh Generated`,
+      lead: `On 18 September, our turbine generated an astounding ${fmtInt(bestDay.energy_kwh)} kWh of clean electricity in 24 hours — running at ${bestDay.capacity_factor_pct}% capacity and setting our all-time community benchmark!`,
+      stat: `${fmtInt(bestDay.energy_kwh)} kWh in 24h`,
+      statUnit: `our single-day record · ${totals.homes_powered_estimate ? fmtInt(totals.homes_powered_estimate) + ' homes powered to date' : '100% clean power'}`,
+      pride: `Over ${(totals.total_energy_kwh / 1_000_000).toFixed(2)} GWh of clean energy produced so far for Lawrence Weston.`
+    });
+  }
+
   return stories;
 }
+
+const fmtInt = (n) => Math.round(n).toLocaleString();
+let historicalRecords = null;
+
+async function loadHistoricalRecords() {
+  try {
+    const res = await fetch("/api/history/records");
+    if (res.ok) {
+      historicalRecords = await res.json();
+    }
+  } catch (err) {
+    console.warn("Could not load community historical records:", err);
+  }
+}
+loadHistoricalRecords();
 
 // Render story beat with smooth transition
 function renderCurrentStory() {

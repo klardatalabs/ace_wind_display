@@ -34,19 +34,19 @@ animator.start();
 
 let liveWind = 5.5;
 let livePower = 650;
-let historyPoints = [];
+let empiricalBins = [];
+let theoreticalPoints = [];
 
-// Enercon E-115 EP3 Theoretical Power Curve (m/s -> kW)
-function theoreticalPower(ws) {
+// Fallback Enercon E-115 EP3 Theoretical Power Curve
+function fallbackTheoreticalPower(ws) {
   if (ws < 2.5) return 0;
   if (ws >= 12.5 && ws < 28.0) return 4245;
-  if (ws >= 28.0) return 0; // Cut-out
-  // Cubic ramp approximation
+  if (ws >= 28.0) return 0;
   const frac = (ws - 2.5) / (12.5 - 2.5);
   return Math.min(4245, Math.pow(frac, 2.6) * 4245);
 }
 
-// Draw the Power Curve Chart on Canvas
+// Draw the Power Curve Chart on Canvas with real TimescaleDB binned data
 function drawPowerCurve() {
   const w = canvas.width;
   const h = canvas.height;
@@ -95,34 +95,61 @@ function drawPowerCurve() {
     ctx.fillText(`${wind} m/s`, x, padTop + plotH + 18);
   }
 
-  // 2. Plot Historical Data Points (if available)
-  if (historyPoints.length) {
-    ctx.fillStyle = "rgba(56, 189, 248, 0.35)";
-    for (const pt of historyPoints) {
-      if (pt.wind >= 0 && pt.power >= 0) {
-        const px = toX(Math.min(maxWind, pt.wind));
-        const py = toY(Math.min(maxKw, pt.power));
+  // 2. Draw Empirical 10m SCADA Bins (from 11,219 TimescaleDB rows)
+  if (empiricalBins.length) {
+    for (const bin of empiricalBins) {
+      if (bin.bin_wind > 0 && bin.sample_count > 0) {
+        const bx = toX(bin.bin_wind);
+        const yMin = toY(Math.max(0, bin.power_min_kw));
+        const yMax = toY(Math.min(maxKw, bin.power_max_kw));
+        const yAvg = toY(Math.max(0, bin.power_avg_kw));
+
+        // Draw min-to-max error bar
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.22)";
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+        ctx.moveTo(bx, yMin);
+        ctx.lineTo(bx, yMax);
+        ctx.stroke();
+
+        // Draw solid amber empirical mean dot
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        ctx.arc(bx, yAvg, 3.5, 0, Math.PI * 2);
         ctx.fill();
       }
     }
   }
 
-  // 3. Draw Theoretical E-115 Reference Curve
+  // 3. Draw Theoretical E-115 Reference Curve (Cyan line)
   ctx.strokeStyle = "#38bdf8";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  let first = true;
-  for (let wind = 0; wind <= 25; wind += 0.25) {
-    const p = theoreticalPower(wind);
-    const x = toX(wind);
-    const y = toY(p);
-    if (first) {
-      ctx.moveTo(x, y);
-      first = false;
-    } else {
-      ctx.lineTo(x, y);
+
+  if (theoreticalPoints.length) {
+    let first = true;
+    for (const pt of theoreticalPoints) {
+      const x = toX(Math.min(maxWind, pt.wind));
+      const y = toY(Math.min(maxKw, pt.power));
+      if (first) {
+        ctx.moveTo(x, y);
+        first = false;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+  } else {
+    let first = true;
+    for (let wind = 0; wind <= 25; wind += 0.25) {
+      const p = fallbackTheoreticalPower(wind);
+      const x = toX(wind);
+      const y = toY(p);
+      if (first) {
+        ctx.moveTo(x, y);
+        first = false;
+      } else {
+        ctx.lineTo(x, y);
+      }
     }
   }
   ctx.stroke();
@@ -160,25 +187,74 @@ function drawPowerCurve() {
   ctx.fill();
 }
 
-// Fetch historical 48h data points to overlay
-async function loadHistory() {
+// Fetch historical power curve from TimescaleDB
+async function loadPowerCurve() {
   try {
-    const res = await fetch("/api/history?hours=48");
+    const res = await fetch("/api/history/power-curve");
     if (!res.ok) return;
     const data = await res.json();
-    if (data.wind && data.power) {
-      historyPoints = data.wind.map((w, i) => ({
-        wind: w,
-        power: data.power[i],
-      }));
-      drawPowerCurve();
+    if (data.empirical && data.empirical.length) {
+      empiricalBins = data.empirical;
     }
+    if (data.theoretical && data.theoretical.length) {
+      theoreticalPoints = data.theoretical;
+    }
+    drawPowerCurve();
   } catch (err) {
-    console.warn("Could not load history points:", err);
+    console.warn("Could not load power curve:", err);
   }
 }
 
-loadHistory();
+// Fetch historical all-time records & monthly comparison
+async function loadRecordsAndCompare() {
+  try {
+    const [recRes, compRes] = await Promise.all([
+      fetch("/api/history/records"),
+      fetch("/api/history/compare")
+    ]);
+
+    if (recRes.ok) {
+      const records = await recRes.json();
+      const recWindEl = document.getElementById("rec-wind");
+      const recDayEl = document.getElementById("rec-day");
+      const yieldSubEl = document.getElementById("t-yield-sub");
+
+      if (records.peak_wind && recWindEl) {
+        const d = new Date(records.peak_wind.timestamp);
+        recWindEl.textContent = `${records.peak_wind.wind_max_ms} m/s (${d.getDate()} ${d.toLocaleString("en-GB", { month: "short" })})`;
+      }
+
+      if (records.highest_daily_energy && recDayEl) {
+        const d = new Date(records.highest_daily_energy.date);
+        recDayEl.textContent = `${Math.round(records.highest_daily_energy.energy_kwh).toLocaleString()} kWh (${d.getDate()} ${d.toLocaleString("en-GB", { month: "short" })} · ${records.highest_daily_energy.capacity_factor_pct}% CF)`;
+      }
+
+      if (records.totals) {
+        if (tLifetime) {
+          tLifetime.textContent = `${(records.totals.total_energy_kwh / 1_000_000).toFixed(2)} GWh`;
+        }
+        if (yieldSubEl) {
+          yieldSubEl.textContent = `${records.totals.total_days} Days · ${records.totals.homes_powered_estimate.toLocaleString()} Homes`;
+        }
+      }
+    }
+
+    if (compRes.ok) {
+      const compare = await compRes.json();
+      const recCompEl = document.getElementById("rec-compare");
+      if (compare.monthly_comparison && recCompEl) {
+        const delta = compare.monthly_comparison.delta_energy_pct;
+        const sign = delta > 0 ? "+" : "";
+        recCompEl.textContent = `${sign}${delta}% (Aug vs Sep)`;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not load records & compare:", err);
+  }
+}
+
+loadPowerCurve();
+loadRecordsAndCompare();
 
 // WebSocket Listener
 onState((snapshot) => {
