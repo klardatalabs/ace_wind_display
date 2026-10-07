@@ -8,6 +8,12 @@ import { getWecStdRange } from "./aceClient.js";
 import { getComparisonMetrics, getDailyRollups } from "./db.js";
 import { startSyncJob } from "./syncJob.js";
 import { startTimescaleSyncJob } from "./timescaleSyncJob.js";
+import { 
+  isDbAvailable, 
+  getTimescaleComparisonMetrics, 
+  getTimescaleRecords, 
+  getTimescalePowerCurve 
+} from "./timescaleDb.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 4100;
@@ -24,16 +30,53 @@ app.get("/", (_req, res) => res.redirect("/community.html"));
 
 app.get("/api/state", (_req, res) => res.json(getState()));
 
-// Historical comparison endpoint (Today vs Yesterday, Week vs Week, Month vs Month, Records)
-app.get("/api/history/compare", (_req, res) => {
+// Historical comparison endpoint (Today vs Yesterday, Month vs Month, or Custom / Zenodo vs Live)
+app.get("/api/history/compare", async (req, res) => {
   try {
+    if (await isDbAvailable()) {
+      const metrics = await getTimescaleComparisonMetrics({
+        mode: req.query.mode,
+        start1: req.query.start1,
+        end1: req.query.end1,
+        start2: req.query.start2,
+        end2: req.query.end2,
+      });
+      return res.json(metrics);
+    }
+    // Fallback to SQLite
     res.json(getComparisonMetrics());
   } catch (err) {
     res.status(500).json({ error: String(err.message ?? err) });
   }
 });
 
-// Daily rollups from local SQLite view (derived from scada_10m grouped by Europe/London)
+// All-time historical generation records, extremes, and cumulative totals
+app.get("/api/history/records", async (_req, res) => {
+  try {
+    if (await isDbAvailable()) {
+      const records = await getTimescaleRecords();
+      return res.json(records);
+    }
+    res.status(503).json({ error: "TimescaleDB currently unavailable" });
+  } catch (err) {
+    res.status(500).json({ error: String(err.message ?? err) });
+  }
+});
+
+// Empirical binned power curve from TimescaleDB with theoretical Enercon E-115 overlay
+app.get("/api/history/power-curve", async (_req, res) => {
+  try {
+    if (await isDbAvailable()) {
+      const curve = await getTimescalePowerCurve();
+      return res.json(curve);
+    }
+    res.status(503).json({ error: "TimescaleDB currently unavailable" });
+  } catch (err) {
+    res.status(500).json({ error: String(err.message ?? err) });
+  }
+});
+
+// Daily rollups (derived from scada_10m grouped by Europe/London)
 app.get("/api/history/daily", (req, res) => {
   try {
     const limit = Math.min(365, Number(req.query.limit) || 30);
