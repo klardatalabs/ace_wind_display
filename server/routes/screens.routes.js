@@ -13,7 +13,7 @@ router.get("/", (_req, res) => res.json({ actions: SCREEN_ACTIONS, connected: co
 router.post("/command", requireChatSession, async (req, res) => {
   const action = req.body?.action;
   if (!SCREEN_ACTIONS.includes(action)) return res.status(400).json({ error: "Unknown action" });
-  const result = await triggerScreen(req.chatSession.screen, action);
+  const result = await triggerScreen(req.chatSession.screen, action, req.body?.value);
   res.status(result.ok ? 200 : 429).json(result);
 });
 

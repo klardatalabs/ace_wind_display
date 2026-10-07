@@ -45,9 +45,12 @@ export const api = {
   // Where the turbine stands right now: weather at the site + any demo override
   environment: () => request("/api/environment"),
 
+  // Photographs from Unsplash (searched on the server so the key stays secret)
+  photos: (query, count = 5) => request(`/api/photos?q=${encodeURIComponent(query)}&count=${count}`),
+
   // Phone -> hoarding remote control
   screens: () => request("/api/screens"),
-  screenCommand: (token, action) => request("/api/screens/command", { method: "POST", token, body: { action } }),
+  screenCommand: (token, action, value) => request("/api/screens/command", { method: "POST", token, body: value === undefined ? { action } : { action, value } }),
 
 };
 
@@ -67,6 +70,8 @@ export const ENDPOINTS = [
   { group: "Ask Ace", method: "POST", path: "/api/chat/stream", about: "Send { message }; the reply streams back as Server-Sent Events: token, status, sources, action, done, error." },
   { group: "Ask Ace", method: "GET", path: "/api/chat/history", about: "This session's own transcript (Bearer token), so a reload keeps the conversation." },
   { group: "Ask Ace", method: "DELETE", path: "/api/chat/session", about: "Forget this session's conversation." },
+  { group: "Photos", method: "GET", path: "/api/photos?q=wind+turbine&count=3", about: "Unsplash photographs for a search (with photographer credits). Needs UNSPLASH_ACCESS_KEY on the server.", tryIt: true },
+  { group: "Live", method: "GET", path: "/api/environment", about: "Weather at the site (OpenWeather) plus any demo override: cloud, rain, fog, time of day.", tryIt: true },
   { group: "Screens", method: "GET", path: "/api/screens", about: "Animation actions a phone can trigger, and how many screens are connected.", tryIt: true },
   { group: "Screens", method: "POST", path: "/api/screens/command", about: "Animate the screen your chat session belongs to ({ action }); rate-limited per screen." },
 ];

@@ -56,12 +56,12 @@ export function attachSocketHub(httpServer) {
 }
 
 /** Sends a fixed animation command to every screen showing `screen`. Returns how many received it. */
-export function sendScreenCommand(screen, action) {
+export function sendScreenCommand(screen, action, value) {
   if (!wss) return 0;
   let delivered = 0;
   for (const client of wss.clients) {
     if (screenOf.get(client) === screen) {
-      send(client, { type: "screen.command", action, at: Date.now() });
+      send(client, { type: "screen.command", action, ...(value === undefined ? {} : { value }), at: Date.now() });
       delivered++;
     }
   }

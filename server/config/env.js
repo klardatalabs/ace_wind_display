@@ -67,6 +67,14 @@ export const config = {
     refreshMs: Number(env.WEATHER_REFRESH_MS) || 10 * 60 * 1000, // free tier allows far more; 10 min is plenty
   },
 
+  // Unsplash: photos shown in the chat. Only the access key is needed to search; the secret
+  // key is for OAuth (user sign-in) which this app doesn't use, so it is never read.
+  unsplash: {
+    accessKey: env.UNSPLASH_ACCESS_KEY || "",
+    baseUrl: (env.UNSPLASH_BASE_URL || "https://api.unsplash.com").replace(/\/$/, ""),
+    timeoutMs: Number(env.UNSPLASH_TIMEOUT_MS) || 8000,
+  },
+
   tavily: {
     apiKey: env.TAVILY_API_KEY || "",
     baseUrl: (env.TAVILY_BASE_URL || "https://api.tavily.com").replace(/\/$/, ""),

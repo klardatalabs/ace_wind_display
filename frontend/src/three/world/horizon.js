@@ -58,6 +58,7 @@ function ridge({ radius, base, amp, seed, segments = 360, tone, bias }) {
   mesh.renderOrder = -1;
   mesh.frustumCulled = false;
   mesh.userData.world = true;
+  mesh.userData.hotspot = "hills";
   return { mesh, uniforms };
 }
 
@@ -93,6 +94,7 @@ export function buildHorizon() {
   bridge.position.set(-5600, 0, -3000);
   bridge.rotation.y = 0.12;
   bridge.userData.world = true;
+  bridge.userData.hotspot = "bridge";
   group.add(bridge);
 
   const all = [...layers.map((l) => l.uniforms), bridgeUniforms];

@@ -50,7 +50,7 @@ export function useChatSession(screen) {
       try {
         if (token.current) {
           const h = await api.chatHistory(token.current);
-          if (alive) setMessages(h.messages.map((m) => ({ id: id(), role: m.role, content: m.content, sources: m.sources })));
+          if (alive) setMessages(h.messages.map((m) => ({ id: id(), role: m.role, content: m.content, sources: m.sources, photos: m.photos })));
         } else {
           await mint();
         }
@@ -112,6 +112,7 @@ export function useChatSession(screen) {
           if (event === "token") patch(replyId, (m) => ({ content: m.content + data.t, statusText: null }));
           else if (event === "status") patch(replyId, () => ({ statusText: data.s }));
           else if (event === "sources") patch(replyId, (m) => ({ sources: [...(m.sources || []), ...data.sources] }));
+          else if (event === "photos") patch(replyId, (m) => ({ photos: [...(m.photos || []), ...data.photos] }));
           else if (event === "action") patch(replyId, (m) => ({ actions: [...(m.actions || []), data.action] }));
           else if (event === "error") patch(replyId, () => ({ content: data.error, error: true }));
         });

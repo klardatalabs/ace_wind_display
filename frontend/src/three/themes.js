@@ -38,18 +38,21 @@ const PALETTES = {
     body: 0xffffff, band1: 0x0e5a34, band2: 0x147a46, band3: 0x1f9a58, band4: 0x4bb872, band5: 0x8fd49b,
     ground: 0xd3d8dc, metal: 0xc3ccd3, dark: 0x4a545c, light: 0xff6b5a, copper: 0xe08a3a, cabinet: 0xe8eef2,
     accent: 0xf5b82e, cable: 0x2a3138,
+    lamp: 0xfff1c9,
     grass: 0x84d35f, tree: 0x3fae4d, trunk: 0x8a5a34, house: 0xfff1de, roof: 0xd8604a, water: 0x5bbbea, road: 0xa4adb4,
   },
   realistic: {
     body: 0xf0f2f1, band1: 0x0c3a1f, band2: 0x14512c, band3: 0x1f6b3c, band4: 0x3b8a52, band5: 0x6aa877,
     ground: 0xb4b8b5, metal: 0x9aa3a8, dark: 0x2d353b, light: 0xff2d20, copper: 0xc47a35, cabinet: 0xc9d0d4,
     accent: 0xe6a824, cable: 0x1c2126,
+    lamp: 0xfff1c9,
     grass: 0x76904a, tree: 0x3e6b34, trunk: 0x4a3b2e, house: 0xd9c9b0, roof: 0x6e4a42, water: 0x7d8b8f, road: 0x4d5155,
   },
   blueprint: {
     body: BLUEPRINT.solid, band1: BLUEPRINT.solid, band2: BLUEPRINT.solid, band3: BLUEPRINT.solid, band4: BLUEPRINT.solid, band5: BLUEPRINT.solid,
     ground: BLUEPRINT.paperLight, metal: 0x7fc4f5, dark: BLUEPRINT.solid, light: 0xffffff, copper: 0xffc46b, cabinet: 0x7fc4f5,
     accent: 0xffd36b, cable: 0x9fd8ff,
+    lamp: 0xffffff,
     grass: BLUEPRINT.paper, tree: 0x1f5c91, trunk: 0x1b4a7a, house: 0x2a6aa6, roof: 0x3f86c7, water: 0x0a2a52, road: 0x123a69,
   },
 };
@@ -98,6 +101,7 @@ export function createMaterial(theme, role) {
     return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: interior ? 0.55 : 0.22, depthWrite: interior });
   }
   if (role === "water") return new THREE.MeshStandardMaterial({ color, roughness: 0.15, metalness: 0.3 });
+  if (role === "lamp") return new THREE.MeshStandardMaterial({ color, emissive: new THREE.Color(0xffe2a8), emissiveIntensity: 2.4, roughness: 0.4 });
   const metallic = ["metal", "copper", "accent"].includes(role);
   return new THREE.MeshStandardMaterial({
     color,

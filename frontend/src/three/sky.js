@@ -82,7 +82,7 @@ export function createSky(radius = 4000) {
   sky.name = "Sky";
   sky.renderOrder = -2;
   sky.frustumCulled = false;
-  sky.raycast = () => {};
+  sky.raycast = () => {}; // tapping the sky is handled separately (see TurbineScene.pickAt)
   sky.userData.uniforms = uniforms;
 
   /** Applies a skyState() result. */

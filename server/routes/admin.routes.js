@@ -71,7 +71,8 @@ router.post("/screens/:screen/command", (req, res) => {
   const action = req.body?.action;
   if (!SCREENS.includes(screen)) return res.status(400).json({ error: "Unknown screen" });
   if (!SCREEN_ACTIONS.includes(action)) return res.status(400).json({ error: "Unknown action" });
-  res.json({ ok: true, delivered: sendScreenCommand(screen, action) });
+  const value = action === "walk_to" ? Math.min(1, Math.max(0, Number(req.body?.value) || 0)) : undefined;
+  res.json({ ok: true, delivered: sendScreenCommand(screen, action, value) });
 });
 
 export default router;

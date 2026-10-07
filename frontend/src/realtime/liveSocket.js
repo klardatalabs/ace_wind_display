@@ -2,6 +2,7 @@
 // subscribe to their screen id to receive animation commands sent from visitors' phones.
 
 import { useLiveStore } from "../store/useLiveStore.js";
+import { useEnvironmentStore } from "../store/useEnvironmentStore.js";
 
 let socket = null;
 let retry = 0;
@@ -32,7 +33,8 @@ function connect() {
       return;
     }
     if (msg.type === "state") setState(msg.state);
-    else if (msg.type === "screen.command") for (const fn of commandListeners) fn(msg.action);
+    else if (msg.type === "environment") useEnvironmentStore.getState().setEnvironment(msg.environment);
+    else if (msg.type === "screen.command") for (const fn of commandListeners) fn(msg.action, msg.value);
   });
 
   socket.addEventListener("close", () => {
@@ -49,6 +51,10 @@ export function startLiveSocket() {
   fetch("/api/state")
     .then((r) => (r.ok ? r.json() : null))
     .then((s) => s && !useLiveStore.getState().state && useLiveStore.getState().setState(s))
+    .catch(() => {});
+  fetch("/api/environment")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((e) => e && !useEnvironmentStore.getState().environment && useEnvironmentStore.getState().setEnvironment(e))
     .catch(() => {});
 }
 

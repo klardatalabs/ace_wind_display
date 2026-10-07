@@ -13,6 +13,7 @@ import datasetRoutes from "./routes/datasets.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 import screenRoutes from "./routes/screens.routes.js";
 import environmentRoutes from "./routes/environment.routes.js";
+import photoRoutes from "./routes/photos.routes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND_DIST = path.join(__dirname, "..", "frontend", "dist");
@@ -37,6 +38,7 @@ export function createApp() {
   app.use("/api/chat", chatRoutes);
   app.use("/api/screens", screenRoutes);
   app.use("/api/environment", environmentRoutes);
+  app.use("/api/photos", photoRoutes);
   app.get("/api/weather", (_req, res) => res.redirect(307, "/api/environment/weather"));
   app.get("/api/config", (req, res) => {
     res.json({ publicOrigin: config.publicOrigin || `${req.protocol}://${req.get("host")}` });

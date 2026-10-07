@@ -107,3 +107,27 @@ export function skyState({ elevation, cloud = 0.3, rain = 0, fog = 0, windMs = 4
     cloudDrift: 0.004 + windMs * 0.0016,
   };
 }
+
+const RAINY = new Set(["Rain", "Drizzle", "Thunderstorm"]);
+const MISTY = new Set(["Mist", "Fog", "Haze", "Smoke"]);
+
+/**
+ * Turns what the server knows (OpenWeather reading + any demo override) and what the turbine
+ * measures into the inputs the 3D scene wants. The turbine's own anemometer wins for wind.
+ * @returns {{ cloud: number, rain: number, fog: number, windMs: number, windDeg: number, hour: number|null }}
+ */
+export function resolveEnvironment(server, live = {}) {
+  const w = server?.weather ?? null;
+  const o = server?.override ?? {};
+  const raining = w && (RAINY.has(w.condition) || w.rainMmH > 0.05);
+  const cloud = o.cloud ?? w?.cloudCover ?? 0.45;
+  const rain = o.rain ?? (raining ? clampUnit(Math.max(w.rainMmH / 3, 0.25)) : 0);
+  const fog = o.fog ?? (w ? Math.max(MISTY.has(w.condition) ? 0.55 : 0, w.visibilityM ? clampUnit(1 - w.visibilityM / 9000) * 0.8 : 0) : 0);
+  const windMs = Number.isFinite(live.windMs) && live.windMs > 0 ? live.windMs : w?.windMs ?? 4;
+  const windDeg = Number.isFinite(live.windDeg) ? live.windDeg : w?.windDeg ?? 230;
+  return { cloud, rain, fog, windMs, windDeg, hour: o.hour ?? null };
+}
+
+function clampUnit(v) {
+  return Math.min(1, Math.max(0, v));
+}

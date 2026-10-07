@@ -15,6 +15,10 @@ import { createSky } from "./sky.js";
 import { buildWorld } from "./world/index.js";
 import { markBands, applyBands, blinkAviationLight } from "./accents.js";
 import { sunPosition, sunDirection, skyState } from "./environment.js";
+import { createWeatherFx } from "./fx.js";
+import { buildAnnotations } from "./annotations.js";
+import { walkHeight } from "./walk.js";
+import { resolveHotspot } from "./hotspots.js";
 import { londonHourToDate } from "@shared/time.js";
 
 // The camera shots are composed for the turbine facing this bearing (the prevailing
@@ -24,7 +28,7 @@ const RPM_TO_RAD_PER_SEC = (2 * Math.PI) / 60;
 // Where the second, smaller turbine nearby stands.
 const NEIGHBOUR_POSITION = new THREE.Vector3(-314, 0, -185);
 
-export const SCREEN_ACTIONS = ["look_inside", "tower_inside", "close_inside", "fly_to_nacelle", "fly_to_base", "overview", "hero", "spin_blades"];
+export const SCREEN_ACTIONS = ["look_inside", "tower_inside", "close_inside", "fly_to_nacelle", "fly_to_base", "overview", "hero", "spin_blades", "walk_start", "walk_stop", "walk_to"];
 
 /** The angle equivalent to `to` that is closest to `from`. */
 function shortestAngle(from, to) {
@@ -39,14 +43,16 @@ export class TurbineScene {
    * @param {boolean} [options.interactive]  drag to orbit, pinch / wheel to zoom, double-tap to open
    * @param {number} [options.frameShift]     on wide screens, push the subject this fraction of the width to the right (room for text)
    * @param {(u: number) => void} [options.onLookInside]
+   * @param {(pick: { id: string, x: number, y: number } | null) => void} [options.onPick]  something was tapped (id of its description card), or null
+   * @param {(s: number, height: number) => void} [options.onWalk]  progress 0..1 and metres climbed during the walk
    * @param {() => void} [options.onReady]
    * @param {(err: Error) => void} [options.onError]
    */
-  constructor(canvas, { theme = "realistic", interactive = true, frameShift = 0, onLookInside, onReady, onError } = {}) {
+  constructor(canvas, { theme = "realistic", interactive = true, frameShift = 0, onLookInside, onWalk, onPick, onReady, onError } = {}) {
     this.canvas = canvas;
     this.frameShift = frameShift;
     this.theme = theme;
-    this.callbacks = { onLookInside, onReady, onError };
+    this.callbacks = { onLookInside, onReady, onError, onWalk, onPick };
     this.live = { rpm: 0, yaw: 0 };
     this.shown = { rpm: 0, yaw: 0 }; // eased toward live, so jumps in the data look mechanical
     this.spinBoostRpm = 0;
@@ -83,6 +89,20 @@ export class TurbineScene {
     this.envScene = new THREE.Scene();
     this.envScene.add(new THREE.Mesh(this.sky.geometry, this.sky.material));
     this.envMap = null;
+
+    this.fx = createWeatherFx();
+    this.scene.add(this.fx.group);
+    this.windViz = 0;
+    this.interior = { f: 0 }; // 0 = out in the open, 1 = inside the turbine (dims the daylight, switches on the lamps)
+    this.headlamp = new THREE.PointLight(0xffe9c8, 0, 18, 2);
+    this.camera.add(this.headlamp);
+    this.scene.add(this.camera);
+    this.raycaster = new THREE.Raycaster();
+    this.raycaster.params.Line.threshold = 0.8;
+    this.pickTarget = null; // { object, local } or { world } — what the card is about
+    this.tagDefs = [];
+    this.tagEls = new Map();
+    this.anchors = {};
 
     this.applyTheme(theme);
     this.#observeSize();
@@ -140,6 +160,29 @@ export class TurbineScene {
       const interiors = buildInteriors(nodes, this.towerPivot);
       this.lift = interiors.lift;
       this.labels = interiors.labels;
+      this.nacelleLights = interiors.nacelleLights;
+
+      nodes.yaw.add(this.fx.wind);
+      this.annotations = buildAnnotations(this.towerPivot, nodes.yaw);
+      const anchor = (parent, name, x, y, z) => {
+        const o = new THREE.Object3D();
+        o.name = `tag-${name}`;
+        o.position.set(x, y, z);
+        parent.add(o);
+        return o;
+      };
+      this.anchors = {
+        hub: anchor(nodes.yaw, "hub", 8.2, 3, 0),
+        rotorTip: anchor(nodes.yaw, "rotorTip", 4.6, 3, 58),
+        windward: anchor(nodes.yaw, "windward", 75, 8, 6),
+        nacelle: anchor(nodes.yaw, "nacelle", -2, 9, 0),
+        base: anchor(root, "base", 0, 4, 0),
+        tower: anchor(this.towerPivot, "tower", 0, 46, 0),
+        transformer: anchor(root, "transformer", -12, 6, -9),
+        estate: anchor(root, "estate", 640, 30, -620),
+        stack: anchor(root, "stack", this.world.stackTop.x, this.world.stackTop.y, this.world.stackTop.z),
+      };
+      for (const [name, obj] of Object.entries(this.annotations.anchors)) this.anchors[`dim${name[0].toUpperCase()}${name.slice(1)}`] = obj;
 
       this.aviationLights = meshesOf(root).filter((m) => m.userData.materialName === "M_Aviation_Light");
       this.applyTheme(this.theme);
@@ -178,29 +221,47 @@ export class TurbineScene {
 
   #bindPointer() {
     const pointers = new Map();
+    const taps = new Map();
     let pinch = 0;
     let lastTap = 0;
+    let suppressTap = false;
+    let hoverAt = 0;
     const el = this.canvas;
     el.style.touchAction = "none";
 
     const down = (e) => {
       el.setPointerCapture?.(e.pointerId);
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      taps.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now() });
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         pinch = Math.hypot(a.x - b.x, a.y - b.y);
       }
       const now = performance.now();
-      if (now - lastTap < 320) this.command(this.lookInside?.u > 0.5 ? "close_inside" : "look_inside");
+      if (now - lastTap < 320) {
+        suppressTap = true; // a double tap opens / closes the turbine; it is not a tap on an object
+        this.clearPick();
+        this.command(this.rig.walk ? "walk_stop" : this.lookInside?.u > 0.5 ? "close_inside" : "look_inside");
+      }
       lastTap = now;
     };
     const move = (e) => {
       const rect = el.getBoundingClientRect();
       this.rig.setPointer(((e.clientX - rect.left) / rect.width) * 2 - 1, ((e.clientY - rect.top) / rect.height) * 2 - 1);
       const prev = pointers.get(e.pointerId);
-      if (!prev) return;
+      if (!prev) {
+        // plain mouse hover: show a hand over anything that has a description
+        const t = performance.now();
+        if (e.pointerType === "mouse" && t - hoverAt > 90) {
+          hoverAt = t;
+          el.style.cursor = this.#hit(e.clientX, e.clientY) ? "pointer" : "grab";
+        }
+        return;
+      }
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pointers.size === 1) {
+      if (pointers.size === 1 && this.rig.walk) {
+        this.rig.lookAround((e.clientX - prev.x) / rect.width, (e.clientY - prev.y) / rect.height);
+      } else if (pointers.size === 1) {
         this.rig.nudge((e.clientX - prev.x) / rect.width, (e.clientY - prev.y) / rect.height);
       } else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
@@ -212,10 +273,18 @@ export class TurbineScene {
     const up = (e) => {
       pointers.delete(e.pointerId);
       if (pointers.size < 2) pinch = 0;
+      const start = taps.get(e.pointerId);
+      taps.delete(e.pointerId);
+      // a short press that hardly moved is a tap, not a drag
+      if (start && !suppressTap && pointers.size === 0 && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 9 && performance.now() - start.t < 450) {
+        setTimeout(() => !suppressTap && this.#pick(e.clientX, e.clientY), 0);
+      }
+      if (pointers.size === 0) setTimeout(() => (suppressTap = false), 340);
     };
     const wheel = (e) => {
       e.preventDefault();
-      this.rig.nudge(0, 0, Math.exp(-e.deltaY * 0.0012));
+      if (this.rig.walk) this.scrubWalk(this.rig.walk.s + e.deltaY * 0.00035);
+      else this.rig.nudge(0, 0, Math.exp(-e.deltaY * 0.0012));
     };
     const leave = () => this.rig.setPointer(0, 0);
 
@@ -326,9 +395,12 @@ export class TurbineScene {
     this.sun.position.copy(this.sun.target.position).addScaledVector(lightDir, 700);
     this.sun.color.copy(sky.lightColor);
     this.sun.intensity = sky.lightIntensity;
+    // inside the turbine the daylight is mostly shut out; the lamps do the work
+    const inside = this.interior.f;
+    this.sun.intensity *= 1 - 0.7 * inside;
     this.hemi.color.copy(sky.hemiSky);
     this.hemi.groundColor.copy(sky.hemiGround);
-    this.hemi.intensity = sky.hemiIntensity;
+    this.hemi.intensity = sky.hemiIntensity * (1 - 0.88 * inside);
 
     if (!this.scene.fog) this.scene.fog = new THREE.Fog(0xffffff, 100, 3000);
     this.scene.fog.color.copy(sky.horizon);
@@ -336,6 +408,7 @@ export class TurbineScene {
     this.scene.fog.far = sky.fogFar;
     this.renderer.toneMappingExposure = 0.92 + 0.25 * (1 - sky.day);
 
+    this.scene.environmentIntensity = (this.envBase ?? 1) * (1 - 0.92 * inside);
     this.world.update({ time, sky, sunDir, windMs: this.env.windMs, windVec, rain: this.env.rain, litFraction: this.env.litFraction });
     this.skyNow = sky;
 
@@ -345,7 +418,7 @@ export class TurbineScene {
       this.envMap?.dispose();
       this.envMap = this.pmrem.fromScene(this.envScene, 0.02, 1, 6000).texture;
       this.scene.environment = this.envMap;
-      this.scene.environmentIntensity = 0.55 + 0.45 * sky.day;
+      this.envBase = 0.55 + 0.45 * sky.day;
       this.lastEnvMap = { elevation: sky.elevationDeg, cloud: sky.cloudCover, at: time };
     }
   }
@@ -361,11 +434,22 @@ export class TurbineScene {
   // ---------------------------------------------------------------- story / remote commands
 
   /** Runs one of SCREEN_ACTIONS. Resolves when its camera move has finished. */
-  async command(action) {
+  async command(action, value) {
     if (!this.lookInside) return;
     const token = ++this.commandToken;
     const still = () => token === this.commandToken && !this.disposed;
+    // anything but a walk command takes the visitor back out of the turbine first
+    if (this.rig.walk && !action.startsWith("walk_")) this.#leaveWalk();
     switch (action) {
+      case "walk_start":
+        return this.startWalk({ duration: Number.isFinite(value) ? value : 44 });
+      case "walk_to": {
+        if (!this.rig.walk) await this.startWalk({ auto: false });
+        this.scrubWalk(value);
+        return;
+      }
+      case "walk_stop":
+        return this.stopWalk();
       case "look_inside": {
         // Camera fly-in: approach the nacelle from wherever we are, then dock inside.
         this.lookInside.open(3.2);
@@ -401,6 +485,186 @@ export class TurbineScene {
       default:
         if (action in SHOTS) await this.rig.flyTo(action);
     }
+  }
+
+  // ---------------------------------------------------------------- walking through the turbine
+
+  /** Applies the "inside the turbine" lighting amount (daylight shut out, lamps on). */
+  #applyInterior() {
+    this.envDirty = true;
+    this.headlamp.intensity = 22 * this.interior.f;
+    for (const l of this.nacelleLights ?? []) l.intensity = 34 * this.interior.f;
+  }
+
+  /** Fades the interior lighting out when leaving (while walking it follows how far in you are). */
+  #setInterior(on, seconds = 1.6) {
+    gsap.killTweensOf(this.interior);
+    gsap.to(this.interior, { f: on ? 1 : 0, duration: seconds, ease: "power2.inOut", onUpdate: () => this.#applyInterior() });
+  }
+
+  /**
+   * First-person walk: in at the tower door, up the ladder, into the machine room.
+   * With `auto` the camera walks itself over `duration` seconds; without it, progress is
+   * driven from outside (a phone slider, the mouse wheel).
+   */
+  async startWalk({ duration = 44, auto = true, from = 0 } = {}) {
+    this.walkTween?.kill();
+    if (this.lookInside.u > 0.01) this.lookInside.close(0.6);
+    this.rig.startWalk(from);
+    this.annotations?.show([]);
+    this.walkState = { s: from };
+    this.callbacks.onWalk?.(from, walkHeight(from));
+    if (!auto) return;
+    await new Promise((resolve) => {
+      this.walkTween = gsap.to(this.walkState, {
+        s: 1,
+        duration,
+        ease: "sine.inOut",
+        onUpdate: () => this.#walkUpdated(),
+        onComplete: resolve,
+        onInterrupt: resolve,
+      });
+    });
+  }
+
+  #walkUpdated() {
+    const s = this.walkState.s;
+    this.rig.setWalk(s);
+    // daylight is shut out as you step through the door (around 8-11% of the way)
+    gsap.killTweensOf(this.interior);
+    this.interior.f = THREE.MathUtils.smoothstep(s, 0.075, 0.115);
+    this.#applyInterior();
+    this.callbacks.onWalk?.(s, walkHeight(s));
+  }
+
+  /** Jump to / scrub to a point on the walk (stops the automatic walk). */
+  scrubWalk(s) {
+    if (!this.rig.walk) return;
+    this.walkTween?.kill();
+    this.walkState = this.walkState ?? { s: 0 };
+    this.walkState.s = Math.min(1, Math.max(0, s));
+    this.#walkUpdated();
+  }
+
+  #leaveWalk() {
+    this.walkTween?.kill();
+    this.#setInterior(false, 1.2);
+    this.rig.walk && this.rig.endWalk("hero");
+    this.callbacks.onWalk?.(null, 0);
+  }
+
+  async stopWalk() {
+    if (!this.rig.walk) return;
+    this.walkTween?.kill();
+    this.#setInterior(false, 1.6);
+    this.callbacks.onWalk?.(null, 0);
+    await this.rig.endWalk("hero");
+  }
+
+  // ---------------------------------------------------------------- tapping things
+
+  /** First thing under a screen point that has a description: { id, hit } or null. */
+  #hit(clientX, clientY) {
+    if (!this.nodes) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const hits = this.raycaster.intersectObjects([this.nodes.root, this.neighbour, this.world.group].filter(Boolean), true);
+    for (const hit of hits) {
+      let ok = true;
+      for (let o = hit.object; o; o = o.parent) {
+        if (o.visible === false || o.userData.noPick) ok = false;
+      }
+      if (!ok) continue;
+      const id = resolveHotspot(hit, { neighbour: this.neighbour });
+      if (id) return { id, hit, ray: this.raycaster.ray.direction.clone() };
+    }
+    // nothing solid: tapping the sky above the horizon describes the sky
+    const dir = this.raycaster.ray.direction;
+    if (dir.y > 0.02 && !this.rig.walk) return { id: "sky", hit: null, ray: dir.clone() };
+    return null;
+  }
+
+  #pick(clientX, clientY) {
+    const found = this.#hit(clientX, clientY);
+    if (!found) {
+      this.clearPick();
+      return;
+    }
+    const { id, hit, ray } = found;
+    if (hit) {
+      // remember where on the object it was tapped, so the marker follows it as it moves or turns
+      this.pickTarget = { object: hit.object, local: hit.object.worldToLocal(hit.point.clone()) };
+    } else {
+      this.pickTarget = { world: this.camera.position.clone().addScaledVector(ray, 800) };
+    }
+    const rect = this.canvas.getBoundingClientRect();
+    this.callbacks.onPick?.({ id, x: clientX - rect.left, y: clientY - rect.top });
+  }
+
+  clearPick() {
+    if (!this.pickTarget) return;
+    this.pickTarget = null;
+    this.callbacks.onPick?.(null);
+  }
+
+  // ---------------------------------------------------------------- story stages and data tags
+
+  /**
+   * One beat of a story: camera / effect, drawn measurements, wind streamlines, time of day.
+   * @param {{ action?: string, value?: number, annotations?: string[], wind?: boolean, lapse?: [number, number, number] }} stage
+   */
+  applyStage(stage = {}) {
+    this.annotations?.show(this.rig.walk ? [] : stage.annotations ?? []);
+    this.windViz = stage.wind ? 1 : 0;
+    if (stage.lapse) {
+      const [from, to, seconds] = stage.lapse;
+      this.timeLapse(from, to, seconds, () => this.setTimeOfDay(null));
+    }
+    if (stage.action) return this.command(stage.action, stage.value);
+  }
+
+  /** The data tags to show: [{ id, anchor }] where anchor names an entry of this.anchors. */
+  setTags(defs = []) {
+    this.tagDefs = defs;
+  }
+
+  /** React hands over the DOM node for each tag id; the scene positions it every frame. */
+  bindTags(map) {
+    this.tagEls = map;
+  }
+
+  #updateTags() {
+    if (!this.tagEls.size || !this.size) return;
+    const v = new THREE.Vector3();
+    const shown = new Set();
+    for (const def of this.tagDefs) {
+      const el = this.tagEls.get(def.id);
+      const obj = this.anchors[def.anchor];
+      if (!el || !obj) continue;
+      shown.add(def.id);
+      obj.getWorldPosition(v);
+      const dist = v.distanceTo(this.camera.position);
+      v.project(this.camera);
+      const visible = v.z < 1 && Math.abs(v.x) < 1.02 && Math.abs(v.y) < 1.02 && dist > 3 && !this.rig.walk;
+      el.dataset.on = visible ? "1" : "0";
+      if (visible) el.style.transform = `translate3d(${((v.x * 0.5 + 0.5) * this.size.w).toFixed(1)}px, ${((-v.y * 0.5 + 0.5) * this.size.h).toFixed(1)}px, 0)`;
+    }
+    // the marker for the tapped thing
+    const marker = this.tagEls.get("__pick");
+    if (marker) {
+      shown.add("__pick");
+      const pt = this.pickTarget;
+      if (pt) {
+        if (pt.object) pt.object.localToWorld(v.copy(pt.local));
+        else v.copy(pt.world);
+        v.project(this.camera);
+        const visible = v.z < 1 && Math.abs(v.x) < 1.02 && Math.abs(v.y) < 1.02;
+        marker.dataset.on = visible ? "1" : "0";
+        if (visible) marker.style.transform = `translate3d(${((v.x * 0.5 + 0.5) * this.size.w).toFixed(1)}px, ${((-v.y * 0.5 + 0.5) * this.size.h).toFixed(1)}px, 0)`;
+      } else marker.dataset.on = "0";
+    }
+    for (const [id, el] of this.tagEls) if (!shown.has(id)) el.dataset.on = "0";
   }
 
   // ---------------------------------------------------------------- HUD labels
@@ -488,10 +752,12 @@ export class TurbineScene {
     }
     this.sky.userData.uniforms.uTime.value = t;
     this.world.tick(t);
+    this.fx.update({ time: t, camera: this.camera, rain: this.env.rain, windMs: this.env.windMs, windVec: this._windVec ?? new THREE.Vector2(1, 0), windViz: this.windViz, dt });
 
     this.rig.update(dt);
     this.sky.position.copy(this.camera.position);
     this.#updateLabels();
+    this.#updateTags();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -509,6 +775,8 @@ export class TurbineScene {
       mats.forEach((m) => m.dispose?.());
     });
     this.pmrem?.dispose();
+    this.walkTween?.kill();
+    gsap.killTweensOf(this.interior);
     this.envMap?.dispose();
     this.renderer.dispose();
   }

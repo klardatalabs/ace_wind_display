@@ -25,7 +25,7 @@ router.post("/session", async (req, res) => {
 
 router.get("/history", requireChatSession, async (req, res) => {
   const messages = await getHistory(req.chatSession.sid);
-  res.json({ screen: req.chatSession.screen, messages: messages.map(({ role, content, sources }) => ({ role, content, sources })) });
+  res.json({ screen: req.chatSession.screen, messages: messages.map(({ role, content, sources, photos }) => ({ role, content, sources, photos })) });
 });
 
 router.delete("/session", requireChatSession, async (req, res) => {
@@ -66,7 +66,7 @@ router.post("/stream", requireChatSession, async (req, res) => {
 
   try {
     const history = await getHistory(sid);
-    const { text, sources } = await runAgent({
+    const { text, sources, photos } = await runAgent({
       prompt: cleaned.text,
       history,
       screen,
@@ -75,11 +75,12 @@ router.post("/stream", requireChatSession, async (req, res) => {
       onStatus: (s) => emit("status", { s }),
       onSources: (s) => emit("sources", { sources: s }),
       onAction: (a) => emit("action", { action: a }),
+      onPhotos: (p) => emit("photos", { photos: p.map(({ downloadLocation, ...safe }) => safe) }),
     });
     if (text.trim()) {
       await appendMessages(sid, [
         { role: "user", content: cleaned.text },
-        { role: "assistant", content: text, ...(sources.length ? { sources } : {}) },
+        { role: "assistant", content: text, ...(sources.length ? { sources } : {}), ...(photos.length ? { photos: photos.map(({ downloadLocation, ...safe }) => safe) } : {}) },
       ]);
     }
     emit("done", {});

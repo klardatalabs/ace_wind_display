@@ -88,6 +88,7 @@ export function buildWater() {
   mesh.position.y = -0.38;
   mesh.name = "Water";
   mesh.userData.world = true;
+  mesh.userData.hotspot = "estuary";
   mesh.frustumCulled = false;
   return { mesh, uniforms };
 }

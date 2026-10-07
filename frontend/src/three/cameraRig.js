@@ -5,6 +5,7 @@
 
 import * as THREE from "three";
 import gsap from "gsap";
+import { walkAt } from "./walk.js";
 
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -41,6 +42,9 @@ export class CameraRig {
     this.userTarget = { yaw: 0, pitch: 0, zoom: 1 };
     this.lastInteraction = -Infinity;
     this.returnAfter = 7; // seconds of no touching before the camera drifts home
+    this.walk = null; // { s, lookYaw, lookPitch } while walking through the turbine
+    this._eye = new THREE.Vector3();
+    this._look = new THREE.Vector3();
     this._tween = null;
     this._world = new THREE.Vector3();
     this._offset = new THREE.Vector3();
@@ -93,7 +97,38 @@ export class CameraRig {
   }
 
   get isInside() {
-    return this.current === "machineRoom" || this.current === "towerInside";
+    return Boolean(this.walk) || this.current === "machineRoom" || this.current === "towerInside";
+  }
+
+  /** Begin (or resume) the first-person walk at progress s. */
+  startWalk(s = 0) {
+    this._tween?.kill();
+    this.resetUser();
+    this.walk = this.walk ?? { s, lookYaw: 0, lookPitch: 0 };
+    this.walk.s = s;
+    this.current = "walk";
+  }
+
+  setWalk(s) {
+    if (this.walk) this.walk.s = Math.min(1, Math.max(0, s));
+  }
+
+  /** Look around while walking: dx, dy are drag deltas as fractions of the screen. */
+  lookAround(dx, dy) {
+    if (!this.walk) return;
+    this.walk.lookYaw = THREE.MathUtils.clamp(this.walk.lookYaw - dx * 3.4, -2.6, 2.6);
+    this.walk.lookPitch = THREE.MathUtils.clamp(this.walk.lookPitch - dy * 2.2, -1.1, 1.1);
+    this.lastInteraction = this.time;
+  }
+
+  endWalk(next = "hero") {
+    if (!this.walk) return;
+    // leave from where the camera is, so there is no jump
+    this.pos.copy(this._eye);
+    this.target.copy(this._look);
+    this.walk = null;
+    this.current = "walkExit";
+    return this.flyTo(next, { duration: 3.2 });
   }
 
   /** Drag deltas in screen fractions (dx, dy) and/or a zoom factor (>1 = closer). */
@@ -119,6 +154,29 @@ export class CameraRig {
     const inside = this.isInside;
     const sway = inside ? 0.02 : 0.05 * this.swayAmount;
     const yaw = this.getYaw() + Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04;
+
+    if (this.walk) {
+      // first person: follow the path, with a slow drift back to centre after looking around
+      if (this.time - this.lastInteraction > 5) {
+        this.walk.lookYaw *= 1 - Math.min(1, dt * 0.8);
+        this.walk.lookPitch *= 1 - Math.min(1, dt * 0.8);
+      }
+      walkAt(this.walk.s, this._eye, this._look);
+      const bob = Math.sin(this.walk.s * 420) * 0.025; // rung by rung
+      this._eye.y += bob;
+      this._look.sub(this._eye);
+      this._look.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.walk.lookYaw);
+      const right = this._offset.set(-this._look.z, 0, this._look.x).normalize();
+      this._look.applyAxisAngle(right, this.walk.lookPitch);
+      this._look.add(this._eye);
+      this.pos.copy(this._eye);
+      this.target.copy(this._look);
+      this._world.copy(this._eye).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+      this._worldTarget.copy(this._look).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+      this.camera.position.copy(this._world);
+      this.camera.lookAt(this._worldTarget);
+      return;
+    }
 
     // Orbit around the shot's target: yaw around it, tilt up/down, dolly in/out.
     this._offset.copy(this.pos).sub(this.target);

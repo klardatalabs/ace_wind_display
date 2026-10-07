@@ -12,6 +12,8 @@ export function useStoryLoop(chapters, sceneRef) {
   const [paused, setPaused] = useState(false);
   const started = useRef(performance.now());
   const pausedUntil = useRef(0);
+  // ?still keeps the story from running (for demos, screenshots and testing the 3D scene by hand)
+  const still = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("still");
 
   const runAction = useCallback(
     (action) => {
@@ -22,6 +24,7 @@ export function useStoryLoop(chapters, sceneRef) {
 
   // Enter a chapter: run its camera move / effect.
   useEffect(() => {
+    if (still) return undefined;
     started.current = performance.now();
     setProgress(0);
     // The scene may still be loading on the very first chapter; retry briefly.
@@ -36,6 +39,7 @@ export function useStoryLoop(chapters, sceneRef) {
 
   // Tick the progress ring and advance.
   useEffect(() => {
+    if (still) return undefined;
     const id = setInterval(() => {
       const now = performance.now();
       if (now < pausedUntil.current) {

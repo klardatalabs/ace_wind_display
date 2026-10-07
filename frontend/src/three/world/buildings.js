@@ -6,8 +6,9 @@ import * as THREE from "three";
 import { rng, hash2 } from "./noise.js";
 import { ZONES, ROAD, distToPolyline } from "./layout.js";
 
-const mark = (o) => {
+const mark = (o, hotspot) => {
   o.userData.world = true;
+  if (hotspot) o.userData.hotspot = hotspot;
   o.frustumCulled = false;
   return o;
 };
@@ -94,7 +95,7 @@ export function buildEstate() {
   });
   mesh.castShadow = false;
   mesh.receiveShadow = false;
-  mark(mesh);
+  mark(mesh, "estate");
 
   // windows: 4 small quads per house, 2 on each long side — lit or dark per house
   const windowGeo = new THREE.PlaneGeometry(1.1, 1.3);
@@ -114,7 +115,7 @@ export function buildEstate() {
   });
   windows.instanceMatrix.needsUpdate = true;
   windows.setColorAt(0, c.set(0x000000));
-  mark(windows);
+  mark(windows, "estate");
 
   const states = houses.map((h, i) => hash2(i, 91)); // each house's fixed position in the "lights on" order
   let lastKey = "";
@@ -170,7 +171,7 @@ export function buildIndustrial() {
     shedMesh.setMatrixAt(i, m);
     shedMesh.setColorAt(i, c.set(cladding[Math.floor(rand() * cladding.length)]));
   });
-  mark(shedMesh);
+  mark(shedMesh, "industrial");
 
   // low-pitched roofs: a slightly darker flat slab on top of each shed
   const roofMesh = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ color: 0x70767a, roughness: 0.8 }), sheds.length);
@@ -179,7 +180,7 @@ export function buildIndustrial() {
     m.compose(new THREE.Vector3(s.x, s.h, s.z), q, new THREE.Vector3(s.w * 1.01, 0.5, s.d * 1.01));
     roofMesh.setMatrixAt(i, m);
   });
-  mark(roofMesh);
+  mark(roofMesh, "industrial");
 
   // storage tanks
   const tankGeo = new THREE.CylinderGeometry(1, 1, 1, 24).toNonIndexed();
@@ -190,7 +191,7 @@ export function buildIndustrial() {
     m.compose(new THREE.Vector3(x0 + 60 + (i % 7) * 34 + rand() * 6, 0, z0 + 20 + Math.floor(i / 7) * 36), new THREE.Quaternion(), new THREE.Vector3(r, 9 + rand() * 9, r));
     tanks.setMatrixAt(i, m);
   }
-  mark(tanks);
+  mark(tanks, "industrial");
 
   // shipping containers stacked in the yards
   const containers = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.3 }), 220);
@@ -201,7 +202,7 @@ export function buildIndustrial() {
     containers.setMatrixAt(i, m);
     containers.setColorAt(i, c.set(cCols[Math.floor(rand() * cCols.length)]));
   }
-  mark(containers);
+  mark(containers, "industrial");
 
   // a tall chimney stack with red-and-white bands (aircraft warning paint)
   const stackGeo = new THREE.CylinderGeometry(2.2, 3.6, 95, 16, 10, true).toNonIndexed();
@@ -213,7 +214,7 @@ export function buildIndustrial() {
   stackGeo.setAttribute("color", new THREE.BufferAttribute(sc, 3));
   const stack = new THREE.Mesh(stackGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }));
   stack.position.set(x1 - 60, 47.5, z0 + 70);
-  mark(stack);
+  mark(stack, "chimney");
 
   group.add(shedMesh, roofMesh, tanks, containers, stack);
   return { group, stackTop: new THREE.Vector3(x1 - 60, 96, z0 + 70) };
@@ -239,7 +240,7 @@ export function buildSolarFarm() {
       mesh.setMatrixAt(i++, m);
     }
   }
-  mark(mesh);
+  mark(mesh, "solar");
   const group = new THREE.Group();
   group.name = "SolarFarm";
   group.add(mesh);
@@ -286,7 +287,7 @@ export function buildPylons() {
     }
     tops.push(base);
   }
-  mark(legs); mark(arms);
+  mark(legs, "pylons"); mark(arms, "pylons");
 
   // sagging cables between pylons (a parabola, three per side)
   const points = [];
@@ -307,7 +308,7 @@ export function buildPylons() {
   const lineGeo = new THREE.BufferGeometry();
   lineGeo.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
   const lines = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: 0x2a3036 }));
-  mark(lines);
+  mark(lines, "pylons");
   group.add(legs, arms, lines);
   return { group };
 }

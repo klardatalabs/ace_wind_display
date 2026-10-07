@@ -3,14 +3,16 @@
 import * as liveStatus from "./liveStatus.js";
 import * as generationHistory from "./generationHistory.js";
 import * as webSearch from "./webSearch.js";
+import * as showPhotos from "./showPhotos.js";
 import * as bigScreen from "./bigScreen.js";
 
-const ALL = [liveStatus, generationHistory, webSearch, bigScreen];
+const ALL = [liveStatus, generationHistory, webSearch, showPhotos, bigScreen];
 
 const STATUS_TEXT = {
   get_live_status: "Reading my live sensors…",
   get_generation_history: "Checking my history…",
   web_search: "Searching the web for that…",
+  show_photos: "Finding some pictures…",
   show_on_big_screen: "Moving the big screen…",
 };
 

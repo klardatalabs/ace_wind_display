@@ -4,9 +4,33 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLiveStore } from "../../store/useLiveStore.js";
+import { useEnvironmentStore } from "../../store/useEnvironmentStore.js";
+import { resolveEnvironment } from "../../three/environment.js";
+import { homesPoweredNow } from "@shared/impact.js";
 import { useReducedMotion } from "../../hooks/useReducedMotion.js";
 
-export default function TurbineCanvas({ theme = "realistic", sceneRef, interactive = true, showLabels = true, frameShift = 0, onLookInside, className = "" }) {
+function pushLive(scene) {
+  const now = useLiveStore.getState().state?.now;
+  if (!now) return;
+  scene.setLive({ rotorRpm: now.rotorRpm, nacelleDeg: now.nacelleDeg });
+}
+
+function pushEnvironment(scene) {
+  const now = useLiveStore.getState().state?.now ?? {};
+  const env = resolveEnvironment(useEnvironmentStore.getState().environment, { windMs: now.windSpeed, windDeg: now.aggregateWindDir });
+  scene.setEnvironment({
+    cloud: env.cloud,
+    rain: env.rain,
+    fog: env.fog,
+    windMs: env.windMs,
+    windDeg: env.windDeg,
+    // 12,000 homes is what the turbine powers at full output
+    litFraction: Math.min(1, homesPoweredNow(Math.max(0, now.activePowerKw ?? 0)) / 12000),
+  });
+  scene.setTimeOfDay(env.hour);
+}
+
+export default function TurbineCanvas({ theme = "realistic", sceneRef, interactive = true, showLabels = true, frameShift = 0, onLookInside, onWalk, tags = [], tagRefs, className = "" }) {
   const canvas = useRef(null);
   const labelRefs = useRef(new Map());
   const [labels, setLabels] = useState([]);
@@ -15,6 +39,8 @@ export default function TurbineCanvas({ theme = "realistic", sceneRef, interacti
   const ownScene = useRef(null);
   const lookInsideCb = useRef(onLookInside);
   lookInsideCb.current = onLookInside;
+  const walkCb = useRef(onWalk);
+  walkCb.current = onWalk;
 
   useEffect(() => {
     let scene;
@@ -26,6 +52,7 @@ export default function TurbineCanvas({ theme = "realistic", sceneRef, interacti
         interactive,
         frameShift,
         onLookInside: (u) => lookInsideCb.current?.(u),
+        onWalk: (s, height) => walkCb.current?.(s, height),
         onReady: () => setStatus("ready"),
         onError: () => setStatus("error"),
       });
@@ -34,8 +61,8 @@ export default function TurbineCanvas({ theme = "realistic", sceneRef, interacti
       if (sceneRef) sceneRef.current = scene;
       // ?debug exposes the scene for console poking and automated screenshots.
       if (new URLSearchParams(window.location.search).has("debug")) window.__scene = scene;
-      const s = useLiveStore.getState().state?.now;
-      if (s) scene.setLive({ rotorRpm: s.rotorRpm, nacelleDeg: s.nacelleDeg });
+      pushLive(scene);
+      pushEnvironment(scene);
       scene.init().then(() => {
         if (cancelled) return;
         setLabels(scene.getLabels());
@@ -56,15 +83,36 @@ export default function TurbineCanvas({ theme = "realistic", sceneRef, interacti
     ownScene.current?.setTheme(theme);
   }, [theme]);
 
-  // Live rpm + nacelle bearing straight from the store (no React re-render per update).
+  // Live rpm, nacelle bearing, wind and homes straight from the stores (no React re-render per update).
   useEffect(
     () =>
-      useLiveStore.subscribe((st) => {
-        const now = st.state?.now;
-        if (now) ownScene.current?.setLive({ rotorRpm: now.rotorRpm, nacelleDeg: now.nacelleDeg });
+      useLiveStore.subscribe(() => {
+        if (!ownScene.current) return;
+        pushLive(ownScene.current);
+        pushEnvironment(ownScene.current);
       }),
     []
   );
+  // Weather at the site, and any demo override from the server.
+  useEffect(
+    () =>
+      useEnvironmentStore.subscribe(() => {
+        if (!ownScene.current) return;
+        pushEnvironment(ownScene.current);
+      }),
+    []
+  );
+
+  // Data tags attached to parts of the world (which anchor each one hangs from).
+  useEffect(() => {
+    const scene = ownScene.current;
+    if (!scene) return;
+    scene.setTags(tags.map((t) => ({ id: t.id, anchor: t.anchor })));
+  }, [tags, status]);
+  useEffect(() => {
+    const scene = ownScene.current;
+    if (scene && tagRefs) scene.bindTags(tagRefs.current);
+  }, [tagRefs, tags, status]);
 
   useEffect(() => {
     if (ownScene.current && labels.length) ownScene.current.bindLabels(labelRefs.current);

@@ -19,17 +19,23 @@ const MAX_TOOL_ROUNDS = 4;
  * @param {(s: string) => void} [p.onStatus]
  * @param {(s: object[]) => void} [p.onSources]
  * @param {(a: string) => void} [p.onAction]
+ * @param {(photos: object[]) => void} [p.onPhotos]
  * @param {AbortSignal} [p.signal]
  * @returns {Promise<{ text: string, sources: object[] }>}
  */
-export async function runAgent({ prompt, history, screen, onText, onStatus, onSources, onAction, signal }) {
+export async function runAgent({ prompt, history, screen, onText, onStatus, onSources, onAction, onPhotos, signal }) {
   const sources = [];
+  const photos = [];
   const ctx = {
     screen,
     signal,
     onText,
     onStatus,
     onAction,
+    onPhotos: (p) => {
+      photos.push(...p);
+      onPhotos?.(p);
+    },
     onSources: (s) => {
       sources.push(...s);
       onSources?.(s);
@@ -37,7 +43,7 @@ export async function runAgent({ prompt, history, screen, onText, onStatus, onSo
   };
 
   const provider = resolveProvider();
-  if (!provider) return { text: await respondWithoutLlm(prompt, ctx), sources };
+  if (!provider) return { text: await respondWithoutLlm(prompt, ctx), sources, photos };
 
   const messages = [
     { role: "system", content: systemPrompt(screen) },
@@ -78,9 +84,9 @@ export async function runAgent({ prompt, history, screen, onText, onStatus, onSo
       }
     }
   } catch (err) {
-    if (signal?.aborted) return { text: answer, sources };
+    if (signal?.aborted) return { text: answer, sources, photos };
     console.warn("[chat] LLM failed, using fallback:", err.message);
-    if (!answer) return { text: await respondWithoutLlm(prompt, ctx), sources };
+    if (!answer) return { text: await respondWithoutLlm(prompt, ctx), sources, photos };
   }
-  return { text: answer, sources };
+  return { text: answer, sources, photos };
 }

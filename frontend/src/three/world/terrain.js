@@ -217,6 +217,7 @@ export function buildTerrain() {
   mesh.name = "Terrain";
   mesh.receiveShadow = true;
   mesh.userData.world = true;
+  mesh.userData.hotspot = "terrain"; // which thing it is depends on where you tap (hotspots.js)
   mesh.frustumCulled = false;
   return { mesh, uniforms };
 }

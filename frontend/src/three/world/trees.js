@@ -244,5 +244,6 @@ export function buildTrees(groundHeight) {
   group.name = "Trees";
   group.add(instanced(broadleafNear(), near, material), instanced(broadleafFar(), far, material), instanced(poplar(), poplars, material));
   group.userData.world = true;
+  group.userData.hotspot = "woodland";
   return { group, uniforms, count: all.length };
 }
