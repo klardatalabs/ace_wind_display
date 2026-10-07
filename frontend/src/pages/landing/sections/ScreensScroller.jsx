@@ -59,7 +59,7 @@ export default function ScreensScroller() {
     scroller.current.scrollBy({ left: dir * ((card?.getBoundingClientRect().width ?? 400) + 20), behavior: "smooth" });
   };
 
-  const arrow = "pointer-events-auto flex size-10 items-center justify-center rounded-full border border-moss-900/5 bg-white/90 text-moss-950 shadow-[0_4px_20px_rgb(6_33_26/0.08)] backdrop-blur transition-all hover:scale-105 hover:bg-white disabled:pointer-events-none disabled:opacity-0 md:size-12";
+  const arrow = "pointer-events-auto flex size-10 items-center justify-center rounded-full border border-moss-900/5 bg-white/90 text-moss-950 shadow-[0_4px_20px_rgb(10_21_29/0.08)] backdrop-blur transition-all hover:scale-105 hover:bg-white disabled:pointer-events-none disabled:opacity-0 md:size-12";
 
   return (
     <section id="screens" className="pt-16 pb-10 md:pt-24 md:pb-14 xl:pt-28">

@@ -7,7 +7,7 @@
 
 import * as THREE from "three";
 import gsap from "gsap";
-import { MOSS } from "./themes.js";
+import { CAP_COLORS } from "./themes.js";
 
 const PEEL_DISTANCE = 3.5; // metres
 const BACKWARD = new THREE.Vector3(0, 0, -1);
@@ -55,7 +55,7 @@ export class LookInside {
   constructor(shells, onChange) {
     this.u = 0;
     this.onChange = onChange;
-    this.capUniforms = { color: { value: new THREE.Color(MOSS[200]) }, alpha: { value: 0 } };
+    this.capUniforms = { color: { value: new THREE.Color(CAP_COLORS.realistic) }, alpha: { value: 0 } };
     this.items = [];
 
     for (const shell of shells) {
@@ -83,6 +83,11 @@ export class LookInside {
       }
     }
     this.apply();
+  }
+
+  /** The colour of the faces revealed by the cut, per look. */
+  setTheme(theme) {
+    this.capUniforms.color.value.set(CAP_COLORS[theme] ?? CAP_COLORS.realistic);
   }
 
   /** Re-reads shell materials and their outlines / edges after a theme change. */

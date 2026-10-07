@@ -55,6 +55,18 @@ export const config = {
     connectTimeoutMs: Number(env.LLM_CONNECT_TIMEOUT_MS) || 20_000,
   },
 
+  // Where the turbine stands (sun position, weather). Lawrence Weston / Avonmouth, Bristol.
+  site: {
+    lat: Number(env.SITE_LAT) || 51.52,
+    lon: Number(env.SITE_LON) || -2.69,
+  },
+
+  weather: {
+    apiKey: env.OPENWEATHER_API_KEY || "",
+    baseUrl: (env.OPENWEATHER_BASE_URL || "https://api.openweathermap.org").replace(/\/$/, ""),
+    refreshMs: Number(env.WEATHER_REFRESH_MS) || 10 * 60 * 1000, // free tier allows far more; 10 min is plenty
+  },
+
   tavily: {
     apiKey: env.TAVILY_API_KEY || "",
     baseUrl: (env.TAVILY_BASE_URL || "https://api.tavily.com").replace(/\/$/, ""),

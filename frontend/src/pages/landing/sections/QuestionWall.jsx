@@ -44,7 +44,7 @@ export default function QuestionWall() {
               type="button"
               onClick={() => navigate(`/ask/community?q=${encodeURIComponent(question)}`)}
               style={{ "--r": `${tilt(i)}deg`, marginTop: i % 2 ? "2.5rem" : 0 }}
-              className="q-card w-64 rotate-[var(--r)] cursor-pointer rounded-xl border border-moss-100 bg-moss-25 p-4 text-center font-display text-xl leading-snug font-medium tracking-tight text-moss-950 shadow-[0_10px_30px_-8px_rgb(6_33_26/0.18)] transition-[transform,box-shadow] duration-200 ease-out select-none hover:z-10 hover:scale-105 hover:rotate-0 hover:shadow-[0_20px_40px_-5px_rgb(6_33_26/0.3)] sm:text-2xl"
+              className="q-card w-64 rotate-[var(--r)] cursor-pointer rounded-xl border border-moss-100 bg-moss-25 p-4 text-center font-display text-xl leading-snug font-medium tracking-tight text-moss-950 shadow-[0_10px_30px_-8px_rgb(10_21_29/0.18)] transition-[transform,box-shadow] duration-200 ease-out select-none hover:z-10 hover:scale-105 hover:rotate-0 hover:shadow-[0_20px_40px_-5px_rgb(10_21_29/0.3)] sm:text-2xl"
             >
               {item.q} <span className="brushstroke">{item.hl}</span>
               {item.end}

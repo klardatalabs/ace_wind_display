@@ -1,11 +1,10 @@
 // Every server endpoint the frontend uses, in one place. Pages import from here rather
 // than calling fetch directly, so the Developers page can list exactly what exists.
 
-async function request(path, { method = "GET", body, token, admin, signal } = {}) {
+async function request(path, { method = "GET", body, token, signal } = {}) {
   const headers = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (admin) headers["X-Admin-Token"] = admin;
   const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal });
   let data = null;
   try {
@@ -43,19 +42,13 @@ export const api = {
   chatHistory: (token) => request("/api/chat/history", { token }),
   chatReset: (token) => request("/api/chat/session", { method: "DELETE", token }),
 
+  // Where the turbine stands right now: weather at the site + any demo override
+  environment: () => request("/api/environment"),
+
   // Phone -> hoarding remote control
   screens: () => request("/api/screens"),
   screenCommand: (token, action) => request("/api/screens/command", { method: "POST", token, body: { action } }),
 
-  // Admin simulator
-  admin: {
-    presets: (admin) => request("/api/admin/presets", { admin }),
-    screens: (admin) => request("/api/admin/screens", { admin }),
-    preset: (admin, preset) => request("/api/admin/preset", { method: "POST", admin, body: { preset } }),
-    simulate: (admin, values) => request("/api/admin/simulate", { method: "POST", admin, body: values }),
-    resumeLive: (admin) => request("/api/admin/resume-live", { method: "POST", admin }),
-    command: (admin, screen, action) => request(`/api/admin/screens/${screen}/command`, { method: "POST", admin, body: { action } }),
-  },
 };
 
 /** Endpoint catalogue shown on the Developers page. */

@@ -26,7 +26,7 @@ export default function Composer({ onSend, onStop, streaming, disabled }) {
   };
 
   return (
-    <form onSubmit={submit} className="mx-auto flex max-w-2xl items-end gap-2 rounded-[26px] bg-white p-1.5 pl-4 shadow-[0_8px_30px_rgb(6_33_26/0.1)] ring-1 ring-moss-100 focus-within:ring-2 focus-within:ring-moss-300">
+    <form onSubmit={submit} className="mx-auto flex max-w-2xl items-end gap-2 rounded-[26px] bg-white p-1.5 pl-4 shadow-[0_8px_30px_rgb(10_21_29/0.1)] ring-1 ring-moss-100 focus-within:ring-2 focus-within:ring-moss-300">
       <label htmlFor="ask-input" className="sr-only">
         Your question
       </label>

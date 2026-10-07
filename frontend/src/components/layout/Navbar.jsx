@@ -55,7 +55,7 @@ export default function Navbar() {
       <div className={`px-3 transition-[margin] duration-300 sm:px-4 ${scrolled ? "mt-2" : "mt-3 lg:mt-6"}`}>
         <nav
           aria-label="Main"
-          className="mx-auto flex max-w-[1096px] items-center rounded-full bg-gradient-to-br from-white/90 via-white/70 to-white/30 py-2 pl-3 pr-2 shadow-[inset_0_0.5px_0_0_rgb(239_250_245/0.6),0_34px_34px_0_rgb(6_33_26/0.03),0_9px_19px_0_rgb(6_33_26/0.05)] backdrop-blur-[40px] lg:py-3 lg:pl-5 lg:pr-3"
+          className="mx-auto flex max-w-[1096px] items-center rounded-full bg-gradient-to-br from-white/90 via-white/70 to-white/30 py-2 pl-3 pr-2 shadow-[inset_0_0.5px_0_0_rgb(239_250_245/0.6),0_34px_34px_0_rgb(10_21_29/0.03),0_9px_19px_0_rgb(10_21_29/0.05)] backdrop-blur-[40px] lg:py-3 lg:pl-5 lg:pr-3"
         >
           <div className="flex flex-1 items-center gap-3">
             <Wordmark markClassName="size-8 lg:size-9" textClassName="text-lg lg:text-xl" />

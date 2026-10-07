@@ -6,9 +6,11 @@
 @import "./effects.css" layer(components);
 
 /*
- * One hue, everywhere: "Weston green" (from the turbine's Enercon tower bands).
- * Every colour on the site is a step on this ramp, plus white. Tailwind's default
- * palette is switched off so nothing off-brand can sneak in.
+ * Sky, ink and one accent. The token family keeps its old "moss" name, but the ends of the
+ * ramp are now natural neutrals: pale sky blues for surfaces (25-200) and deep navy ink for
+ * text and dark panels (800-950). Only the middle steps (300-700) are Enercon green, the
+ * colour of the turbine's tower bands, used for accents, links and live indicators.
+ * Tailwind's default palette stays off so nothing off-brand sneaks in.
  */
 @theme {
   --color-*: initial;
@@ -16,19 +18,19 @@
   --color-transparent: transparent;
   --color-current: currentColor;
 
-  --color-moss-25: #f6fbf8;
-  --color-moss-50: #eaf6ef;
-  --color-moss-100: #d3ecdd;
-  --color-moss-200: #a9d9bd;
-  --color-moss-300: #77c09a;
-  --color-moss-400: #46a374;
+  --color-moss-25: #f7fafc;
+  --color-moss-50: #eef4f9;
+  --color-moss-100: #dde9f2;
+  --color-moss-200: #bfd6e8;
+  --color-moss-300: #6fbf93;
+  --color-moss-400: #3f9f6f;
   --color-moss-500: #23855a;
   --color-moss-600: #186b47;
   --color-moss-700: #13553a;
-  --color-moss-800: #0f432e;
-  --color-moss-900: #0b3223;
-  --color-moss-950: #06211a;
-  --color-ink: #0a1d15;
+  --color-moss-800: #1b3342;
+  --color-moss-900: #11222e;
+  --color-moss-950: #0a151d;
+  --color-ink: #0b1822;
 
   --font-display: "Satoshi", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;

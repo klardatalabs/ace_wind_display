@@ -9,6 +9,7 @@ import { connectedScreens, sendScreenCommand } from "../realtime/socketHub.js";
 import { SCREEN_ACTIONS } from "../chat/tools/bigScreen.js";
 import { SCREENS } from "../chat/session.js";
 import { config } from "../config/env.js";
+import { getEnvironment, setOverride, clearOverride } from "../services/environmentService.js";
 
 const router = Router();
 
@@ -58,6 +59,11 @@ router.post("/resume-live", (_req, res) => {
   resumeLive();
   res.json(getState());
 });
+
+// Demo the place: jump to a time of day, add cloud / rain / fog. Send nulls (or DELETE) to go back to real.
+router.get("/environment", (_req, res) => res.json(getEnvironment()));
+router.post("/environment", (req, res) => res.json(setOverride(req.body ?? {})));
+router.delete("/environment", (_req, res) => res.json(clearOverride()));
 
 // Unlike the phone remote, the admin is not rate-limited and can drive any screen.
 router.post("/screens/:screen/command", (req, res) => {

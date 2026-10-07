@@ -4,9 +4,8 @@
 // they survive theme changes without extra geometry.
 
 import * as THREE from "three";
-import { MOSS } from "./themes.js";
 
-export const BAND_COLORS = { cartoon: MOSS[500], realistic: 0x1f6b3c, blueprint: MOSS[200] };
+export const BAND_COLORS = { cartoon: 0x1f9a58, realistic: 0x1f6b3c, blueprint: 0x9fd8ff };
 
 const AXES = { x: 0, y: 1, z: 2 };
 

@@ -1,14 +1,19 @@
-// Three looks, one hue:
-//   cartoon   — students: toon shading, ink outlines, bright mint sky
-//   realistic — community: PBR materials, soft sun, the Lawrence Weston scan around it
-//   blueprint — college: dark engineering view, glowing edges over translucent solids
+// Three looks, all in natural colour:
+//   cartoon   — students: bright, friendly toon shading with ink outlines
+//   realistic — community: PBR materials in the real light of the hour, the Lawrence Weston scan around it
+//   blueprint — college: classic engineering drawing, cyan lines on deep navy
+// The turbine itself is always white with Enercon-green tower bands, as in real life.
 
 import * as THREE from "three";
 
+// Accent greens (the Enercon band colour), kept for UI-adjacent 3D bits.
 export const MOSS = {
-  25: 0xf6fbf8, 50: 0xeaf6ef, 100: 0xd3ecdd, 200: 0xa9d9bd, 300: 0x77c09a, 400: 0x46a374,
-  500: 0x23855a, 600: 0x186b47, 700: 0x13553a, 800: 0x0f432e, 900: 0x0b3223, 950: 0x06211a, white: 0xffffff,
+  25: 0xf7fafc, 50: 0xeef4f9, 100: 0xdde9f2, 200: 0xbfd6e8, 300: 0x6fbf93, 400: 0x3f9f6f,
+  500: 0x23855a, 600: 0x186b47, 700: 0x13553a, 800: 0x1b3342, 900: 0x11222e, 950: 0x0a151d, white: 0xffffff,
 };
+
+// Blueprint drawing colours.
+export const BLUEPRINT = { paper: 0x071a33, paperLight: 0x0d2b52, line: 0x9fd8ff, lineDim: 0x4fb3ff, solid: 0x1b4a7a, fill: 0x2f78b8 };
 
 // glTF material name -> colour role
 const ROLE_BY_MATERIAL = {
@@ -30,22 +35,22 @@ const ROLE_BY_MATERIAL = {
 
 const PALETTES = {
   cartoon: {
-    body: MOSS.white, band1: MOSS[700], band2: MOSS[600], band3: MOSS[500], band4: MOSS[400], band5: MOSS[300],
-    ground: MOSS[200], metal: MOSS[100], dark: MOSS[700], light: MOSS[300], copper: MOSS[400], cabinet: MOSS[300],
-    accent: MOSS[500], cable: MOSS[800],
-    grass: MOSS[100], tree: MOSS[400], trunk: MOSS[700], house: MOSS.white, roof: MOSS[600], water: MOSS[200], road: MOSS[50],
+    body: 0xffffff, band1: 0x0e5a34, band2: 0x147a46, band3: 0x1f9a58, band4: 0x4bb872, band5: 0x8fd49b,
+    ground: 0xd3d8dc, metal: 0xc3ccd3, dark: 0x4a545c, light: 0xff6b5a, copper: 0xe08a3a, cabinet: 0xe8eef2,
+    accent: 0xf5b82e, cable: 0x2a3138,
+    grass: 0x84d35f, tree: 0x3fae4d, trunk: 0x8a5a34, house: 0xfff1de, roof: 0xd8604a, water: 0x5bbbea, road: 0xa4adb4,
   },
   realistic: {
-    body: 0xeef2ef, band1: 0x0c3a1f, band2: 0x14512c, band3: 0x1f6b3c, band4: 0x3b8a52, band5: 0x6aa877,
-    ground: 0xb9c4bd, metal: 0x9aa9a0, dark: 0x2c3b33, light: 0xd9f2e2, copper: MOSS[300], cabinet: 0xc7d3cb,
-    accent: MOSS[400], cable: MOSS[900],
-    grass: 0x8fae8a, tree: 0x3f6b45, trunk: 0x4a4038, house: 0xd9dcd4, roof: 0x5b6460, water: 0x6f8f8a, road: 0x9a9f98,
+    body: 0xf0f2f1, band1: 0x0c3a1f, band2: 0x14512c, band3: 0x1f6b3c, band4: 0x3b8a52, band5: 0x6aa877,
+    ground: 0xb4b8b5, metal: 0x9aa3a8, dark: 0x2d353b, light: 0xff2d20, copper: 0xc47a35, cabinet: 0xc9d0d4,
+    accent: 0xe6a824, cable: 0x1c2126,
+    grass: 0x76904a, tree: 0x3e6b34, trunk: 0x4a3b2e, house: 0xd9c9b0, roof: 0x6e4a42, water: 0x7d8b8f, road: 0x4d5155,
   },
   blueprint: {
-    body: MOSS[800], band1: MOSS[700], band2: MOSS[700], band3: MOSS[700], band4: MOSS[700], band5: MOSS[700],
-    ground: MOSS[900], metal: MOSS[300], dark: MOSS[700], light: MOSS[200], copper: MOSS[200], cabinet: MOSS[300],
-    accent: MOSS[300], cable: MOSS[200],
-    grass: MOSS[950], tree: MOSS[700], trunk: MOSS[800], house: MOSS[700], roof: MOSS[600], water: MOSS[900], road: MOSS[800],
+    body: BLUEPRINT.solid, band1: BLUEPRINT.solid, band2: BLUEPRINT.solid, band3: BLUEPRINT.solid, band4: BLUEPRINT.solid, band5: BLUEPRINT.solid,
+    ground: BLUEPRINT.paperLight, metal: 0x7fc4f5, dark: BLUEPRINT.solid, light: 0xffffff, copper: 0xffc46b, cabinet: 0x7fc4f5,
+    accent: 0xffd36b, cable: 0x9fd8ff,
+    grass: BLUEPRINT.paper, tree: 0x1f5c91, trunk: 0x1b4a7a, house: 0x2a6aa6, roof: 0x3f86c7, water: 0x0a2a52, road: 0x123a69,
   },
 };
 
@@ -53,10 +58,14 @@ const PALETTES = {
 const LANDSCAPE_ROLES = new Set(["grass", "tree", "trunk", "house", "roof", "water", "road"]);
 export const isLandscapeRole = (role) => LANDSCAPE_ROLES.has(role);
 
+// Colour of the faces revealed when the shell is cut open.
+export const CAP_COLORS = { cartoon: 0xf7b267, realistic: 0xe9b872, blueprint: 0x7fd6ff };
+
+/** Fallback sky for themes without a live environment (the blueprint look is a fixed drawing). */
 export const ENVIRONMENTS = {
-  cartoon: { skyTop: MOSS[200], skyBottom: MOSS[25], fog: MOSS[50], fogNear: 220, fogFar: 900, exposure: 1.05 },
-  realistic: { skyTop: 0x9fcbb2, skyBottom: 0xeef6f1, fog: 0xdbe9e0, fogNear: 350, fogFar: 2600, exposure: 1.0 },
-  blueprint: { skyTop: MOSS[950], skyBottom: MOSS[900], fog: MOSS[950], fogNear: 160, fogFar: 700, exposure: 1.0 },
+  cartoon: { skyTop: 0x4aa8f0, skyBottom: 0xd6efff, fog: 0xd6efff, fogNear: 260, fogFar: 1100, exposure: 1.05 },
+  realistic: { skyTop: 0x5a95d6, skyBottom: 0xcfe0ee, fog: 0xcfdbe4, fogNear: 400, fogFar: 2800, exposure: 1.0 },
+  blueprint: { skyTop: BLUEPRINT.paper, skyBottom: BLUEPRINT.paperLight, fog: BLUEPRINT.paper, fogNear: 200, fogFar: 900, exposure: 1.0 },
 };
 
 let toonGradient = null;
@@ -78,7 +87,7 @@ export function createMaterial(theme, role) {
   const color = PALETTES[theme][role] ?? PALETTES[theme].body;
   if (theme === "cartoon") {
     const mat = new THREE.MeshToonMaterial({ color, gradientMap: toonRamp() });
-    if (role === "light") mat.emissive = new THREE.Color(MOSS[300]);
+    if (role === "light") mat.emissive = new THREE.Color(0xff3b30);
     return mat;
   }
   if (theme === "blueprint" && isLandscapeRole(role)) {
@@ -94,7 +103,7 @@ export function createMaterial(theme, role) {
     color,
     roughness: role === "body" ? 0.42 : metallic ? 0.35 : 0.8,
     metalness: metallic ? 0.65 : 0.05,
-    emissive: role === "light" ? new THREE.Color(MOSS[200]) : new THREE.Color(0x000000),
+    emissive: role === "light" ? new THREE.Color(0xff2d20) : new THREE.Color(0x000000),
     emissiveIntensity: role === "light" ? 1.5 : 0,
   });
 }
@@ -103,7 +112,7 @@ export function createMaterial(theme, role) {
 export function addOutline(mesh, thickness = 0.0035) {
   const outline = new THREE.Mesh(
     mesh.geometry,
-    new THREE.MeshBasicMaterial({ color: MOSS[900], side: THREE.BackSide, transparent: true })
+    new THREE.MeshBasicMaterial({ color: 0x14202b, side: THREE.BackSide, transparent: true })
   );
   outline.name = `${mesh.name}_outline`;
   outline.userData.isOutline = true;
@@ -125,7 +134,7 @@ export function addOutline(mesh, thickness = 0.0035) {
 }
 
 /** Glowing edge lines for the blueprint look. */
-export function addEdges(mesh, color = MOSS[200], opacity = 0.9) {
+export function addEdges(mesh, color = BLUEPRINT.line, opacity = 0.9) {
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(mesh.geometry, 28),
     new THREE.LineBasicMaterial({ color, transparent: true, opacity })

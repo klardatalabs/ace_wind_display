@@ -10,6 +10,7 @@ const listeners = new Set();
 const state = {
   mode: "live", // "live" | "simulate"
   connected: false, // whether live polling is currently succeeding (irrelevant in simulate mode)
+  liveAt: null, // ISO time of the last successful poll; null = never connected, `now` below is sample data
   now: {
     activePowerKw: 185.0,
     windSpeed: 4.8,
@@ -98,11 +99,25 @@ async function pollNowOnce() {
   publish();
 }
 
+/** Start of "today" in London (UK time, including summer time), as a UTC instant. */
+export function londonDayStart(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  const sinceMidnightMs = ((get("hour") * 60 + get("minute")) * 60 + get("second")) * 1000;
+  return new Date(now.getTime() - now.getMilliseconds() - sinceMidnightMs);
+}
+
 async function pollTodayOnce() {
   if (state.mode !== "live") return;
   try {
     const now = new Date();
-    const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const midnight = londonDayStart(now);
     const data = await getWecStdRange(["energy_produced", "wind_speed_mean"], {
       resolution: "10m",
       start: midnight.toISOString(),
@@ -142,6 +157,7 @@ async function pollStatusOnce() {
 function onFetchSuccess() {
   consecutiveFailures = 0;
   state.connected = true;
+  state.liveAt = new Date().toISOString();
 }
 
 function onFetchFailure(err, which) {

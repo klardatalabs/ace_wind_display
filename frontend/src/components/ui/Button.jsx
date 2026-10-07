@@ -17,7 +17,7 @@ const variants = {
   primary:
     "bg-gradient-to-b from-moss-800 to-moss-950 text-white shadow-[inset_0_2px_0_0_rgb(255_255_255/0.14)] hover:from-moss-700 hover:to-moss-900",
   secondary:
-    "bg-white/60 text-moss-900 ring-1 ring-moss-200 backdrop-blur-sm shadow-[0_2px_8px_rgb(6_33_26/0.05)] hover:bg-white/90 hover:ring-moss-300 hover:shadow-[0_4px_16px_rgb(6_33_26/0.09)]",
+    "bg-white/60 text-moss-900 ring-1 ring-moss-200 backdrop-blur-sm shadow-[0_2px_8px_rgb(10_21_29/0.05)] hover:bg-white/90 hover:ring-moss-300 hover:shadow-[0_4px_16px_rgb(10_21_29/0.09)]",
   glass: "bg-white/15 text-white ring-1 ring-white/35 backdrop-blur-md hover:bg-white/25 glass-ring",
 };
 

@@ -4,7 +4,10 @@
 // Implements the polling etiquette from API_REFERENCE.md: Retry-After-aware
 // exponential backoff on 429/5xx, sequential (never parallel) range pagination.
 
-import { API_BASE, SITE_ID, WEC_ASSET } from "../../shared/constants.js";
+import { API_BASE as DEFAULT_API_BASE, SITE_ID, WEC_ASSET } from "../../shared/constants.js";
+
+// ACE_API_BASE lets you point the server at a staging copy or a local stand-in.
+const API_BASE = (process.env.ACE_API_BASE || DEFAULT_API_BASE).replace(/\/$/, "");
 
 class ApiError extends Error {
   constructor(message, status, body) {

@@ -41,7 +41,7 @@ export default function MessageBubble({ message }) {
   if (mine) {
     return (
       <div ref={ref} className="flex justify-end">
-        <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-gradient-to-b from-moss-700 to-moss-900 px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white shadow-[0_6px_20px_rgb(6_33_26/0.18)]">
+        <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-gradient-to-b from-moss-700 to-moss-900 px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white shadow-[0_6px_20px_rgb(10_21_29/0.18)]">
           {message.content}
         </div>
       </div>
@@ -54,7 +54,7 @@ export default function MessageBubble({ message }) {
       <TurbineMark className="mb-1 size-8 shrink-0" />
       <div className="max-w-[85%] min-w-0">
         <div
-          className={`rounded-3xl rounded-bl-lg px-4 py-2.5 text-[15px] leading-relaxed shadow-[0_6px_20px_rgb(6_33_26/0.06)] ${
+          className={`rounded-3xl rounded-bl-lg px-4 py-2.5 text-[15px] leading-relaxed shadow-[0_6px_20px_rgb(10_21_29/0.06)] ${
             message.error ? "bg-moss-50 text-moss-900 ring-1 ring-moss-200" : "bg-white text-moss-950 ring-1 ring-moss-100"
           }`}
         >

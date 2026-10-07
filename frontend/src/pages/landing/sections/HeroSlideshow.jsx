@@ -13,7 +13,7 @@ import { formatInt, formatPower } from "../../../lib/format.js";
 
 function GlassCard({ icon, label, value, unit, caption }) {
   return (
-    <div className="glass-ring absolute top-[9%] left-1/2 w-[78%] max-w-[340px] -translate-x-1/2 rounded-3xl bg-white/20 p-5 text-white shadow-[0_20px_60px_rgb(6_33_26/0.25)] backdrop-blur-xl">
+    <div className="glass-ring absolute top-[9%] left-1/2 w-[78%] max-w-[340px] -translate-x-1/2 rounded-3xl bg-white/20 p-5 text-white shadow-[0_20px_60px_rgb(10_21_29/0.25)] backdrop-blur-xl">
       <div className="flex items-center gap-2 text-sm font-medium text-white/85">
         <Icon name={icon} className="size-5" />
         {label}

@@ -7,6 +7,7 @@ import { WebSocketServer } from "ws";
 import { getState, onStateChange } from "../services/turbineState.js";
 import { cacheLiveTelemetry } from "../db/redisClient.js";
 import { SCREENS } from "../chat/session.js";
+import { getEnvironment, onEnvironmentChange } from "../services/environmentService.js";
 
 let wss = null;
 const screenOf = new WeakMap(); // socket -> screen id
@@ -20,6 +21,7 @@ export function attachSocketHub(httpServer) {
 
   wss.on("connection", (socket) => {
     send(socket, { type: "state", state: getState() });
+    send(socket, { type: "environment", environment: getEnvironment() });
 
     socket.on("message", (raw) => {
       let msg;
@@ -40,6 +42,11 @@ export function attachSocketHub(httpServer) {
     for (const client of wss.clients) send(client, { type: "ping", t: Date.now() });
   }, 25_000);
   wss.on("close", () => clearInterval(heartbeat));
+
+  onEnvironmentChange((environment) => {
+    const payload = JSON.stringify({ type: "environment", environment });
+    for (const client of wss.clients) send(client, payload);
+  });
 
   onStateChange((snapshot) => {
     cacheLiveTelemetry(snapshot);

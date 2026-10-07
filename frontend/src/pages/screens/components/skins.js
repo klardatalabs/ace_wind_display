@@ -7,7 +7,7 @@ export const SKINS = {
     accent: "text-moss-600",
     scrim: "bg-gradient-to-r from-moss-25/95 via-moss-25/60 to-transparent",
     scrimBottom: "bg-gradient-to-t from-moss-25/80 to-transparent",
-    card: "bg-white/85 ring-1 ring-moss-100 shadow-[0_20px_60px_rgb(6_33_26/0.12)]",
+    card: "bg-white/85 ring-1 ring-moss-100 shadow-[0_20px_60px_rgb(10_21_29/0.12)]",
     pillTone: "dark",
   },
   realistic: {
@@ -17,7 +17,7 @@ export const SKINS = {
     accent: "text-moss-200",
     scrim: "bg-gradient-to-r from-moss-950/85 via-moss-950/45 to-transparent",
     scrimBottom: "bg-gradient-to-t from-moss-950/70 to-transparent",
-    card: "bg-moss-950/55 ring-1 ring-white/15 backdrop-blur-xl shadow-[0_20px_60px_rgb(6_33_26/0.35)]",
+    card: "bg-moss-950/55 ring-1 ring-white/15 backdrop-blur-xl shadow-[0_20px_60px_rgb(10_21_29/0.35)]",
     pillTone: "light",
   },
   blueprint: {

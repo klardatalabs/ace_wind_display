@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { createApp } from "./app.js";
 import { attachSocketHub } from "./realtime/socketHub.js";
 import { startPolling } from "./services/turbineState.js";
+import { startWeatherPolling } from "./services/environmentService.js";
 import { startSyncJob } from "./jobs/sqliteSyncJob.js";
 import { startTimescaleSyncJob } from "./jobs/timescaleSyncJob.js";
 
@@ -12,6 +13,7 @@ const httpServer = createServer(createApp());
 attachSocketHub(httpServer);
 
 startPolling();
+startWeatherPolling();
 startSyncJob(12 * 60 * 1000);
 startTimescaleSyncJob(12 * 60 * 1000);
 

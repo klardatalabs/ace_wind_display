@@ -83,7 +83,7 @@ export default function TurbineCanvas({ theme = "realistic", sceneRef, useSplat 
               className="invisible absolute top-0 left-0 opacity-0 will-change-transform"
             >
               <div className="-translate-x-1/2 -translate-y-full pb-3">
-                <div className="glass-ring rounded-2xl bg-moss-950/70 px-3.5 py-2 text-white shadow-[0_8px_30px_rgb(6_33_26/0.35)] backdrop-blur-md">
+                <div className="glass-ring rounded-2xl bg-moss-950/70 px-3.5 py-2 text-white shadow-[0_8px_30px_rgb(10_21_29/0.35)] backdrop-blur-md">
                   <p className="font-display text-[clamp(13px,1.05vw,20px)] font-semibold whitespace-nowrap">{l.text}</p>
                   <p className="text-[clamp(11px,0.8vw,15px)] whitespace-nowrap text-white/70">{l.detail}</p>
                 </div>

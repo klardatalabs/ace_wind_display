@@ -8,7 +8,6 @@ import NotFoundPage from "./pages/NotFoundPage.jsx";
 const DevelopersPage = lazy(() => import("./pages/developers/DevelopersPage.jsx"));
 const ScreenPage = lazy(() => import("./pages/screens/ScreenPage.jsx"));
 const AskPage = lazy(() => import("./pages/ask/AskPage.jsx"));
-const AdminPage = lazy(() => import("./pages/admin/AdminPage.jsx"));
 
 const lazyPage = (Page) => (
   <Suspense fallback={<div className="min-h-dvh bg-white" />}>
@@ -28,5 +27,4 @@ export const router = createBrowserRouter([
   // Kiosk + phone experiences have no site chrome.
   { path: "/screen/:screen", element: lazyPage(ScreenPage) },
   { path: "/ask/:screen?", element: lazyPage(AskPage) },
-  { path: "/admin", element: lazyPage(AdminPage) },
 ]);

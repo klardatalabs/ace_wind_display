@@ -41,7 +41,7 @@ export default function DevHero({ origin }) {
           </div>
         </div>
         <CodeBlock
-          className="dev-code shadow-[0_30px_80px_rgb(6_33_26/0.25)]"
+          className="dev-code shadow-[0_30px_80px_rgb(10_21_29/0.25)]"
           title="terminal"
           code={`curl ${origin}/api/state\n\n{\n  "mode": "live",\n  "now": {\n    "activePowerKw": 2980,\n    "windSpeed": 9.0,\n    "rotorRpm": 11.14,\n    "nacelleDeg": 215\n  },\n  "today": { "energyKwh": 12400 }\n}`}
         />

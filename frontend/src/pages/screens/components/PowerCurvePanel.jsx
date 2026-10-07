@@ -18,7 +18,7 @@ export default function PowerCurvePanel({ curve, windSpeed, powerKw, skin, class
   );
   const measured = (curve?.empirical ?? []).filter((b) => b.sample_count > 3 && b.bin_wind <= MAX_WIND);
   const stroke = skin.dark ? "var(--color-moss-200)" : "var(--color-moss-700)";
-  const faint = skin.dark ? "rgb(255 255 255 / 0.15)" : "rgb(6 33 26 / 0.12)";
+  const faint = skin.dark ? "rgb(255 255 255 / 0.15)" : "rgb(10 21 29 / 0.12)";
   return (
     <figure className={`rounded-[2.4vmin] p-[2vmin] ${skin.card} ${className}`}>
       <figcaption className={`mb-[1vmin] flex items-baseline justify-between text-[clamp(12px,1.6vmin,30px)] font-medium ${skin.text}`}>

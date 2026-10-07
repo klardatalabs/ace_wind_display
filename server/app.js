@@ -12,6 +12,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import datasetRoutes from "./routes/datasets.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
 import screenRoutes from "./routes/screens.routes.js";
+import environmentRoutes from "./routes/environment.routes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FRONTEND_DIST = path.join(__dirname, "..", "frontend", "dist");
@@ -29,10 +30,14 @@ export function createApp() {
 
   app.use("/api/state", stateRoutes);
   app.use("/api/history", historyRoutes);
-  app.use("/api/admin", adminRoutes);
+  // The demo / simulation API can change what every public screen shows, so on a production
+  // server it only exists when ADMIN_TOKEN is set.
+  if (config.adminToken || process.env.NODE_ENV !== "production") app.use("/api/admin", adminRoutes);
   app.use("/api/datasets", datasetRoutes);
   app.use("/api/chat", chatRoutes);
   app.use("/api/screens", screenRoutes);
+  app.use("/api/environment", environmentRoutes);
+  app.get("/api/weather", (_req, res) => res.redirect(307, "/api/environment/weather"));
   app.get("/api/config", (req, res) => {
     res.json({ publicOrigin: config.publicOrigin || `${req.protocol}://${req.get("host")}` });
   });

@@ -20,7 +20,7 @@ const BACKDROPS = [
 
 function ChatCard({ lines, dark }) {
   return (
-    <div className="w-full max-w-[380px] rounded-2xl border border-moss-900/5 bg-white p-5 shadow-[0_10px_40px_rgb(6_33_26/0.12)]">
+    <div className="w-full max-w-[380px] rounded-2xl border border-moss-900/5 bg-white p-5 shadow-[0_10px_40px_rgb(10_21_29/0.12)]">
       <ul className="space-y-4">
         {lines.map((l, i) => (
           <li key={i} className="flex items-start gap-3">

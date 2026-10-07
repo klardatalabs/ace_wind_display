@@ -55,7 +55,7 @@ export default function HowItWorks() {
               <li
                 key={step.key}
                 className={`flex gap-4 rounded-3xl p-5 transition-all duration-500 ${
-                  i === active ? "bg-white shadow-[0_10px_40px_rgb(6_33_26/0.08)] ring-1 ring-moss-100" : "opacity-55 lg:opacity-40"
+                  i === active ? "bg-white shadow-[0_10px_40px_rgb(10_21_29/0.08)] ring-1 ring-moss-100" : "opacity-55 lg:opacity-40"
                 }`}
               >
                 <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl transition-colors ${i === active ? "bg-moss-900 text-white" : "bg-moss-50 text-moss-700"}`}>

@@ -1,12 +1,19 @@
-// Small "LIVE · 1.24 MW" pill with a pulsing dot. Says DEMO when the admin is simulating.
+// Small "LIVE · 1.24 MW" pill with a pulsing dot. Says DEMO when the server is simulating.
 
 import { useLive } from "../../store/useLiveStore.js";
 import { formatPower } from "../../lib/format.js";
 
+function ageOf(iso) {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  return `${Math.round(min / 60)} h ago`;
+}
+
 export default function LiveBadge({ className = "", tone = "light" }) {
-  const { ready, mode, connected, powerKw } = useLive();
+  const { ready, mode, connected, liveAt, powerKw } = useLive();
   const p = formatPower(powerKw);
-  const label = mode === "simulate" ? "DEMO" : connected ? "LIVE" : "LAST KNOWN";
+  const label = mode === "simulate" ? "DEMO" : connected ? "LIVE" : liveAt ? `LAST KNOWN · ${ageOf(liveAt)}` : "SAMPLE DATA";
   const dark = tone === "dark";
   return (
     <span

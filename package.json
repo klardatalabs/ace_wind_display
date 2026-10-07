@@ -10,7 +10,8 @@
     "dev:web": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
     "start": "node server/server.js",
-    "render:stills": "node scripts/render-stills.mjs"
+    "render:stills": "node scripts/render-stills.mjs",
+    "check:api": "node scripts/api-check.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

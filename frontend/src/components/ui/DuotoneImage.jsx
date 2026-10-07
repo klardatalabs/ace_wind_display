@@ -1,4 +1,4 @@
-/** Any photo rendered in the single brand hue (see .duotone in styles/effects.css). */
+/** Any photo, shown in its natural colour (see .duotone in styles/effects.css). */
 export default function DuotoneImage({ src, alt = "", soft = false, className = "", imgClassName = "", ...rest }) {
   return (
     <div className={`duotone ${soft ? "duotone-soft" : ""} ${className}`}>
