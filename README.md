@@ -134,6 +134,133 @@ python scripts/ingest_zenodo_timescale.py
 
 ---
 
+## 🏗️ End-to-End System Workflow & Implementation Guide
+
+This project transforms raw SCADA telemetry and historical research datasets into an interactive, 3D public kiosk and conversational AI experience. Everything is self-contained and runs on a single inexpensive server or local machine with **zero paid cloud accounts**.
+
+### High-Level Architecture Diagram
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   EXTERNAL DATA SOURCES                                │
+│   Zenodo Parquet Releases (July-Sept)        Live ACE SCADA API (/wecstd/range)        │
+└───────────────────┬────────────────────────────────────────────┬───────────────────────┘
+                    │                                            │
+                    ▼ (Ingestion Script)                         ▼ (timescaleSyncJob.js - 12m)
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              LOCAL TIMESCALEDB & REDIS DOCKER                          │
+│                                                                                        │
+│   • TimescaleDB (ace_timescaledb :5432)                                                │
+│     - scada_10m hypertable (11,219 intervals across 78 days)                           │
+│     - daily_rollup continuous aggregate (materialized daily totals)                    │
+│     - dataset_downloads (HMAC token audit log)                                         │
+│                                                                                        │
+│   • Redis (ace_redis :6379, ~30 MB RAM)                                                │
+│     - Hot telemetry cache (1s TTL)                                                     │
+│     - User chat session memory (20-min TTL)                                            │
+│     - Sliding-window rate limiter (6 msgs / 60s)                                       │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                NODE.JS BACKEND ENGINE (:4100)                          │
+│                                                                                        │
+│   [1. Telemetry & Analytics APIs]                                                      │
+│       • GET /api/history/records       -> All-time peaks, storms, best days             │
+│       • GET /api/history/power-curve   -> 11,219 empirical points in 0.5m/s bins       │
+│       • GET /api/history/compare       -> August vs. September generation comparison   │
+│                                                                                        │
+│   [2. Hybrid RAG Conversational Engine (server/aiAgent.js & server/ragKnowledge.js)]   │
+│       • Structured SQL Tools           -> Live speed, power, daily kWh, all records    │
+│       • Markdown Knowledge RAG         -> 158 chunks indexed from repo docs (specs)    │
+│       • Typo Tolerance                 -> Handles "yesterdat", "spining", slang        │
+│       • Multi-Provider LLM Adapter     -> Google Gemini, Groq (Llama 3.3), or Local    │
+│                                                                                        │
+│   [3. Researcher Dataset Delivery (server/datasetService.js)]                          │
+│       • POST /api/datasets/request     -> Generates 24h HMAC-SHA256 signed token       │
+│       • GET /api/datasets/download     -> Zero-copy kernel stream of 8.74 MB Parquet   │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                               FRONTEND DISPLAY SURFACES                                │
+│                                                                                        │
+│   • 🏘️ /community.html   : Three.js 3D PBR turbine, rotating impact story, AI chat     │
+│   • 🎒 /schools.html     : Reactive cartoon turbine with dynamic expressions & physics │
+│   • 🔬 /datascience.html : Canvas power curve, live records, dataset download modal    │
+│   • 🎛️ /admin.html       : 1-click scenario simulator, manual sliders, API inspector   │
+│   • 💬 Chat Widget       : Floating "Ask the Turbine" assistant on all public pages    │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📋 What Was Built: Step-by-Step Implementation Breakdown
+
+### Step 1: Historical Analytical Backend (`server/timescaleDb.js`)
+- **TimescaleDB Ingestion**: Ingested **11,219 ten-minute intervals** spanning July 21 to October 7, 2026 into the `scada_10m` hypertable, plus continuous aggregate `daily_rollup`.
+- **Historical Endpoints Built**:
+  - `GET /api/history/records`: Aggregates all-time records across the turbine's history:
+    - **Peak active power**: `4,357 kW` (~4.36 MW) recorded on September 30.
+    - **Max wind gust**: `22.1 m/s` (~79.5 km/h) recorded during September 4 storm.
+    - **Best single day**: `76,239 kWh` on September 18 (operating at a `75.6%` capacity factor).
+    - **Total clean generation**: Over `1.77 GWh` (~2,924 homes equivalent).
+  - `GET /api/history/power-curve`: Bins all 11,219 intervals into 0.5 m/s wind speed increments with sample counts, min/max bounds, and average generation.
+  - `GET /api/history/compare`: Performs month-over-month comparative analysis showing September generation was **+32.5%** over August due to stronger autumn Atlantic wind fronts.
+
+### Step 2: Frontend Data Science & Power Curve Canvas (`public/js/datascience.js`)
+- **Empirical Power Curve Visualizer**: Overlays theoretical Enercon E-115 power curve with **11,219 real binned SCADA data points** rendered on an HTML5 `<canvas>`.
+- **Live Operation Reticle**: Plots a pulsating cyan marker showing the turbine's exact live position $(v_{\text{wind}}, P_{\text{active}})$ in real-time.
+- **Dynamic KPI Cards**: Displays all-time peak power, max wind, best generation day, and autumn delta percentage.
+
+### Step 3: Self-Hosted Redis Infrastructure (`server/redisClient.js`)
+- **Zero-Cloud Redis**: Added `redis:7-alpine` (`ace_redis` on `127.0.0.1:6379`) to Docker Compose. Uses only **~30 MB of RAM**—no Upstash or Redis Cloud account needed.
+- **Sliding-Window Rate Limiter**: Limits chat requests to **6 messages per 60 seconds** per session using atomic Redis Lua transaction scripts.
+- **Session Memory**: Stores multi-turn conversation history per session with a **20-minute sliding TTL**.
+- **1-Second Telemetry Cache**: Shields the database from high-frequency dashboard polling.
+
+### Step 4: Floating "Ask the Turbine" Chat Widget (`public/js/chat-widget.js`)
+- **Kiosk-Optimized UI**: Built a floating glassmorphism widget with a glowing turbine badge, quick-suggestion prompt pills, animated typing indicator, and smooth auto-scrolling.
+- **Embedded Everywhere**: Active on `/community.html`, `/datascience.html`, and `/schools.html`.
+- **Dual Transport**: Communicates seamlessly over WebSocket (`chat.send`) with automatic REST fallback (`POST /api/chat`).
+
+### Step 5: Researcher Dataset Delivery Pipeline (`server/datasetService.js`)
+- **Dataset Request Modal**: Added a clean modal on `/datascience.html` for university researchers, data scientists, and students.
+- **Cryptographically Signed Links**: Generates **24-hour HMAC-SHA256 tokens** verifying requester email and dataset type without server-side link state.
+- **Audit Logging**: Logs all dataset requests and download counts in the `dataset_downloads` table.
+- **Zero-Copy Streaming**: Directly streams the verified 8.74 MB Parquet dataset (`ace-wind-2026-10m-latest.parquet`) to researchers via Node.js kernel streams.
+
+### Step 6: Hybrid RAG Engine (`server/ragKnowledge.js` & `server/aiAgent.js`)
+- **Why Pure Vector RAG Fails for Turbines**: Vector embeddings cannot compute numbers, aggregate sensor intervals, or read live RPM.
+- **The Hybrid Solution**:
+  1. **Structured SQL Tools**: Query TimescaleDB directly for live telemetry, past 24-hour generation, records, and monthly comparisons.
+  2. **Unstructured Document RAG**: Chunks and indexes **158 semantic sections** across 8 Markdown files (`DATA_SOURCES.md`, `API_REFERENCE.md`, `PUBLIC_EXPERIENCE_BLUEPRINT.md`, `SYSTEM_DESIGN.md`, etc.).
+  3. **Typo Tolerance**: Normalizes user typos (e.g., *"how much did u generated yesterdat"* correctly triggers the continuous 24-hour SCADA aggregation).
+  4. **Multi-Provider LLM Integration**: Pre-wired for Google Gemini, Groq (Llama 3.3 70B), and OpenAI, backed by a local synthesis engine if external APIs are unavailable.
+
+---
+
+## 📊 Understanding the Data: Zenodo & Live API Reality
+
+| Component | Source / File | Scope & Details |
+| :--- | :--- | :--- |
+| **10-Minute SCADA** | `ace-wind-2026-10m-latest.parquet` (8.7 MB) | **10,304 intervals** from July 21 to September 30, 2026. Contains wind speed, active power, RPM, pitch, nacelle yaw, and grid status. |
+| **Daily Rollups** | `ace-wind-2026-daily-latest.parquet` (337 KB) | Pre-aggregated daily operational kWh, average power, and wind speed. |
+| **Status Events** | `ace-wind-2026-events-latest.parquet` (325 KB) | Chronological operational status codes and DNO grid curtailment setpoints. |
+| **Live Ingestion** | ACE DuckDNS API (`/wecstd/range`) | Automatically polls every 12 minutes to sync October 1 to present, maintaining **100% gapless continuous telemetry**. |
+
+---
+
+## 💰 Zero-Cloud-Cost Architecture Philosophy
+
+Every component was intentionally designed to run self-hosted on an entry-level server (e.g. $5/month Contabo VPS) or a local kiosk PC:
+- **No AWS S3 / Cloud Storage**: Parquet files are stored locally and served via streaming.
+- **No Redis Cloud / Upstash**: Redis runs locally in Docker (30 MB RAM).
+- **No Managed Vector Database (Pinecone / Weaviate)**: Semantic Markdown chunk index runs in-memory with sub-millisecond retrieval.
+- **No External LLM Subscription Required**: Operates autonomously using grounded SQL tools, with optional zero-code hookups for Gemini or Groq.
+
+---
+
 ## 📜 Attribution & Open Data
 
 - Live Telemetry: [ACE Live API](https://ace-api.duckdns.org/docs) (OpenAPI 3.1.0, CC-BY-4.0).
