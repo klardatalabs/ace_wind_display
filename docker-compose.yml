@@ -1,0 +1,17 @@
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: ace_timescaledb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ace_user
+      POSTGRES_PASSWORD: ace_password
+      POSTGRES_DB: ace_wind
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./scripts/init_timescaledb.sql:/docker-entrypoint-initdb.d/init_timescaledb.sql:ro
+
+volumes:
+  timescaledb_data:

@@ -5,6 +5,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getState, onStateChange, startPolling, setSimulatedState, resumeLive, applyPreset, PRESETS } from "./state.js";
 import { getWecStdRange } from "./aceClient.js";
+import { getComparisonMetrics, getDailyRollups } from "./db.js";
+import { startSyncJob } from "./syncJob.js";
+import { startTimescaleSyncJob } from "./timescaleSyncJob.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 4100;
@@ -21,9 +24,27 @@ app.get("/", (_req, res) => res.redirect("/community.html"));
 
 app.get("/api/state", (_req, res) => res.json(getState()));
 
+// Historical comparison endpoint (Today vs Yesterday, Week vs Week, Month vs Month, Records)
+app.get("/api/history/compare", (_req, res) => {
+  try {
+    res.json(getComparisonMetrics());
+  } catch (err) {
+    res.status(500).json({ error: String(err.message ?? err) });
+  }
+});
+
+// Daily rollups from local SQLite view (derived from scada_10m grouped by Europe/London)
+app.get("/api/history/daily", (req, res) => {
+  try {
+    const limit = Math.min(365, Number(req.query.limit) || 30);
+    res.json(getDailyRollups(limit));
+  } catch (err) {
+    res.status(500).json({ error: String(err.message ?? err) });
+  }
+});
+
 // Proxies a wind-vs-power range query for the Data Science page's chart, so the
-// browser never has to call the ACE API directly (that's what caused the 429s
-// when several display tabs were open at once during testing).
+// browser never has to call the ACE API directly.
 app.get("/api/history", async (req, res) => {
   try {
     const hours = Math.min(24 * 30, Number(req.query.hours) || 24);
@@ -82,6 +103,8 @@ onStateChange((snapshot) => {
 });
 
 startPolling();
+startSyncJob(12 * 60 * 1000);
+startTimescaleSyncJob(12 * 60 * 1000);
 
 httpServer.listen(PORT, () => {
   console.log(`ACE Wind Display server running at http://localhost:${PORT}`);
