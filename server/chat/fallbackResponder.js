@@ -6,12 +6,14 @@ import { triggerScreen } from "./tools/bigScreen.js";
 
 const fmt = (n) => Number(n || 0).toLocaleString("en-GB");
 
+// Patterns are typo-tolerant ("yesterdat", "spining", "yday") because visitors type fast
+// on phones; carried over from the original intent router.
 const INTENTS = [
   { name: "screen", test: /show|inside|look in|open (it|up)|zoom|x-?ray|cut ?away/i },
-  { name: "records", test: /record|best|highest|peak|most ever|all[- ]time|storm/i },
-  { name: "history", test: /yesterday|last (night|24)|past day/i },
-  { name: "compare", test: /compare|month|august|september|trend/i },
-  { name: "live", test: /now|right now|today|spinning|speed|fast|wind|power|homes|rpm|generat|status/i },
+  { name: "records", test: /record|best|highest|peak|most ever|maximum|max (speed|power)|all[- ]time|storm/i },
+  { name: "history", test: /yesterd|yday|last (night|24)|past (day|24 ?h)|previous day/i },
+  { name: "compare", test: /compare|difference|month|august|september|trend|more energy/i },
+  { name: "live", test: /now|right now|today|current|live|spin+ing|speed|fast|wind|power|homes|rpm|generat|status/i },
 ];
 
 async function answerFor(intent, prompt, ctx) {

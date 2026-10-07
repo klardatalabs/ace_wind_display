@@ -93,4 +93,4 @@ $$\text{Capacity Factor (\%)} = \frac{\text{Actual Energy Generated (kWh)}}{\tex
   $$\text{Bin}_k = [v_k - 0.25\text{ m/s}, v_k + 0.25\text{ m/s})$$
 - For each bin, the normalized empirical power $P_k$ is the arithmetic mean of all samples $N_k$:
   $$P_k = \frac{1}{N_k} \sum_{i \in \text{Bin}_k} P_{\text{active}, i}$$
-- Standard deviation $\sigma_k$ and sample count $N_k$ are rendered on the Data Science canvas (`datascience.html`) across all **11,219 TimescaleDB SCADA rows**.
+- Standard deviation $\sigma_k$ and sample count $N_k$ are returned by `GET /api/history/power-curve` (drawn on the College screen and in the admin console) across all **11,219 TimescaleDB SCADA rows**.

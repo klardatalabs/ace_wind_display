@@ -157,8 +157,8 @@ This project transforms raw SCADA telemetry and historical research datasets int
 │                                                                                        │
 │   • Redis (ace_redis :6379, ~30 MB RAM)                                                │
 │     - Hot telemetry cache (1s TTL)                                                     │
-│     - User chat session memory (20-min TTL)                                            │
-│     - Sliding-window rate limiter (6 msgs / 60s)                                       │
+│     - Chat history per anonymous session id (30-min sliding TTL)                       │
+│     - Rate limits (8 msgs / min per session, 30 / min per IP)                          │
 └───────────────────────────────────────────┬────────────────────────────────────────────┘
                                             │
                                             ▼
@@ -170,11 +170,12 @@ This project transforms raw SCADA telemetry and historical research datasets int
 │       • GET /api/history/power-curve   -> 11,219 empirical points in 0.5m/s bins       │
 │       • GET /api/history/compare       -> August vs. September generation comparison   │
 │                                                                                        │
-│   [2. Hybrid RAG Conversational Engine (server/aiAgent.js & server/ragKnowledge.js)]   │
+│   [2. Hybrid RAG Chat Agent (server/chat/agent.js & server/knowledge/knowledgeBase.js)]│
 │       • Structured SQL Tools           -> Live speed, power, daily kWh, all records    │
-│       • Markdown Knowledge RAG         -> 158 chunks indexed from repo docs (specs)    │
+│       • Markdown Knowledge RAG         -> BM25 over the fact sheet + repo docs         │
 │       • Typo Tolerance                 -> Handles "yesterdat", "spining", slang        │
-│       • Multi-Provider LLM Adapter     -> Google Gemini, Groq (Llama 3.3), or Local    │
+│       • Multi-Provider LLM Adapter     -> Claude Haiku, OpenAI, Groq, Gemini, or Local │
+│       • Streaming                      -> POST /api/chat/stream (Server-Sent Events)   │
 │                                                                                        │
 │   [3. Researcher Dataset Delivery (server/datasetService.js)]                          │
 │       • POST /api/datasets/request     -> Generates 24h HMAC-SHA256 signed token       │
@@ -185,11 +186,12 @@ This project transforms raw SCADA telemetry and historical research datasets int
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                               FRONTEND DISPLAY SURFACES                                │
 │                                                                                        │
-│   • 🏘️ /community.html   : Three.js 3D PBR turbine, rotating impact story, AI chat     │
-│   • 🎒 /schools.html     : Reactive cartoon turbine with dynamic expressions & physics │
-│   • 🔬 /datascience.html : Canvas power curve, live records, dataset download modal    │
-│   • 🎛️ /admin.html       : 1-click scenario simulator, manual sliders, API inspector   │
-│   • 💬 Chat Widget       : Floating "Ask the Turbine" assistant on all public pages    │
+│   • 🏘️ /screen/community : PBR turbine in the site scan, impact story, QR to chat      │
+│   • 🎒 /screen/students  : Cartoon turbine, kid-friendly story, look-inside cutaway    │
+│   • 🔬 /screen/college   : Blueprint turbine, live power curve, technical story        │
+│   • 💬 /ask/:screen      : Private streaming phone chat opened from each screen's QR   │
+│   • 🌐 / and /developers : Website and developer portal (endpoint explorer, datasets)  │
+│   • 🎛️ /admin            : Wind simulator, scenarios, presets, screen remote, health   │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -197,7 +199,7 @@ This project transforms raw SCADA telemetry and historical research datasets int
 
 ## 📋 What Was Built: Step-by-Step Implementation Breakdown
 
-### Step 1: Historical Analytical Backend (`server/timescaleDb.js`)
+### Step 1: Historical Analytical Backend (`server/db/timescaleDb.js`)
 - **TimescaleDB Ingestion**: Ingested **11,219 ten-minute intervals** spanning July 21 to October 7, 2026 into the `scada_10m` hypertable, plus continuous aggregate `daily_rollup`.
 - **Historical Endpoints Built**:
   - `GET /api/history/records`: Aggregates all-time records across the turbine's history:
@@ -208,35 +210,35 @@ This project transforms raw SCADA telemetry and historical research datasets int
   - `GET /api/history/power-curve`: Bins all 11,219 intervals into 0.5 m/s wind speed increments with sample counts, min/max bounds, and average generation.
   - `GET /api/history/compare`: Performs month-over-month comparative analysis showing September generation was **+32.5%** over August due to stronger autumn Atlantic wind fronts.
 
-### Step 2: Frontend Data Science & Power Curve Canvas (`public/js/datascience.js`)
-- **Empirical Power Curve Visualizer**: Overlays theoretical Enercon E-115 power curve with **11,219 real binned SCADA data points** rendered on an HTML5 `<canvas>`.
-- **Live Operation Reticle**: Plots a pulsating cyan marker showing the turbine's exact live position $(v_{\text{wind}}, P_{\text{active}})$ in real-time.
-- **Dynamic KPI Cards**: Displays all-time peak power, max wind, best generation day, and autumn delta percentage.
+### Step 2: Live Power Curve (`frontend/src/pages/screens/components/PowerCurvePanel.jsx`)
+- **Empirical Power Curve Visualizer**: Overlays the Enercon E-115 reference curve (`shared/physics.js`) with the binned SCADA data points, on the College screen and in the admin console.
+- **Live Operation Reticle**: Plots a pulsing marker showing the turbine's exact live position $(v_{\text{wind}}, P_{\text{active}})$ in real-time.
+- **Story Panels**: The College screen pairs the curve with capacity utilisation, tip-speed ratio, daily energy bars and lifetime capacity factor.
 
-### Step 3: Self-Hosted Redis Infrastructure (`server/redisClient.js`)
+### Step 3: Self-Hosted Redis Infrastructure (`server/db/redisClient.js`, `server/chat/historyStore.js`)
 - **Zero-Cloud Redis**: Added `redis:7-alpine` (`ace_redis` on `127.0.0.1:6379`) to Docker Compose. Uses only **~30 MB of RAM**—no Upstash or Redis Cloud account needed.
-- **Sliding-Window Rate Limiter**: Limits chat requests to **6 messages per 60 seconds** per session using atomic Redis Lua transaction scripts.
-- **Session Memory**: Stores multi-turn conversation history per session with a **20-minute sliding TTL**.
+- **Rate Limiter**: Limits chat requests to **8 messages per minute per session** and **30 per minute per IP**, plus one big-screen command per screen every 12 seconds.
+- **Session Memory**: Stores multi-turn conversation history per anonymous session id with a **30-minute sliding TTL** (in-memory fallback without Redis).
 - **1-Second Telemetry Cache**: Shields the database from high-frequency dashboard polling.
 
-### Step 4: Floating "Ask the Turbine" Chat Widget (`public/js/chat-widget.js`)
-- **Kiosk-Optimized UI**: Built a floating glassmorphism widget with a glowing turbine badge, quick-suggestion prompt pills, animated typing indicator, and smooth auto-scrolling.
-- **Embedded Everywhere**: Active on `/community.html`, `/datascience.html`, and `/schools.html`.
-- **Dual Transport**: Communicates seamlessly over WebSocket (`chat.send`) with automatic REST fallback (`POST /api/chat`).
+### Step 4: "Ask Ace" Phone Chat (`frontend/src/pages/ask/`)
+- **QR, no login**: Each hoarding shows a QR to `/ask/<screen>`; the phone gets a server-signed anonymous session kept in `sessionStorage`, so two visitors never share a conversation.
+- **Streaming**: Replies stream token by token over Server-Sent Events (`POST /api/chat/stream`), with tool status lines, typing dots and suggestion chips.
+- **Remote control**: Visitors can open the turbine on the big screen they scanned; only a fixed action name is sent to the screen, never chat text.
 
-### Step 5: Researcher Dataset Delivery Pipeline (`server/datasetService.js`)
-- **Dataset Request Modal**: Added a clean modal on `/datascience.html` for university researchers, data scientists, and students.
+### Step 5: Researcher Dataset Delivery Pipeline (`server/services/datasetService.js`)
+- **Dataset Request Form**: On the `/developers` page, for university researchers, data scientists, and students.
 - **Cryptographically Signed Links**: Generates **24-hour HMAC-SHA256 tokens** verifying requester email and dataset type without server-side link state.
 - **Audit Logging**: Logs all dataset requests and download counts in the `dataset_downloads` table.
 - **Zero-Copy Streaming**: Directly streams the verified 8.74 MB Parquet dataset (`ace-wind-2026-10m-latest.parquet`) to researchers via Node.js kernel streams.
 
-### Step 6: Hybrid RAG Engine (`server/ragKnowledge.js` & `server/aiAgent.js`)
+### Step 6: Hybrid RAG Engine (`server/knowledge/knowledgeBase.js` & `server/chat/agent.js`)
 - **Why Pure Vector RAG Fails for Turbines**: Vector embeddings cannot compute numbers, aggregate sensor intervals, or read live RPM.
 - **The Hybrid Solution**:
   1. **Structured SQL Tools**: Query TimescaleDB directly for live telemetry, past 24-hour generation, records, and monthly comparisons.
-  2. **Unstructured Document RAG**: Chunks and indexes **158 semantic sections** across 8 Markdown files (`DATA_SOURCES.md`, `API_REFERENCE.md`, `PUBLIC_EXPERIENCE_BLUEPRINT.md`, `SYSTEM_DESIGN.md`, etc.).
-  3. **Typo Tolerance**: Normalizes user typos (e.g., *"how much did u generated yesterdat"* correctly triggers the continuous 24-hour SCADA aggregation).
-  4. **Multi-Provider LLM Integration**: Pre-wired for Google Gemini, Groq (Llama 3.3 70B), and OpenAI, backed by a local synthesis engine if external APIs are unavailable.
+  2. **Unstructured Document RAG**: BM25 search over a curated fact sheet (`server/knowledge/docs/weston-wind.md`) and the repo's Markdown docs (`DATA_SOURCES.md`, `API_REFERENCE.md`, `PROJECT_OVERVIEW.md`, etc.).
+  3. **Typo Tolerance**: The offline intent router tolerates typos (e.g., *"how much did u generated yesterdat"* still triggers the 24-hour SCADA aggregation); the LLM handles them natively.
+  4. **Multi-Provider LLM Integration**: Pre-wired for Anthropic Claude Haiku, OpenAI, Groq (Llama 3.3 70B), Google Gemini and any OpenAI-compatible endpoint, backed by a templated responder if external APIs are unavailable.
 
 ---
 
