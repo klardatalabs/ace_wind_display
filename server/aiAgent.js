@@ -129,16 +129,8 @@ async function gatherGroundedContext(intent, prompt) {
 function generateGroundedResponse(prompt, context) {
   const p = prompt.toLowerCase();
 
-  if (context.currentStatus && (/how (much|fast)|power|generating|spinning|speed|live|now/i.test(p) || p.length < 15)) {
-    const cs = context.currentStatus;
-    if (cs.power_kw > 10) {
-      return `Right now, the wind over Avonmouth is blowing at **${cs.wind_speed_ms} m/s**, and my giant blades are spinning at **${cs.rotor_rpm} RPM**! I am generating **${cs.power_kw.toLocaleString()} kW** of clean electricity, which is currently lighting up roughly **${cs.homes_powered.toLocaleString()} homes** across Lawrence Weston.`;
-    } else {
-      return `Right now, coastal air over the Severn Estuary is gentle at **${cs.wind_speed_ms} m/s**. My blades are resting or idling at **${cs.rotor_rpm} RPM**, waiting for the breeze to pick up above cut-in speed (2.5 m/s) to send fresh power into local homes.`;
-    }
-  }
-
-  if (context.records && (/record|highest|most|peak|best|storm/i.test(p))) {
+  // 1. Records & Peak Stats
+  if (context.records && (/record|highest|most|peak|best|storm|all-time|maximum/i.test(p))) {
     const rec = context.records;
     return `Here are my all-time records from my first 78 days of operation:\n\n` +
       `⚡ **Peak Power Output:** **${rec.peak_power.power_max_kw.toLocaleString()} kW** (~4.36 MW) recorded on 30 September!\n` +
@@ -147,22 +139,35 @@ function generateGroundedResponse(prompt, context) {
       `🏡 **Total Generation to Date:** Over **${(rec.totals.total_energy_kwh / 1_000_000).toFixed(2)} GWh**, which has generated enough clean energy to power roughly **${rec.totals.homes_powered_estimate.toLocaleString()} homes** for a full year!`;
   }
 
-  if (context.communityFacts && (/who owns|where|tall|height|model|community|lawrence weston/i.test(p))) {
+  // 2. Monthly Comparison
+  if (context.comparison && (/compare|august|september|difference|vs/i.test(p))) {
+    const comp = context.comparison.monthly_comparison;
+    return `In August 2026, I generated **${comp.august_2026.energy_kwh.toLocaleString()} kWh**. In September 2026, thanks to stronger autumn Atlantic winds, I produced **${comp.september_2026.energy_kwh.toLocaleString()} kWh** — an increase of **+${comp.delta_energy_pct}%**!`;
+  }
+
+  // 3. Community & Ownership Facts
+  if (context.communityFacts && (/who owns|who built|where|tall|height|model|community|lawrence weston|profit|money|dividend/i.test(p))) {
     const cf = context.communityFacts;
     return `I am England's largest onshore community wind turbine! Standing **150 metres tall** (taller than the London Eye) in Avonmouth, Bristol, with a rotor diameter of **115 metres**.\n\n` +
       `Best of all, I am **100% community-owned** by the residents of Lawrence Weston through Ambition Community Energy CIC. Every single penny of surplus revenue stays right here to fight fuel poverty, help neighbours insulate their homes, and fund local community projects!`;
   }
 
-  if (context.dailySummary && (/yesterday/i.test(p))) {
+  // 4. Daily / Yesterday Summary
+  if (context.dailySummary && (/yesterday|last night/i.test(p))) {
     const ds = context.dailySummary;
     if (ds.energy_kwh) {
       return `Yesterday, I generated **${Math.round(ds.energy_kwh).toLocaleString()} kWh** of clean electricity from the coastal breeze! My average power output was **${ds.active_power_avg} kW** with a peak of **${ds.active_power_max} kW**, at an average wind speed of **${ds.wind_speed_avg} m/s**.`;
     }
   }
 
-  if (context.comparison && (/compare|august|september/i.test(p))) {
-    const comp = context.comparison.monthly_comparison;
-    return `In August 2026, I generated **${comp.august_2026.energy_kwh.toLocaleString()} kWh**. In September 2026, thanks to stronger autumn Atlantic winds, I produced **${comp.september_2026.energy_kwh.toLocaleString()} kWh** — an increase of **+${comp.delta_energy_pct}%**!`;
+  // 5. Current Telemetry Status
+  if (context.currentStatus && (/how (much|fast)|power|generating|spinning|speed|live|now|status|rpm/i.test(p) || p.length < 15)) {
+    const cs = context.currentStatus;
+    if (cs.power_kw > 10) {
+      return `Right now, the wind over Avonmouth is blowing at **${cs.wind_speed_ms} m/s**, and my giant blades are spinning at **${cs.rotor_rpm} RPM**! I am generating **${cs.power_kw.toLocaleString()} kW** of clean electricity, which is currently lighting up roughly **${cs.homes_powered.toLocaleString()} homes** across Lawrence Weston.`;
+    } else {
+      return `Right now, coastal air over the Severn Estuary is gentle at **${cs.wind_speed_ms} m/s**. My blades are resting or idling at **${cs.rotor_rpm} RPM**, waiting for the breeze to pick up above cut-in speed (2.5 m/s) to send fresh power into local homes.`;
+    }
   }
 
   // General fallback
