@@ -1,0 +1,21 @@
+import { useEffect } from "react";
+import { usePublicOrigin } from "../../hooks/usePublicOrigin.js";
+import DevHero from "./sections/DevHero.jsx";
+import EndpointExplorer from "./sections/EndpointExplorer.jsx";
+import CodeSamples from "./sections/CodeSamples.jsx";
+import DatasetsSection from "./sections/DatasetsSection.jsx";
+
+export default function DevelopersPage() {
+  const origin = usePublicOrigin();
+  useEffect(() => {
+    document.title = "Developers · Weston Wind";
+  }, []);
+  return (
+    <>
+      <DevHero origin={origin} />
+      <EndpointExplorer />
+      <CodeSamples origin={origin} />
+      <DatasetsSection />
+    </>
+  );
+}

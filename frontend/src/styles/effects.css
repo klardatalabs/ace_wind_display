@@ -1,0 +1,168 @@
+/* Effects that are awkward as utility classes: glass borders, glows, brushstrokes, duotone. */
+
+/* Hairline gradient border used on glass pills (masked so the fill stays clear). */
+.glass-ring {
+  position: relative;
+}
+.glass-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.8), rgb(255 255 255 / 0.12));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Soft green wash that fades down from the top of the page (and up from the footer). */
+.sky-wash {
+  background: linear-gradient(100deg, var(--color-moss-200) 0%, var(--color-moss-100) 32%, rgb(255 255 255 / 0) 68%);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+.sky-wash-up {
+  -webkit-mask-image: linear-gradient(to top, #000, transparent);
+  mask-image: linear-gradient(to top, #000, transparent);
+}
+
+/* Animated glow behind the primary CTA. */
+.cta-glow {
+  background: conic-gradient(from var(--glow-angle, 0deg), var(--color-moss-300), var(--color-moss-500), var(--color-moss-200), var(--color-moss-300));
+  animation: glow-spin 4s linear infinite;
+}
+@property --glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes glow-spin {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+
+/* Highlighter strokes behind key words. */
+.brushstroke {
+  background-image: linear-gradient(104deg, transparent 0.6em, var(--color-moss-200) 0.8em, var(--color-moss-100) 92%, transparent 100%);
+  background-size: 100% 58%;
+  background-position: 0 85%;
+  background-repeat: no-repeat;
+  border-radius: 0.4em;
+  padding: 0 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Photos are shown as they are — real colour. The wrapper keeps its old class name
+   (.duotone) so components don't change; the only treatment is a gentle contrast lift,
+   and a slight brightening on the "soft" hover layer. */
+.duotone {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.duotone > img,
+.duotone > video {
+  filter: saturate(1.05) contrast(1.03);
+}
+.duotone-soft > img,
+.duotone-soft > video {
+  filter: saturate(1.15) contrast(1.02) brightness(1.06);
+}
+
+/* Progress ring on step pills (driven by --p, 0..100). */
+.progress-ring circle {
+  stroke-dasharray: 100;
+  stroke-dashoffset: calc(100 - var(--p, 0));
+}
+
+@keyframes nudge {
+  0%, 70%, 100% { transform: translateX(0); }
+  80% { transform: translateX(4px); }
+  90% { transform: translateX(0); }
+}
+.animate-nudge {
+  animation: nudge 2.6s ease-in-out 1.2s 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-glow,
+  .animate-nudge {
+    animation: none;
+  }
+}
+
+/* Soft halo pulse around the hoarding QR codes. */
+@keyframes qr-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(111 191 147 / 0.55); }
+  50% { box-shadow: 0 0 0 1.6vmin rgb(111 191 147 / 0); }
+}
+.qr-pulse {
+  animation: qr-pulse 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qr-pulse {
+    animation: none;
+  }
+}
+
+/* Chat: bouncing typing dots and a blinking caret on a streaming reply. */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot {
+  animation: typing-dot 1s ease-in-out infinite;
+}
+.stream-caret > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 2px;
+  background: var(--color-moss-400);
+  animation: caret-blink 0.9s steps(2, start) infinite;
+}
+@keyframes caret-blink {
+  to { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot,
+  .stream-caret > :last-child::after {
+    animation: none;
+  }
+}
+
+/* Admin range sliders in the brand green. */
+.ww-range {
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--color-moss-500) var(--fill, 50%), var(--color-moss-100) var(--fill, 50%));
+  cursor: pointer;
+}
+.ww-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: white;
+  border: 2px solid var(--color-moss-600);
+  box-shadow: 0 2px 8px rgb(10 21 29 / 0.2);
+  transition: transform 0.2s var(--ease-spring);
+}
+.ww-range:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+.ww-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: white;
+  border: 2px solid var(--color-moss-600);
+}

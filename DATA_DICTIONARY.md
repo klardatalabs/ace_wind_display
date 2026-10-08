@@ -192,9 +192,9 @@ The Farm Control Unit (FCU E2) monitors the point of common coupling (PCC) to th
 | **Site Location** | Avonmouth / Lawrence Weston, Bristol, UK | Coords: `51.537917°N, -2.674000°W` |
 | **Turbine Model** | Enercon E-115 EP3 (`EP3-CS02`) | Direct-drive gearless synchronous generator |
 | **Rated Capacity** | 4.2 MW (4,245 kW) | Nominal farm limit: 4,200 kW (setpoint capped) |
-| **Hub Height** | 150 meters (490 ft) | Tallest onshore wind turbine in England |
+| **Hub Height** | ~92 meters (≈302 ft) | Tip height is 150 m, the tallest onshore wind turbine in England |
 | **Rotor Diameter** | 115.7 meters (380 ft) | Swept area: 10,514 m² (~1.5 football pitches) |
-| **Tip Height** | 207.8 meters (682 ft) | Taller than the London Eye (135m) |
+| **Tip Height** | 150 meters (492 ft) | Taller than the London Eye (135m) and Big Ben (96m) |
 | **Cut-in Wind Speed** | 2.5 m/s | Blades start rotating and producing net power |
 | **Rated Wind Speed** | 12.5 m/s | Reaches full 4.2 MW capacity |
 | **Cut-out Wind Speed** | 28.0 – 34.0 m/s | Storm control pitch-out to protect structure |

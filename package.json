@@ -1,18 +1,23 @@
 {
   "name": "ace-wind-display",
   "version": "1.0.0",
-  "description": "ACE Wind Turbine public hoarding display - Node backend + static persona pages",
+  "description": "Weston Wind: live hoarding screens, phone chat and website for the ACE community wind turbine",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "node server/server.js"
+    "setup": "npm install && npm --prefix frontend install",
+    "dev": "node --watch server/server.js",
+    "dev:web": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "node server/server.js",
+    "render:stills": "node scripts/render-stills.mjs",
+    "check:api": "node scripts/api-check.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "express": "^4.19.2",
     "ioredis": "^6.0.0",
     "pg": "^8.23.1",
-    "three": "^0.186.1",
     "ws": "^8.18.0"
   }
 }

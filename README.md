@@ -1,106 +1,115 @@
-# ACE Wind Turbine — Public Community Hoarding & Digital Billboard
+# Weston Wind
 
-*Live Wind. Local Energy. Community Impact.*
+*Live wind. Local energy. A turbine you can talk to.*
 
-A high-aesthetic, zero-clutter digital hoarding display designed for the public screen in the **Ambition Lawrence Weston Community Centre**, Bristol, UK.
+Weston Wind is the public face of the **ACE community wind turbine** in Lawrence Weston, Bristol
+(Enercon E-115 EP3, 4.2 MW): three storytelling hoarding screens with a native Three.js turbine,
+a private phone chat ("Ask Ace") opened from a QR code, a public website, a developer portal and an
+operator console with a wind simulator.
 
 Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (see [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)).
 
----
+| Route | What it is |
+| --- | --- |
+| `/` | Website: live figures, how it works, the screens, a scroll-driven "look inside", day in the life |
+| `/developers` | Developer portal: live endpoint explorer, code samples, open-data downloads |
+| `/screen/students` | Hoarding screen: kid-friendly story told over the live 3D place |
+| `/screen/community` | Hoarding screen: the community story (homes powered, this week, since 2023) |
+| `/screen/college` | Hoarding screen: spec, power curve, tip-speed ratio, generator, open data |
+| `/ask/:screen` | Phone chat opened from each screen's QR code (no login) |
 
-## 🌟 What It Delivers
+## The hoarding screens
 
-### 1. 🏘️ Community Hoarding Screen (`/community.html`)
-- **Real Photographic Landscapes:** Seamlessly switchable between the lush rolling green meadow under deep blue skies (`green-hills.jpg`) and the authentic Lawrence Weston / Avonmouth aerial drone photograph overlooking the Severn Estuary (`ace-real-drone.jpg`). Toggle via the top-bar pill or simply press **`B`**.
-- **Authentic 3D Blender Model Integration (`ACE_Turbine.blend`):** Exported directly to a WebGL glTF 2.0 binary (`ace_turbine.glb`) and rendered using **Three.js with Physically Based Rendering (PBR)**:
-  - Exact 1:1 architectural scale: 89m hub height, 56m blade radius, 150m tip height.
-  - Full authentic hierarchy preserved: `RotorSpin` (blades, spinner dome, generator rotor), `Yaw` (nacelle housing, roof sensors, aviation beacon), and tower with authentic Enercon green base rings, concrete foundation, and transformer sub-station.
-  - Realistic daylight sunlight illumination with soft dynamic shadow mapping.
-  - Smooth 60 FPS sub-pixel blade rotation tied to live or simulated telemetry RPM, with realistic physical momentum.
-  - **Interactive 3D Orbit Camera:** Drag to orbit and inspect from any angle, scroll to zoom, double-click to reset to the cinematic hero angle.
-- **Billboard-First Philosophy:** High-contrast frosted glass cards with zero engineering jargon — completely readable from across a room.
-- **8-Second Rotating Narrative:** Seamlessly transitions between human-centric beats:
-  1. *Live Power & Lawrence Weston Homes Powered* (e.g. `2,840 Homes`)
-  2. *Live Coastal Weather & Beaufort Scale*
-  3. *Today's Clean MWh Generated*
-  4. *Avoided Carbon Pollution ($CO_2$ kg & Equivalent Trees)*
-  5. *Community Prosperity Fund (Estimated £ for ALW warm hubs & fuel poverty support)*
-  6. *All-time Clean Energy Generation since 2023 Commissioning*
+- **Native Three.js** turbine from `assets/source/ace-turbine.blend` (exported, meshopt-compressed to
+  `frontend/public/models/ace-turbine.glb`), plus a procedural interior: ladder, service lift,
+  platforms, cable loop, converter cabinets, yaw ring and drives, copper stator coils.
+- **Live**: the rotor turns at exactly the rpm the API reports (eased like a heavy rotor), and the
+  nacelle yaws to the live bearing.
+- **Look inside**: one value `U` (0 → 1) drives four effects at once:
+  section cutaway (clipping plane with a solid cap), exploded view (front halves slide out
+  `3.5 m × U`), ghost / x-ray (`opacity = 1 − 0.92 U`, depth write off) and a camera fly-in that docks
+  in the machine room or at the tower base.
+- **Story loop**: chapters with live copy and camera moves advance on their own (GSAP). Touching the
+  screen or a phone command pauses the loop so the visitor stays in control.
+- Drag to orbit, pinch / wheel to zoom, double-tap to look inside, tap any item to read about it.
 
-### 2. 🎒 Schools & Youth Screen (`/schools.html`)
-- **Reactive Cartoon Turbine Character:** Inspired directly by the project reference design (`cartoon-windmill-smiling-face...`).
-- **Dynamic Physics & Facial Expressions:**
-  - 😴 **Dead Calm ($< 2.5$ m/s):** Eyes close into sleepy lines, soft floating `"Zzz..."` bubble appears, blades rest.
-  - 😊 **Normal Generation ($2.5 - 12.5$ m/s):** Big joyful smile, cute natural blinks, blades spinning enthusiastically.
-  - 💨 **High Gale & Violent Wind ($> 13$ m/s):** **Tower physically bends and leans with wind gusts**, eyes squeezed tightly shut against the blast, wind gust swoosh lines!
-  - 🌪️ **Storm Cut-Out ($> 28$ m/s):** Blades feather sideways to stay safe, dizzy expression.
-  - 🔧 **Maintenance Mode:** Cute worker hard-hat / wrench icon.
-- **Kid-Friendly Story Comparisons:**
-  - *Blade tip speed vs. the fastest cheetah on Earth (up to 180 mph!)*
-  - *Sweeping an area bigger than 1.5 Premier League football pitches every turn!*
-  - *Generating enough power to run 12,000 video game consoles or boil 1,500 kettles at once!*
-  - *Taller than the London Eye (135m) and Big Ben (96m)!*
+## Ask Ace — the phone chat
 
-### 3. 🔬 Data Science & University Screen (`/datascience.html`)
-- **Live IEC 61400-25 SCADA Telemetry:** Capacity factor %, rated vs actual power, curtailment setpoint monitoring.
-- **Live Enercon E-115 Power Curve Canvas:** Real-time scatter points and theoretical power curve overlaid with a pulsing live operational target reticle.
-- **Live Nacelle Azimuth Compass Rose:** Compass needle showing nacelle yaw orientation angle.
+- Each browser tab gets an anonymous, **server-signed session token** (kept in `sessionStorage`).
+  History is stored per session id only, so two visitors never see each other's messages, and a
+  reload keeps the conversation.
+- Replies **stream** over Server-Sent Events. The agent calls tools for live status, history,
+  Tavily web search (the source for every non-live fact: the turbine, the project, the community, wind
+  energy), `show_photos` (Unsplash), and `show_on_big_screen`, which sends a fixed animation name (never text) to the screen the visitor scanned.
+- Works with Anthropic (Claude Haiku by default), OpenAI, Groq, Gemini or any OpenAI-compatible
+  endpoint; without a key it answers from templates.
 
-### 4. 🎛️ Operator & Demo Simulator Deck (`/admin.html`)
-- **1-Click Demo Scenarios:**
-  - 💤 **Dead Calm** (Wind 1.2 m/s, Power 0 kW, RPM 0.2 — Nap mode)
-  - 🍃 **Gentle Breeze** (Wind 5.5 m/s, Power 650 kW, RPM 6.8 — Generating)
-  - 🐆 **Cheetah Mode / Peak 4.2 MW** (Wind 12.8 m/s, Power 4,200 kW, RPM 13.5 — Top speed)
-  - 🌪️ **Violent Gale & Cut-Out** (Wind 29.5 m/s, Power 0 kW, RPM 0.8 — Bent tower, feathered blades)
-  - 🛑 **Grid Curtailment** (Wind 11.0 m/s, Power 1,500 kW — Throttled by DNO)
-  - 🔧 **Maintenance** (Service flag active, technicians on site)
-  - ⚠️ **Safety Trip / Fault**
-- **Granular Manual Sliders:** Wind Speed ($0 - 35$ m/s), Active Power ($0 - 4,245$ kW), Rotor RPM ($0 - 15$ rpm), Nacelle Yaw ($0 - 360^\circ$).
-- **Live Broadcast Inspector:** Real-time JSON and metrics monitor showing the exact payload pushed over WebSocket to all screens.
-- **"Resume Live Telemetry" Button:** Instantly snaps back to polling the real ACE duckdns API.
+## Running it
 
----
-
-## ⚡ Effortless Display Switching
-
-Even though there are no buttons on the hoarding screens, switching during testing and demos is simple:
-1. **Keyboard Shortcuts:**
-   - Press **`1`** → Switch to Community Screen
-   - Press **`2`** → Switch to Schools Screen
-   - Press **`3`** → Switch to Data Science Screen
-   - Press **`A`** or **`0`** → Switch to Admin Portal
-   - Press **`F`** → Toggle Fullscreen
-2. **Hidden Hot-Corner Hover:**
-   - Move your mouse to the **top-right corner** of any screen to reveal a floating, translucent glass switcher.
-3. **Admin Launch Bar:**
-   - One-click launcher links at the top of `/admin.html`.
-
----
-
-## 🚀 Running Locally
-
-### 1. Start the Backend Server
 ```bash
-npm start
-```
-*(Runs on port 4100 by default, or specify `PORT=8080 npm start`)*
-
-### 2. Open Any Screen in Your Browser
-- **Community (Default):** [http://localhost:4100/community.html](http://localhost:4100/community.html)
-- **Schools (Cartoon):** [http://localhost:4100/schools.html](http://localhost:4100/schools.html)
-- **Data Science:** [http://localhost:4100/datascience.html](http://localhost:4100/datascience.html)
-- **Admin Simulator:** [http://localhost:4100/admin.html](http://localhost:4100/admin.html)
-
----
-
-## 🖥️ Deploying to the Community Centre Kiosk PC
-
-On the kiosk PC connected to the public display:
-```bash
-chromium --kiosk --noerrdialogs --disable-session-crashed-bubble --incognito http://localhost:4100/community.html
+npm run setup          # installs the server and the frontend
+cp .env.example .env   # add your keys (never commit .env)
+npm run build          # builds the React app into frontend/dist
+npm start              # http://localhost:4100
 ```
 
----
+Development with hot reload: `npm run dev` (API on :4100) and `npm run dev:web` (Vite on :5173,
+proxying `/api` and `/ws`).
+
+Kiosk PC (one per hoarding):
+
+```bash
+chromium --kiosk --noerrdialogs --disable-session-crashed-bubble --incognito http://localhost:4100/screen/community
+```
+
+Set `PUBLIC_ORIGIN` to the public URL so the QR codes point phones at the right place.
+
+## The place, the story and the walk-through
+
+Every hoarding shows the same procedural 3D place around the turbine: terrain and shore, estate,
+industrial units, a solar farm, pylons, hedges and woodland. The estate, units, solar farm and
+pylons are **illustrations** (tapping them says so), not a survey.
+
+- **Real time**: the sun is where it really is over Bristol (`frontend/src/three/environment.js`),
+  and clouds, rain and haze follow OpenWeather at the site (`OPENWEATHER_API_KEY`). Windows light
+  up at night in proportion to the homes the turbine is powering.
+- **Story**: each screen plays chapters (`frontend/src/content/screens.js`): camera moves, drawn
+  measurements, wind streamlines, a day time-lapse, and live figures that hang off the part of the
+  scene they describe (blade tip, nacelle, homes).
+- **Walk inside**: a first-person climb through the tower door, up the ladder and through the hatch
+  into the machine room. A phone can start it and scrub it with a slider ("Walk inside").
+- **Tap anything** (the blades, nacelle, tower, track, estate, the sky) for a description card; "Ask
+  Ace more" fetches a fuller answer with photos through the chatbot.
+
+## Chat sources
+
+Ace answers live questions from the turbine's own data tools. Facts about the turbine, the project
+and the area come from a **web search** (Tavily, `TAVILY_API_KEY`), not from local documents, and
+photos come from **Unsplash** (`UNSPLASH_ACCESS_KEY`), always with the photographer's credit.
+
+## Demo and simulation API
+
+There is no admin page. For demos and testing, `/api/admin/*` can still drive every screen
+(protect it with `ADMIN_TOKEN`, or leave `NODE_ENV` unset for local use): simulate wind speed and
+bearing, apply presets, force the time of day, cloud, rain and fog (`/api/admin/environment`),
+and send commands to a connected screen. `npm run check:api` tests every endpoint.
+
+## Project layout
+
+```
+server/            Express API, WebSocket hub, chat agent, data jobs
+  chat/            sessions, history store, agent loop, LLM providers, tools, personas
+  routes/          state, history, datasets, chat (SSE), screens, environment, photos, admin (demo API)
+shared/            constants, impact maths and turbine physics used by server and frontend
+frontend/          Vite + React + Tailwind v4 + GSAP
+  src/three/       TurbineScene, camera rig, world (terrain, trees, buildings), sky, walk, hotspots
+  src/pages/       landing, developers, screens, ask
+assets/source/     the turbine in .blend / .glb / .fbx / .obj
+scripts/           GLB export, Zenodo ingest, landing-page 3D stills (render-stills.mjs)
+```
+
+The 3D stills on the landing page are rendered from the real scene with
+`npm run render:stills` (server running, Playwright installed).
 
 ## 🗄️ TimescaleDB Historical Data Layer
 
@@ -121,7 +130,7 @@ python scripts/ingest_zenodo_timescale.py
 - Automatically calls `refresh_continuous_aggregate('daily_rollup', ...)` for the affected range.
 
 ### 3. Automated Live Sync Job
-- When the backend starts (`npm start`), the sync job runs immediately and on a recurring 12-minute schedule.
+- When the server starts (`npm start`), the sync job runs immediately and on a recurring 12-minute schedule.
 - Fetches newly available `wecstd/range` SCADA moments from the live ACE API, gap-fills downtime, and inserts with `ON CONFLICT (ts) DO NOTHING` and `source='live'`.
 - If TimescaleDB is stopped or offline, the application gracefully continues running in live in-memory mode without crashing.
 
@@ -163,8 +172,8 @@ This project transforms raw SCADA telemetry and historical research datasets int
 │                                                                                        │
 │   • Redis (ace_redis :6379, ~30 MB RAM)                                                │
 │     - Hot telemetry cache (1s TTL)                                                     │
-│     - User chat session memory (20-min TTL)                                            │
-│     - Sliding-window rate limiter (6 msgs / 60s)                                       │
+│     - Chat history per anonymous session id (30-min sliding TTL)                       │
+│     - Rate limits (8 msgs / min per session, 30 / min per IP)                          │
 └───────────────────────────────────────────┬────────────────────────────────────────────┘
                                             │
                                             ▼
@@ -176,11 +185,12 @@ This project transforms raw SCADA telemetry and historical research datasets int
 │       • GET /api/history/power-curve   -> 11,219 empirical points in 0.5m/s bins       │
 │       • GET /api/history/compare       -> August vs. September generation comparison   │
 │                                                                                        │
-│   [2. Hybrid RAG Conversational Engine (server/aiAgent.js & server/ragKnowledge.js)]   │
+│   [2. Chat Agent with live tools + web search (server/chat/agent.js)]                   │
 │       • Structured SQL Tools           -> Live speed, power, daily kWh, all records    │
-│       • Markdown Knowledge RAG         -> 158 chunks indexed from repo docs (specs)    │
+│       • Tavily Web Search              -> facts about the turbine, project, community  │
 │       • Typo Tolerance                 -> Handles "yesterdat", "spining", slang        │
-│       • Multi-Provider LLM Adapter     -> Google Gemini, Groq (Llama 3.3), or Local    │
+│       • Multi-Provider LLM Adapter     -> Claude Haiku, OpenAI, Groq, Gemini, or Local │
+│       • Streaming                      -> POST /api/chat/stream (Server-Sent Events)   │
 │                                                                                        │
 │   [3. Researcher Dataset Delivery (server/datasetService.js)]                          │
 │       • POST /api/datasets/request     -> Generates 24h HMAC-SHA256 signed token       │
@@ -191,11 +201,11 @@ This project transforms raw SCADA telemetry and historical research datasets int
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                               FRONTEND DISPLAY SURFACES                                │
 │                                                                                        │
-│   • 🏘️ /community.html   : Three.js 3D PBR turbine, rotating impact story, AI chat     │
-│   • 🎒 /schools.html     : Reactive cartoon turbine with dynamic expressions & physics │
-│   • 🔬 /datascience.html : Canvas power curve, live records, dataset download modal    │
-│   • 🎛️ /admin.html       : 1-click scenario simulator, manual sliders, API inspector   │
-│   • 💬 Chat Widget       : Floating "Ask the Turbine" assistant on all public pages    │
+│   • 🏘️ /screen/community : Live place, community story, QR to chat                     │
+│   • 🎒 /screen/students  : Kid-friendly story, walk inside the tower                   │
+│   • 🔬 /screen/college   : Spec, live power curve, technical story                     │
+│   • 💬 /ask/:screen      : Private streaming phone chat opened from each screen's QR   │
+│   • 🌐 / and /developers : Website and developer portal (endpoint explorer, datasets)  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -203,7 +213,7 @@ This project transforms raw SCADA telemetry and historical research datasets int
 
 ## 📋 What Was Built: Step-by-Step Implementation Breakdown
 
-### Step 1: Historical Analytical Backend (`server/timescaleDb.js`)
+### Step 1: Historical Analytical Backend (`server/db/timescaleDb.js`)
 - **TimescaleDB Ingestion**: Ingested **11,219 ten-minute intervals** spanning July 21 to October 7, 2026 into the `scada_10m` hypertable, plus continuous aggregate `daily_rollup`.
 - **Historical Endpoints Built**:
   - `GET /api/history/records`: Aggregates all-time records across the turbine's history:
@@ -214,35 +224,35 @@ This project transforms raw SCADA telemetry and historical research datasets int
   - `GET /api/history/power-curve`: Bins all 11,219 intervals into 0.5 m/s wind speed increments with sample counts, min/max bounds, and average generation.
   - `GET /api/history/compare`: Performs month-over-month comparative analysis showing September generation was **+32.5%** over August due to stronger autumn Atlantic wind fronts.
 
-### Step 2: Frontend Data Science & Power Curve Canvas (`public/js/datascience.js`)
-- **Empirical Power Curve Visualizer**: Overlays theoretical Enercon E-115 power curve with **11,219 real binned SCADA data points** rendered on an HTML5 `<canvas>`.
-- **Live Operation Reticle**: Plots a pulsating cyan marker showing the turbine's exact live position $(v_{\text{wind}}, P_{\text{active}})$ in real-time.
-- **Dynamic KPI Cards**: Displays all-time peak power, max wind, best generation day, and autumn delta percentage.
+### Step 2: Live Power Curve (`frontend/src/pages/screens/components/PowerCurvePanel.jsx`)
+- **Empirical Power Curve Visualizer**: Overlays the Enercon E-115 reference curve (`shared/physics.js`) with the binned SCADA data points, on the College screen and in the admin console.
+- **Live Operation Reticle**: Plots a pulsing marker showing the turbine's exact live position $(v_{\text{wind}}, P_{\text{active}})$ in real-time.
+- **Story Panels**: The College screen pairs the curve with capacity utilisation, tip-speed ratio, daily energy bars and lifetime capacity factor.
 
-### Step 3: Self-Hosted Redis Infrastructure (`server/redisClient.js`)
+### Step 3: Self-Hosted Redis Infrastructure (`server/db/redisClient.js`, `server/chat/historyStore.js`)
 - **Zero-Cloud Redis**: Added `redis:7-alpine` (`ace_redis` on `127.0.0.1:6379`) to Docker Compose. Uses only **~30 MB of RAM**—no Upstash or Redis Cloud account needed.
-- **Sliding-Window Rate Limiter**: Limits chat requests to **6 messages per 60 seconds** per session using atomic Redis Lua transaction scripts.
-- **Session Memory**: Stores multi-turn conversation history per session with a **20-minute sliding TTL**.
+- **Rate Limiter**: Limits chat requests to **8 messages per minute per session** and **30 per minute per IP**, plus one big-screen command per screen every 12 seconds.
+- **Session Memory**: Stores multi-turn conversation history per anonymous session id with a **30-minute sliding TTL** (in-memory fallback without Redis).
 - **1-Second Telemetry Cache**: Shields the database from high-frequency dashboard polling.
 
-### Step 4: Floating "Ask the Turbine" Chat Widget (`public/js/chat-widget.js`)
-- **Kiosk-Optimized UI**: Built a floating glassmorphism widget with a glowing turbine badge, quick-suggestion prompt pills, animated typing indicator, and smooth auto-scrolling.
-- **Embedded Everywhere**: Active on `/community.html`, `/datascience.html`, and `/schools.html`.
-- **Dual Transport**: Communicates seamlessly over WebSocket (`chat.send`) with automatic REST fallback (`POST /api/chat`).
+### Step 4: "Ask Ace" Phone Chat (`frontend/src/pages/ask/`)
+- **QR, no login**: Each hoarding shows a QR to `/ask/<screen>`; the phone gets a server-signed anonymous session kept in `sessionStorage`, so two visitors never share a conversation.
+- **Streaming**: Replies stream token by token over Server-Sent Events (`POST /api/chat/stream`), with tool status lines, typing dots and suggestion chips.
+- **Remote control**: Visitors can open the turbine on the big screen they scanned; only a fixed action name is sent to the screen, never chat text.
 
-### Step 5: Researcher Dataset Delivery Pipeline (`server/datasetService.js`)
-- **Dataset Request Modal**: Added a clean modal on `/datascience.html` for university researchers, data scientists, and students.
+### Step 5: Researcher Dataset Delivery Pipeline (`server/services/datasetService.js`)
+- **Dataset Request Form**: On the `/developers` page, for university researchers, data scientists, and students.
 - **Cryptographically Signed Links**: Generates **24-hour HMAC-SHA256 tokens** verifying requester email and dataset type without server-side link state.
 - **Audit Logging**: Logs all dataset requests and download counts in the `dataset_downloads` table.
 - **Zero-Copy Streaming**: Directly streams the verified 8.74 MB Parquet dataset (`ace-wind-2026-10m-latest.parquet`) to researchers via Node.js kernel streams.
 
-### Step 6: Hybrid RAG Engine (`server/ragKnowledge.js` & `server/aiAgent.js`)
+### Step 6: Chat Agent (`server/chat/agent.js`)
 - **Why Pure Vector RAG Fails for Turbines**: Vector embeddings cannot compute numbers, aggregate sensor intervals, or read live RPM.
 - **The Hybrid Solution**:
   1. **Structured SQL Tools**: Query TimescaleDB directly for live telemetry, past 24-hour generation, records, and monthly comparisons.
-  2. **Unstructured Document RAG**: Chunks and indexes **158 semantic sections** across 8 Markdown files (`DATA_SOURCES.md`, `API_REFERENCE.md`, `PUBLIC_EXPERIENCE_BLUEPRINT.md`, `SYSTEM_DESIGN.md`, etc.).
-  3. **Typo Tolerance**: Normalizes user typos (e.g., *"how much did u generated yesterdat"* correctly triggers the continuous 24-hour SCADA aggregation).
-  4. **Multi-Provider LLM Integration**: Pre-wired for Google Gemini, Groq (Llama 3.3 70B), and OpenAI, backed by a local synthesis engine if external APIs are unavailable.
+  2. **Web Search for Everything Else**: Facts about the turbine, the project and the community come from Tavily web search (cached for 15 minutes), cited on the phone. The project's own Markdown docs are *not* used, because some contained wrong dimensions; if search is unavailable the bot says so instead of guessing.
+  3. **Typo Tolerance**: The offline intent router tolerates typos (e.g., *"how much did u generated yesterdat"* still triggers the 24-hour SCADA aggregation); the LLM handles them natively.
+  4. **Multi-Provider LLM Integration**: Pre-wired for Anthropic Claude Haiku, OpenAI, Groq (Llama 3.3 70B), Google Gemini and any OpenAI-compatible endpoint, backed by a templated responder if external APIs are unavailable.
 
 ---
 

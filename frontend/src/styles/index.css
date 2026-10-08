@@ -1,0 +1,78 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource/instrument-serif/400-italic.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "./effects.css" layer(components);
+
+/*
+ * Sky, ink and one accent. The token family keeps its old "moss" name, but the ends of the
+ * ramp are now natural neutrals: pale sky blues for surfaces (25-200) and deep navy ink for
+ * text and dark panels (800-950). Only the middle steps (300-700) are Enercon green, the
+ * colour of the turbine's tower bands, used for accents, links and live indicators.
+ * Tailwind's default palette stays off so nothing off-brand sneaks in.
+ */
+@theme {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-moss-25: #f7fafc;
+  --color-moss-50: #eef4f9;
+  --color-moss-100: #dde9f2;
+  --color-moss-200: #bfd6e8;
+  --color-moss-300: #6fbf93;
+  --color-moss-400: #3f9f6f;
+  --color-moss-500: #23855a;
+  --color-moss-600: #186b47;
+  --color-moss-700: #13553a;
+  --color-moss-800: #1b3342;
+  --color-moss-900: #11222e;
+  --color-moss-950: #0a151d;
+  --color-ink: #0b1822;
+
+  --font-display: "Satoshi", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-4xl: 2rem;
+  --radius-5xl: 3rem;
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --breakpoint-hero: 90rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-white font-sans text-ink;
+  }
+  ::selection {
+    @apply bg-moss-200 text-moss-950;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-moss-500;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .tracking-display {
+    letter-spacing: -0.025em;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

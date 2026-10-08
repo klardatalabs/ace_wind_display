@@ -140,7 +140,7 @@ flowchart TD
 
 ### Scene 4: HOW IT WORKS (Inside the Giant - Digital Twin)
 * **What Visitors See:**
-  * A transparent 3D cutaway of the turbine nacelle 150m up in the sky.
+  * A transparent 3D cutaway of the turbine nacelle 90m up in the sky.
   * Gentle pulses showing electricity flowing from the turning blades through the generator down the tower to the ground.
 * **Friendly On-Screen Text:**
   * **Headline:** *"Look Inside England's Tallest Wind Turbine"*
@@ -148,7 +148,7 @@ flowchart TD
     * **The Blades:** *"Aerodynamically sculpted wings that turn wind into rotation without burning a drop of fuel."*
     * **The Direct-Drive Generator:** *"No noisy gears! A giant magnetic ring creates electricity smoothly and silently."*
     * **The Liquid Cooler:** *"Running at a cool 42°C today to keep the electronics happy."*
-    * **The 150m Tower:** *"Strong concrete and steel anchored deep in the Severn estuary bedrock."*
+    * **The 90m Tower:** *"Strong concrete and steel anchored deep in the Severn estuary bedrock."*
 * **Visual Benefit:** Demystifies the machine. Kids and adults see that it's safe, clean, high-tech, and quiet.
 
 ---
@@ -204,7 +204,7 @@ flowchart TD
   * *Q: "Why did you stop earlier today?"*  
     *A: "The wind briefly dipped below 2.5 m/s around 2 PM, so I took a short rest to wait for the next breeze!"*
   * *Q: "How tall are you?"*  
-    *A: "My tip reaches 207.8 meters — taller than the London Eye and Blackpool Tower!"*
+    *A: "My tip reaches 150 meters — taller than the London Eye and Big Ben!"*
 * **Visual Benefit:** Allows anyone of any age to satisfy their curiosity naturally without navigating complex menus.
 
 ---
