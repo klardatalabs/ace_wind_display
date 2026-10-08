@@ -12,6 +12,7 @@ Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (se
 | Route | What it is |
 | --- | --- |
 | `/` | Website: live figures, how it works, the screens, a scroll-driven "look inside", day in the life |
+| `/site` | Cesium view of the ACE turbine at its real coordinates with Google Photorealistic 3D Tiles |
 | `/developers` | Developer portal: live endpoint explorer, code samples, open-data downloads |
 | `/screen/students` | Hoarding screen: kid-friendly story told over the live 3D place |
 | `/screen/community` | Hoarding screen: the community story (homes powered, this week, since 2023) |
@@ -55,6 +56,14 @@ npm start              # http://localhost:4100
 
 Development with hot reload: `npm run dev` (API on :4100) and `npm run dev:web` (Vite on :5173,
 proxying `/api` and `/ws`).
+
+## Real-world 3D site
+
+The landing page has an opt-in site explorer; `/site` opens the larger view. Cesium streams Google Photorealistic 3D Tiles and loads `frontend/public/models/ace-turbine.glb` as a separate model. The guided `/screen/:screen` experience continues to use Three.js.
+
+To enable the map, create a Google Cloud project with billing, enable **Map Tiles API**, and put a Map Tiles API key restricted to your development and production website origins in `VITE_GOOGLE_MAP_TILES_API_KEY` in the root `.env`. Restart Vite after changing it. No Cesium ion token is needed for the direct Google tiles and locally served GLB; `VITE_CESIUM_ION_TOKEN` is optional for future ion services. Browser `VITE_*` values are public, so keep the Google key restricted in Cloud Console. Keep Google's map credits visible.
+
+`VITE_SITE_LAT` and `VITE_SITE_LON` default to `51.5388355, -2.6717359`. The viewer samples Google's 3D surface near that point and uses the median height for the foundation. If the mesh does not give a reliable height, set a surveyed **ellipsoid height in metres** as `VITE_TURBINE_GROUND_HEIGHT_M`. `VITE_TURBINE_HEIGHT_OFFSET_M` adjusts that ground height; `VITE_TURBINE_HEADING_DEG` and `VITE_TURBINE_SCALE` control orientation and physical size. Verify all three against the live site before public launch. Google's source mesh may contain a captured turbine; inspect it from all directions to check for overlapping geometry.
 
 Kiosk PC (one per hoarding):
 

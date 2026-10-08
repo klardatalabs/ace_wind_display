@@ -1,0 +1,138 @@
+import { useEffect, useRef, useState } from "react";
+import * as Cesium from "cesium";
+import "cesium/Build/Cesium/Widgets/widgets.css";
+import { SITE_COORDS, getSiteViewerConfig } from "../../cesium/siteConfig.js";
+import { createSiteCamera } from "../../cesium/siteCamera.js";
+import { animateTurbine, loadTurbineModel } from "../../cesium/turbineModel.js";
+
+async function findGroundHeight(scene) {
+  if (!scene.sampleHeightSupported) throw new Error("This device cannot measure the 3D site surface.");
+  const deltaLat = 8 / 111320;
+  const deltaLon = 8 / (111320 * Math.cos(Cesium.Math.toRadians(SITE_COORDS.lat)));
+  const positions = [
+    [SITE_COORDS.lon, SITE_COORDS.lat + deltaLat],
+    [SITE_COORDS.lon, SITE_COORDS.lat - deltaLat],
+    [SITE_COORDS.lon + deltaLon, SITE_COORDS.lat],
+    [SITE_COORDS.lon - deltaLon, SITE_COORDS.lat],
+  ].map(([lon, lat]) => Cesium.Cartographic.fromDegrees(lon, lat));
+  const samples = await scene.sampleHeightMostDetailed(positions);
+  const heights = samples.filter((sample) => sample && Number.isFinite(sample.height)).map((sample) => sample.height).sort((a, b) => a - b);
+  if (heights.length < 3 || heights.at(-1) - heights[0] > 8) {
+    throw new Error("Could not establish a reliable ground level at the turbine. A verified ground elevation is needed.");
+  }
+  return heights.length === 3 ? heights[1] : (heights[1] + heights[2]) / 2;
+}
+
+export default function SiteCesiumViewer({ className = "" }) {
+  const rootRef = useRef(null);
+  const cameraRef = useRef(null);
+  const config = useRef(getSiteViewerConfig()).current;
+  const [status, setStatus] = useState("loading");
+  const [mode, setMode] = useState("orbit");
+  const [attempt, setAttempt] = useState(0);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (!config.googleMapTilesApiKey.trim()) {
+      setStatus("needs-config");
+      return undefined;
+    }
+    let cancelled = false;
+    let viewer;
+    let camera;
+    let stopAnimation;
+
+    async function init() {
+      setStatus("loading");
+      setMessage("");
+      try {
+        if (![SITE_COORDS.lat, SITE_COORDS.lon, config.turbineHeadingDeg, config.turbineHeightOffsetM, config.turbineScale].every(Number.isFinite)
+          || Math.abs(SITE_COORDS.lat) > 90 || Math.abs(SITE_COORDS.lon) > 180 || config.turbineScale <= 0
+          || (config.turbineGroundHeightM !== null && !Number.isFinite(config.turbineGroundHeightM))) {
+          throw new Error("The site coordinates or turbine placement settings are invalid.");
+        }
+        if (config.cesiumIonToken) Cesium.Ion.defaultAccessToken = config.cesiumIonToken;
+        viewer = new Cesium.Viewer(rootRef.current, {
+          animation: false, baseLayer: false, baseLayerPicker: false, fullscreenButton: false,
+          geocoder: false, globe: false, homeButton: false, infoBox: false,
+          navigationHelpButton: false, sceneModePicker: false, selectionIndicator: false, timeline: false,
+        });
+        viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
+        viewer.scene.screenSpaceCameraController.minimumZoomDistance = 35;
+        viewer.scene.screenSpaceCameraController.maximumZoomDistance = 4500;
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(SITE_COORDS.lon, SITE_COORDS.lat, 1400),
+          orientation: { heading: 0, pitch: Cesium.Math.toRadians(-85), roll: 0 },
+        });
+        const tileset = await Cesium.createGooglePhotorealistic3DTileset(
+          { key: config.googleMapTilesApiKey },
+          { showCreditsOnScreen: true, enableCollision: true, maximumScreenSpaceError: 12 }
+        );
+        if (cancelled) { tileset.destroy(); return; }
+        viewer.scene.primitives.add(tileset);
+        const groundHeight = config.turbineGroundHeightM ?? await findGroundHeight(viewer.scene);
+        if (cancelled) return;
+        const model = await loadTurbineModel(config, groundHeight);
+        if (cancelled) { model.destroy(); return; }
+        viewer.scene.primitives.add(model);
+        stopAnimation = animateTurbine(viewer.scene, model);
+        camera = createSiteCamera(viewer, groundHeight);
+        cameraRef.current = camera;
+        setMode("orbit");
+        setStatus("ready");
+      } catch (error) {
+        console.error("[site-viewer] initialization failed", error);
+        if (!cancelled) {
+          setMessage(error?.message || "The 3D site could not load.");
+          setStatus("error");
+        }
+      }
+    }
+    init();
+    return () => {
+      cancelled = true;
+      stopAnimation?.();
+      camera?.dispose();
+      cameraRef.current = null;
+      if (viewer && !viewer.isDestroyed()) viewer.destroy();
+    };
+  }, [attempt, config]);
+
+  function changeMode(next) {
+    cameraRef.current?.setMode(next);
+    setMode(next);
+  }
+
+  return (
+    <div className={`relative overflow-hidden bg-moss-950 ${className}`} data-lenis-prevent>
+      <div ref={rootRef} className="absolute inset-0 [&_.cesium-widget-credits]:text-[10px]" aria-label="Interactive 3D location of the ACE wind turbine" />
+      {status === "ready" && (
+        <>
+          <div className="absolute top-4 left-4 max-w-[calc(100%_-_7rem)] text-white md:top-6 md:left-6">
+            <div className="flex flex-wrap gap-2 rounded-2xl bg-moss-950/85 p-2 shadow-xl backdrop-blur-md">
+              <button type="button" aria-pressed={mode === "orbit"} onClick={() => changeMode("orbit")} className={`rounded-xl px-3 py-2 text-sm focus-visible:outline-white ${mode === "orbit" ? "bg-white text-moss-950" : "hover:bg-white/15"}`}>Orbit turbine</button>
+              <button type="button" aria-pressed={mode === "explore"} onClick={() => changeMode("explore")} className={`rounded-xl px-3 py-2 text-sm focus-visible:outline-white ${mode === "explore" ? "bg-white text-moss-950" : "hover:bg-white/15"}`}>Explore site</button>
+            </div>
+            <p className="mt-2 rounded-xl bg-moss-950/80 px-3 py-2 text-xs backdrop-blur">
+              {mode === "orbit" ? "Drag to rotate and tilt · Scroll or pinch to zoom" : "Drag to move around the real site · Scroll to zoom"}
+            </p>
+          </div>
+          <div className="absolute top-4 right-4 flex flex-col gap-2 md:top-6 md:right-6">
+            <button type="button" aria-label="Zoom in" onClick={() => cameraRef.current?.zoom(0.8)} disabled={mode !== "orbit"} className="size-10 rounded-xl bg-white text-xl text-moss-950 shadow-lg disabled:opacity-50">+</button>
+            <button type="button" aria-label="Zoom out" onClick={() => cameraRef.current?.zoom(1.25)} disabled={mode !== "orbit"} className="size-10 rounded-xl bg-white text-xl text-moss-950 shadow-lg disabled:opacity-50">−</button>
+            <button type="button" onClick={() => { cameraRef.current?.reset(); setMode("orbit"); }} className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-moss-950 shadow-lg">Reset view</button>
+          </div>
+        </>
+      )}
+      {status !== "ready" && (
+        <div className="absolute inset-0 flex items-center justify-center bg-moss-950 p-6 text-center text-white">
+          <div className="max-w-md">
+            <p className="font-display text-2xl">{status === "needs-config" ? "Real-world view is being set up" : status === "error" ? "3D site unavailable" : "Loading the real site"}</p>
+            <p className="mt-3 text-sm leading-6 text-white/70">{status === "needs-config" ? "The Google Map Tiles API key needs to be configured." : status === "error" ? message : "Streaming the surroundings and positioning the ACE turbine."}</p>
+            {status === "error" && <button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-5 rounded-full bg-white px-5 py-2 text-sm font-semibold text-moss-950">Try again</button>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

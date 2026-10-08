@@ -45,6 +45,14 @@ export const SCREEN_CARDS = [
     image: "renderInside",
   },
   {
+    key: "site",
+    title: "3D Site",
+    to: "/site",
+    icon: "globe",
+    blurb: "Explore the real-world turbine location with Google Photorealistic 3D Tiles.",
+    image: "drone",
+  },
+  {
     key: "ask",
     title: "Ask Ace",
     to: "/ask/community",

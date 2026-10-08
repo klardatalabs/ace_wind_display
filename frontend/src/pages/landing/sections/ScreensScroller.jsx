@@ -1,4 +1,4 @@
-// Horizontal snap-scrolling cards for the three screens + Ask Ace + Developers.
+// Horizontal snap-scrolling cards for the public screens, site explorer, Ask Ace and Developers.
 // Hover: the card lifts and its duotone image cross-fades to a lighter duotone.
 
 import { useEffect, useRef, useState } from "react";

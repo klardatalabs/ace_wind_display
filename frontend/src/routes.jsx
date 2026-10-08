@@ -8,6 +8,7 @@ import NotFoundPage from "./pages/NotFoundPage.jsx";
 const DevelopersPage = lazy(() => import("./pages/developers/DevelopersPage.jsx"));
 const ScreenPage = lazy(() => import("./pages/screens/ScreenPage.jsx"));
 const AskPage = lazy(() => import("./pages/ask/AskPage.jsx"));
+const SiteViewerPage = lazy(() => import("./pages/site/SiteViewerPage.jsx"));
 
 const lazyPage = (Page) => (
   <Suspense fallback={<div className="min-h-dvh bg-white" />}>
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <LandingPage /> },
       { path: "/developers", element: lazyPage(DevelopersPage) },
+      { path: "/site", element: lazyPage(SiteViewerPage) },
       { path: "*", element: <NotFoundPage /> },
     ],
   },
