@@ -54,7 +54,7 @@ export default function MessageBubble({ message }) {
     <div ref={ref} className="flex items-end gap-2">
       <TurbineMark className="mb-1 size-8 shrink-0" />
       <div className="max-w-[85%] min-w-0">
-        <PhotoStrip photos={message.photos} />
+        <PhotoStrip photos={message.photos} className="mb-2.5" />
         <div
           className={`rounded-3xl rounded-bl-lg px-4 py-2.5 text-[15px] leading-relaxed shadow-[0_6px_20px_rgb(10_21_29/0.06)] ${
             message.error ? "bg-moss-50 text-moss-900 ring-1 ring-moss-200" : "bg-white text-moss-950 ring-1 ring-moss-100"

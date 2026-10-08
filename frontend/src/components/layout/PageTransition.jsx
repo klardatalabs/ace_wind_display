@@ -20,10 +20,15 @@ export default function PageTransition({ children }) {
       }
       if (prefersReducedMotion()) return;
       gsap
-        .timeline({ onComplete: () => ScrollTrigger.refresh() })
+        .timeline({
+          onComplete: () => {
+            gsap.set(content.current, { clearProps: "all" });
+            ScrollTrigger.refresh();
+          },
+        })
         .set(curtain.current, { display: "block", scaleY: 1, transformOrigin: "50% 0%" })
         .to(curtain.current, { scaleY: 0, duration: 0.8, ease: "expo.inOut" })
-        .from(content.current, { y: 40, opacity: 0, duration: 0.9, ease: "power3.out" }, "-=0.45")
+        .from(content.current, { y: 40, opacity: 0, duration: 0.9, ease: "power3.out", clearProps: "transform" }, "-=0.45")
         .set(curtain.current, { display: "none" });
     },
     { dependencies: [pathname] }

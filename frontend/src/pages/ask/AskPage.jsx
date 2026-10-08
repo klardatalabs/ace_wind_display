@@ -11,7 +11,6 @@ import MessageBubble from "./components/MessageBubble.jsx";
 import Composer from "./components/Composer.jsx";
 import SuggestionChips from "./components/SuggestionChips.jsx";
 import RemotePanel from "./components/RemotePanel.jsx";
-import PhotoBanner from "./components/PhotoBanner.jsx";
 import TurbineMark from "../../components/brand/TurbineMark.jsx";
 import Icon from "../../components/ui/Icon.jsx";
 
@@ -41,7 +40,6 @@ function Chat({ screen }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-gradient-to-b from-moss-25 to-moss-50">
-      <PhotoBanner />
       <ChatHeader title={copy.title} screenName={screenName} onReset={reset} canReset={messages.length > 0} />
 
       <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 pt-5 pb-4" aria-live="polite">

@@ -17,11 +17,11 @@ export default function Hero() {
       const split = SplitText.create(".hero-title", { type: "lines", mask: "lines", linesClass: "hero-line" });
       gsap
         .timeline({ delay: 0.25 })
-        .from(".hero-pill", { y: 16, opacity: 0, duration: 0.7 })
-        .from(split.lines, { yPercent: 110, duration: 1.1, stagger: 0.09, ease: "expo.out" }, "-=0.4")
-        .from(".hero-emphasis", { backgroundSize: "0% 58%", duration: 1.1, ease: "power2.inOut" }, "-=0.5")
-        .from(".hero-fade", { y: 20, opacity: 0, stagger: 0.1, duration: 0.8 }, "-=0.8")
-        .from(".hero-visual", { y: 40, opacity: 0, scale: 0.96, duration: 1.3, ease: "expo.out" }, 0.3);
+        .from(".hero-pill", { y: 16, opacity: 0, duration: 0.7, clearProps: "all" })
+        .from(split.lines, { yPercent: 110, duration: 1.1, stagger: 0.09, ease: "expo.out", clearProps: "transform" }, "-=0.4")
+        .from(".hero-emphasis", { backgroundSize: "0% 58%", duration: 1.1, ease: "power2.inOut", clearProps: "backgroundSize" }, "-=0.5")
+        .from(".hero-fade", { y: 20, opacity: 0, stagger: 0.1, duration: 0.8, clearProps: "all" }, "-=0.8")
+        .from(".hero-visual", { y: 40, opacity: 0, scale: 0.96, duration: 1.3, ease: "expo.out", clearProps: "all" }, 0.3);
       return () => split.revert();
     },
     { scope: root }
