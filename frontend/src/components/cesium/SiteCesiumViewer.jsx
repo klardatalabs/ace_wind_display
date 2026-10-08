@@ -33,7 +33,7 @@ export default function SiteCesiumViewer({ className = "" }) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!config.googleMapTilesApiKey.trim()) {
+    if (!config.cesiumIonToken.trim()) {
       setStatus("needs-config");
       return undefined;
     }
@@ -54,7 +54,7 @@ export default function SiteCesiumViewer({ className = "" }) {
         if (config.cesiumIonToken) Cesium.Ion.defaultAccessToken = config.cesiumIonToken;
         viewer = new Cesium.Viewer(rootRef.current, {
           animation: false, baseLayer: false, baseLayerPicker: false, fullscreenButton: false,
-          geocoder: false, globe: false, homeButton: false, infoBox: false,
+          geocoder: Cesium.IonGeocodeProviderType.GOOGLE, globe: false, homeButton: false, infoBox: false,
           navigationHelpButton: false, sceneModePicker: false, selectionIndicator: false, timeline: false,
         });
         viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
@@ -65,7 +65,7 @@ export default function SiteCesiumViewer({ className = "" }) {
           orientation: { heading: 0, pitch: Cesium.Math.toRadians(-85), roll: 0 },
         });
         const tileset = await Cesium.createGooglePhotorealistic3DTileset(
-          { key: config.googleMapTilesApiKey },
+          { ...(config.googleMapTilesApiKey ? { key: config.googleMapTilesApiKey } : {}), onlyUsingWithGoogleGeocoder: true },
           { showCreditsOnScreen: true, enableCollision: true, maximumScreenSpaceError: 12 }
         );
         if (cancelled) { tileset.destroy(); return; }
@@ -104,7 +104,7 @@ export default function SiteCesiumViewer({ className = "" }) {
   }
 
   return (
-    <div className={`relative overflow-hidden bg-moss-950 ${className}`} data-lenis-prevent>
+    <div className={`relative overflow-hidden bg-moss-950 [&_.cesium-geocoderContainer]:hidden ${className}`} data-lenis-prevent>
       <div ref={rootRef} className="absolute inset-0 [&_.cesium-widget-credits]:text-[10px]" aria-label="Interactive 3D location of the ACE wind turbine" />
       {status === "ready" && (
         <>
@@ -128,7 +128,7 @@ export default function SiteCesiumViewer({ className = "" }) {
         <div className="absolute inset-0 flex items-center justify-center bg-moss-950 p-6 text-center text-white">
           <div className="max-w-md">
             <p className="font-display text-2xl">{status === "needs-config" ? "Real-world view is being set up" : status === "error" ? "3D site unavailable" : "Loading the real site"}</p>
-            <p className="mt-3 text-sm leading-6 text-white/70">{status === "needs-config" ? "The Google Map Tiles API key needs to be configured." : status === "error" ? message : "Streaming the surroundings and positioning the ACE turbine."}</p>
+            <p className="mt-3 text-sm leading-6 text-white/70">{status === "needs-config" ? "Add a Cesium ion token to enable the real-world 3D map." : status === "error" ? message : "Streaming the surroundings and positioning the ACE turbine."}</p>
             {status === "error" && <button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-5 rounded-full bg-white px-5 py-2 text-sm font-semibold text-moss-950">Try again</button>}
           </div>
         </div>
