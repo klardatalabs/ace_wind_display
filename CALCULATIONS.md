@@ -2,7 +2,7 @@
 
 *Ambition Community Energy (ACE) Wind Turbine — Validated Equivalents & Conversion Formulas*
 
-This document provides transparent, documented formulas, data sources, assumptions, and units for all calculations presented across the public display screens, educational modules, and conversational AI assistant.
+This document provides transparent, documented formulas, data sources, ddassumptions, and units for all calculations presented across the public display screens, educational modules, and conversational AI assistant.
 
 ---
 
