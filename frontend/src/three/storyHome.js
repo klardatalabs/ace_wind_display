@@ -2,6 +2,8 @@ import * as THREE from "three";
 
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 
+export const storyBatteryPercent = (seconds) => 1 + Math.floor(THREE.MathUtils.clamp(seconds - 90, 0, 8) * 0.6);
+
 /** A separate illustrative room, not a reconstruction of anyone's home. */
 export function buildStoryHome(origin) {
   const group = new THREE.Group();
@@ -24,20 +26,30 @@ export function buildStoryHome(origin) {
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     textures.push(texture);
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, fog: false }));
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: texture, transparent: true, toneMapped: false, fog: false }));
     mesh.position.set(...at);
     group.add(mesh);
     return { mesh, canvas, ctx, texture };
   };
-  const label = (text, at, width = 1.3) => canvasPlane(width, 0.24, at, (ctx) => {
-    ctx.fillStyle = "#223a3c"; ctx.fillRect(0, 0, 1024, 192);
-    ctx.fillStyle = "#f5f1e8"; ctx.font = "bold 95px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText(text, 512, 130);
-  }, [1024, 192]);
-  const wire = (points, radius = 0.025) => {
-    const curve = new THREE.CatmullRomCurve3(points.map((p) => v(...p)), false, "centripetal");
-    const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, radius, 6, false), dark);
-    group.add(mesh);
+  const label = (text, at, width = 1.3) => {
+    const pixels = Math.round(width / 0.20 * 128);
+    return canvasPlane(width, 0.20, at, (ctx) => {
+      ctx.clearRect(0, 0, pixels, 128);
+      ctx.fillStyle = "#173a35";
+      ctx.beginPath(); ctx.roundRect(2, 2, pixels - 4, 124, 28); ctx.fill();
+      ctx.strokeStyle = "#79b69a"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = "#f5f1e8"; ctx.font = "600 43px sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(text, pixels / 2, 65, pixels - 50);
+    }, [pixels, 128]);
+  };
+  // The physical cable and the glow share the same centreline, including the laptop port.
+  const cablePoints = [[-2.15, 1.65, -2.13], [-2.15, 0.65, -2.13], [2.4, 0.65, -2.13], [2.4, 1.45, -2.13], [2.4, 1.45, -1.96], [2.4, 1.19, -0.9], [2.1, 1.15, -0.65], [2, 1.15, -0.65], [1.91, 1.15, -0.65]];
+  const wire = (points, radius) => {
+    const curve = new THREE.CurvePath();
+    for (let i = 1; i < points.length; i++) curve.add(new THREE.LineCurve3(v(...points[i - 1]), v(...points[i])));
+    curve.getPointAt = (u, target) => curve.getPoint(u, target);
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 160, radius, 8, false), dark));
   };
 
   box([7, 0.24, 5.7], [0, -0.12, 0], wood);
@@ -55,17 +67,18 @@ export function buildStoryHome(origin) {
   box([0.75, 0.95, 0.15], [-2.15, 1.65, -2.34], dark);
   box([0.66, 0.82, 0.04], [-2.15, 1.65, -2.24], cream);
   for (let i = 0; i < 5; i++) box([0.07, 0.18, 0.07], [-2.37 + i * 0.11, 1.68, -2.18], dark);
-  label("CONSUMER UNIT", [-2.15, 2.32, -2.22], 1.55);
-  wire([[-2.15, 1.3, -2.2], [-2.15, 0.65, -2.2], [2.4, 0.65, -2.2], [2.4, 1.45, -2.2]]);
+  label("Consumer unit", [-2.15, 2.32, -2.12], 1.25);
+  wire(cablePoints.slice(0, 4), 0.016);
   box([0.48, 0.42, 0.1], [2.4, 1.45, -2.28], mat(0xf8f3e9));
   for (const x of [2.31, 2.49]) box([0.035, 0.085, 0.015], [x, 1.49, -2.215], dark);
   box([0.035, 0.06, 0.015], [2.4, 1.57, -2.215], dark);
-  label("SOCKET", [2.4, 1.9, -2.2], 0.9);
-  const click = label("CLICK · CONNECTED", [2.4, 2.25, -2.2], 1.7).mesh;
+  label("Wall socket", [2.4, 1.9, -2.12], 0.95);
+  const click = label("Connected", [2.4, 2.25, -2.12], 1.3).mesh;
   const plug = box([0.2, 0.2, 0.23], [2.4, 1.45, -1.9], dark);
   const charger = box([0.3, 0.16, 0.55], [2.4, 1.18, -0.9], dark);
-  wire([[2.4, 1.45, -2.05], [2.4, 1.2, -1.6], [2.4, 1.19, -0.9], [2.1, 1.13, -0.65], [1.85, 1.13, -0.65]], 0.016);
-  label("CHARGER", [2.4, 1.48, -0.58], 0.8);
+  wire(cablePoints.slice(3), 0.014);
+  box([0.09, 0.04, 0.09], [1.91, 1.15, -0.65], dark);
+  label("Charger", [2.4, 1.51, -0.65], 0.65);
   const led = box([0.06, 0.025, 0.07], [2.4, 1.272, -0.74], new THREE.MeshBasicMaterial({ color: 0x50635b, fog: false }));
 
   // A canvas screen lets the battery payoff stay crisp without a new asset.
@@ -101,7 +114,7 @@ export function buildStoryHome(origin) {
   }
   const light = new THREE.PointLight(0xffe3bb, 18, 14, 2);
   light.position.set(-1, 3, 2); group.add(light);
-  const cablePoints = [[-2.15, 1.65, -2.13], [-2.15, 0.65, -2.13], [2.4, 0.65, -2.13], [2.4, 1.45, -2.13], [2.4, 1.45, -1.96], [2.4, 1.19, -0.9], [2.1, 1.13, -0.65], [1.85, 1.13, -0.65], [1, 1.74, -1.06]];
+
   let lastScreen = "";
   const update = (seconds) => {
     const charging = seconds >= 90;
@@ -127,12 +140,12 @@ export function buildStoryHome(origin) {
     ctx.beginPath(); ctx.moveTo(1270, 510); ctx.lineTo(1270, 295); ctx.stroke();
     for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3 + seconds * 0.2; ctx.beginPath(); ctx.moveTo(1270, 295); ctx.lineTo(1270 + Math.cos(a) * 85, 295 + Math.sin(a) * 85); ctx.stroke(); }
     ctx.fillStyle = charging ? "#8dffb6" : "#ffc18e";
-    ctx.font = "bold 102px sans-serif"; ctx.fillText("1%", 60, 705);
+    ctx.font = "bold 102px sans-serif"; ctx.fillText(`${storyBatteryPercent(seconds)}%`, 60, 705);
     ctx.font = "bold 66px sans-serif"; ctx.fillText(charging ? "Charging" : "Low battery", 310, 700);
     ctx.font = "34px sans-serif"; ctx.fillStyle = "#c0d8ca";
-    ctx.fillText(charging ? "POWER CONNECTED · BACK TO YOUR GAME" : "SAVE YOUR GAME · PLUG IN TO CONTINUE", 60, 805);
+    ctx.fillText(charging ? "POWER CONNECTED · CHARGING ANIMATION" : "SAVE YOUR GAME · PLUG IN TO CONTINUE", 60, 805);
     ctx.strokeStyle = charging ? "#8dffb6" : "#ffc18e"; ctx.lineWidth = 9; ctx.strokeRect(1240, 610, 180, 90);
-    ctx.fillStyle = charging ? "#8dffb6" : "#ffc18e"; ctx.fillRect(1255, 625, charging ? 30 + (seconds % 1) * 115 : 8, 60);
+    ctx.fillStyle = charging ? "#8dffb6" : "#ffc18e"; ctx.fillRect(1255, 625, Math.max(8, storyBatteryPercent(seconds) / 100 * 150), 60);
     screen.texture.needsUpdate = true;
   };
   update(0);

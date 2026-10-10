@@ -322,7 +322,7 @@ SCREENS.story = {
     { id: "cables", label: "Power lines", seconds: 14, stage: {}, eyebrow: "06 · Across Lawrence Weston", line: () => "Follow the glow along the power lines.", sub: () => "The pylons lead us towards the red-roof neighbourhood. This route illustrates the shared network; it is not a surveyed connection to particular homes." },
     { id: "neighbourhood", label: "Our streets", seconds: 12, stage: {}, tags: ["homes"], eyebrow: "07 · Lawrence Weston, Bristol", line: (d) => `Enough power for about ${formatInt(d.homes)} homes right now.`, sub: () => "A live homes-equivalent estimate, not a count of connected houses. Residents set up Ambition Community Energy; the income goes back into the neighbourhood." },
     { id: "home", label: "One home", seconds: 12, stage: {}, eyebrow: "08 · One home in our neighbourhood", line: () => "From the street to your socket.", sub: () => "Follow the illustrative cutaway: consumer unit, wall wiring, socket and charger. This room represents a home; it is not a particular Bristol address." },
-    { id: "laptop", label: "Your game", seconds: 12, stage: {}, eyebrow: "09 · A little power, a big adventure", line: () => "Low battery. Plug in. Play on.", sub: () => "From the community turbine to everyday moments: a Bristol gamer's laptop connects to its charger. The battery stays at 1% as charging begins." },
+    { id: "laptop", label: "Your game", seconds: 12, stage: {}, eyebrow: "09 · A little power, a big adventure", line: () => "Low battery. Plug in. Play on.", sub: () => "From the community turbine to everyday moments: a Bristol gamer's laptop connects to its charger. The battery rises as charging begins — an illustrative animation, not a real charging speed." },
   ],
 };
 

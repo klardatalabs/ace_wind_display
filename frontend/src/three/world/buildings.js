@@ -32,6 +32,8 @@ function houseGeometry() {
     [-w / 2, h, -d / 2], [w / 2, h, -d / 2], [0, h + roofH, -d / 2],
     [w / 2, h, d / 2], [-w / 2, h, d / 2], [0, h + roofH, d / 2],
   ];
+  // Outward winding keeps both roof slopes visible with front-face materials.
+  for (let i = 0; i < v.length; i += 3) [v[i + 1], v[i + 2]] = [v[i + 2], v[i + 1]];
   roof.setAttribute("position", new THREE.Float32BufferAttribute(v.flat(), 3));
   roof.computeVertexNormals();
   const chimney = new THREE.BoxGeometry(0.7, 1.8, 0.7).toNonIndexed();
