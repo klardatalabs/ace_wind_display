@@ -173,7 +173,8 @@ export class CameraRig {
       return;
     }
     const sway = inside ? 0.02 : 0.05 * this.swayAmount;
-    const yaw = this.getYaw() + Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04;
+    // Walking keeps the eye on the clear aisle; drag changes the look direction.
+    const yaw = this.getYaw() + (this.walk ? 0 : Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04);
 
     if (this.walk) {
       // first person: follow the path, with a slow drift back to centre after looking around

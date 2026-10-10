@@ -131,3 +131,9 @@ export function resolveEnvironment(server, live = {}) {
 function clampUnit(v) {
   return Math.min(1, Math.max(0, v));
 }
+
+/** Display fill is separate from the measured weather and sky. */
+export function nightReadability(sky, inside = 0) {
+  const weight = sky.night * (1 - clampUnit(inside));
+  return { weight, ambient: Math.max(0, 0.85 - sky.hemiIntensity) * weight, fill: 0.65 * weight };
+}

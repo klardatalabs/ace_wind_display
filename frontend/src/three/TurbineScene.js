@@ -7,14 +7,14 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { loadTurbine, meshesOf } from "./loadTurbine.js";
 import { splitShell } from "./splitShell.js";
-import { buildInteriors } from "./interiors.js";
+import { buildInteriors, buildWalkHatch } from "./interiors.js";
 import { LookInside } from "./lookInside.js";
 import { CameraRig, SHOTS } from "./cameraRig.js";
 import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS } from "./themes.js";
 import { createSky } from "./sky.js";
 import { buildWorld } from "./world/index.js";
 import { markBands, applyBands, blinkAviationLight } from "./accents.js";
-import { sunPosition, sunDirection, skyState } from "./environment.js";
+import { sunPosition, sunDirection, skyState, nightReadability } from "./environment.js";
 import { createWeatherFx } from "./fx.js";
 import { buildAnnotations } from "./annotations.js";
 import { walkHeight } from "./walk.js";
@@ -25,6 +25,8 @@ import { londonHourToDate } from "@shared/time.js";
 // The camera shots are composed for the turbine facing this bearing (the prevailing
 // south-westerly). The model's yaw is the live nacelle bearing relative to it.
 const YAW_REFERENCE_DEG = 215;
+const NIGHT_SKY_FILL = new THREE.Color(0xb9cbd5);
+const NIGHT_GROUND_FILL = new THREE.Color(0x596c57);
 const RPM_TO_RAD_PER_SEC = (2 * Math.PI) / 60;
 // Where the second, smaller turbine nearby stands.
 const NEIGHBOUR_POSITION = new THREE.Vector3(-314, 0, -185);
@@ -127,7 +129,9 @@ export class TurbineScene {
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.04;
     this.sun.target.position.set(0, 45, 0);
-    this.scene.add(this.hemi, this.sun, this.sun.target);
+    this.nightFill = new THREE.DirectionalLight(0xc5d9ee, 0);
+    this.nightFill.castShadow = false;
+    this.scene.add(this.hemi, this.sun, this.sun.target, this.nightFill, this.nightFill.target);
   }
 
   async init() {
@@ -165,6 +169,7 @@ export class TurbineScene {
       this.lift = interiors.lift;
       this.labels = interiors.labels;
       this.nacelleLights = interiors.nacelleLights;
+      this.walkHatch = buildWalkHatch(nodes);
 
       nodes.yaw.add(this.fx.wind);
       this.annotations = buildAnnotations(this.towerPivot, nodes.yaw);
@@ -213,7 +218,7 @@ export class TurbineScene {
       // Portrait hoardings need a wider vertical field of view to fit the tower.
       this.camera.fov = w / h < 0.8 ? 52 : 38;
       // Off-centre framing: the subject sits right of centre, leaving the left for copy.
-      const shift = w / h > 1.15 ? this.frameShift : 0;
+      const shift = !this.rig.walk && w / h > 1.15 ? this.frameShift : 0;
       if (shift) this.camera.setViewOffset(w, h, -shift * w, 0, w, h);
       else this.camera.clearViewOffset();
       this.camera.updateProjectionMatrix();
@@ -339,6 +344,7 @@ export class TurbineScene {
 
     this.lookInside?.setTheme(theme);
     this.lookInside?.rebind();
+    this.walkHatch?.(Boolean(this.rig.walk));
   }
 
   setTheme(theme) {
@@ -411,7 +417,15 @@ export class TurbineScene {
     this.sun.intensity *= 1 - 0.7 * inside;
     this.hemi.color.copy(sky.hemiSky);
     this.hemi.groundColor.copy(sky.hemiGround);
-    this.hemi.intensity = sky.hemiIntensity * (1 - 0.88 * inside);
+    const fill = nightReadability(sky, this.rig.walk ? inside : Math.max(inside, this.rig.isInside ? 1 : 0));
+    this.hemi.color.lerp(NIGHT_SKY_FILL, fill.weight * 0.75);
+    this.hemi.groundColor.lerp(NIGHT_GROUND_FILL, fill.weight * 0.5);
+    this.hemi.intensity = (sky.hemiIntensity + fill.ambient) * (1 - 0.88 * inside);
+    this.nightFill.intensity = fill.fill;
+    this.camera.getWorldDirection(this._fillDirection ||= new THREE.Vector3());
+    this.nightFill.position.copy(this.camera.position);
+    this.nightFill.position.y += 80;
+    this.nightFill.target.position.copy(this.camera.position).addScaledVector(this._fillDirection, 50);
 
     if (!this.scene.fog) this.scene.fog = new THREE.Fog(0xffffff, 100, 3000);
     this.scene.fog.color.copy(sky.horizon);
@@ -508,8 +522,8 @@ export class TurbineScene {
   /** Applies the "inside the turbine" lighting amount (daylight shut out, lamps on). */
   #applyInterior() {
     this.envDirty = true;
-    this.headlamp.intensity = 22 * this.interior.f;
-    for (const l of this.nacelleLights ?? []) l.intensity = 34 * this.interior.f;
+    this.headlamp.intensity = 0.7 * this.interior.f;
+    for (const l of this.nacelleLights ?? []) l.intensity = 3 * this.interior.f;
   }
 
   /** Fades the interior lighting out when leaving (while walking it follows how far in you are). */
@@ -546,6 +560,7 @@ export class TurbineScene {
   #walkUpdated() {
     const s = this.walkState.s;
     this.rig.setWalk(s);
+    this.walkHatch?.(true, this.rig.walk.s > 0.93);
     // daylight is shut out as you step through the door (around 8-11% of the way)
     gsap.killTweensOf(this.interior);
     this.interior.f = THREE.MathUtils.smoothstep(s, 0.075, 0.115);
@@ -563,6 +578,7 @@ export class TurbineScene {
   }
 
   #leaveWalk() {
+    this.walkHatch?.(false);
     this.walkTween?.kill();
     this.#setInterior(false, 1.2);
     this.rig.walk && this.rig.endWalk("hero");
@@ -571,6 +587,7 @@ export class TurbineScene {
 
   async stopWalk() {
     if (!this.rig.walk) return;
+    this.walkHatch?.(false);
     this.walkTween?.kill();
     this.#setInterior(false, 1.6);
     this.callbacks.onWalk?.(null, 0);
@@ -762,6 +779,7 @@ export class TurbineScene {
       }
       blinkAviationLight(this.aviationLights, t, this.theme);
       this.lookInside?.updatePlanes();
+      if (this.rig.walk) this.walkHatch?.(true, this.rig.walk.s > 0.93);
     }
 
     this.envClock += dt;
@@ -776,6 +794,19 @@ export class TurbineScene {
 
     this.story?.update(realDt);
     this.rig.update(dt);
+    if (Boolean(this.rig.walk) !== this.walkFraming) {
+      this.walkFraming = Boolean(this.rig.walk);
+      const { w, h } = this.size;
+      const shift = !this.walkFraming && w / h > 1.15 ? this.frameShift : 0;
+      if (shift) this.camera.setViewOffset(w, h, -shift * w, 0, w, h);
+      else this.camera.clearViewOffset();
+    }
+    const baseFov = this.size.w / this.size.h < 0.8 ? 52 : 38;
+    const fov = baseFov + (55 - baseFov) * (this.rig.walk ? THREE.MathUtils.smoothstep(this.rig.walk.s, 0.93, 1) : 0);
+    if (Math.abs(this.camera.fov - fov) > 0.01) {
+      this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fov, 1 - Math.exp(-dt * 4));
+      this.camera.updateProjectionMatrix();
+    }
     this.sky.position.copy(this.camera.position);
     this.#updateLabels();
     this.#updateTags();

@@ -225,3 +225,50 @@ export function buildInteriors(nodes, towerPivot) {
 
   return { towerInterior: tower.group, nacelleInterior: nacelle, lift: tower.lift, labels, nacelleLights: nacelle.userData.lights, cablePath: tower.cablePath, coils: nacelle.userData.coils };
 }
+
+/** A temporary hatch in the existing solid plates; model geometry stays unchanged. */
+export function buildWalkHatch(nodes) {
+  const planes = [
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), -0.65),
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), -0.65),
+    new THREE.Plane(new THREE.Vector3(0, 1, 0), -2.4),
+    new THREE.Plane(new THREE.Vector3(0, -1, 0), -89),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), 0.25),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), -1.45),
+  ];
+  const worldPlanes = planes.map((p) => p.clone());
+  const plates = [];
+  nodes.nacelleInternals.traverse((o) => {
+    if (o.isMesh && ["ACE_NacelleInternals_1", "ACE_NacelleInternals_3"].includes(o.name)) plates.push(o);
+  });
+  nodes.root.traverse((o) => {
+    if (o.isMesh && (o.userData.hotspot === "platform" || o.userData.hotspot === "machinery" || o.name.startsWith("ACE_Tower_") || o.name === "ACE_NacelleShell_front")) plates.push(o);
+  });
+  const previous = new WeakMap();
+  const coverPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), -0.2);
+  const worldCover = coverPlane.clone();
+  const coverPlanes = [worldCover];
+  return (active, room = false) => {
+    nodes.yaw.updateWorldMatrix(true, false);
+    worldCover.copy(coverPlane).applyMatrix4(nodes.yaw.matrixWorld);
+    for (let i = 0; i < planes.length; i++) worldPlanes[i].copy(planes[i]).applyMatrix4(nodes.yaw.matrixWorld);
+    for (const plate of plates) {
+      const material = plate.material;
+      if (active) {
+        if (!previous.has(material)) {
+          previous.set(material, { planes: material.clippingPlanes, intersection: material.clipIntersection });
+          material.needsUpdate = true;
+        }
+        // Expose the existing copper coils when the visitor reaches the room.
+        material.clippingPlanes = room && (plate.name === "ACE_NacelleInternals_1" || plate.name === "ACE_NacelleShell_front") ? coverPlanes : worldPlanes;
+        material.clipIntersection = true;
+      } else if (previous.has(material)) {
+        const original = previous.get(material);
+        material.clippingPlanes = original.planes;
+        material.clipIntersection = original.intersection;
+        material.needsUpdate = true;
+        previous.delete(material);
+      }
+    }
+  };
+}

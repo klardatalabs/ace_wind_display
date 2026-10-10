@@ -45,6 +45,14 @@ export const SCREEN_CARDS = [
     image: "renderInside",
   },
   {
+    key: "story",
+    title: "Stories",
+    to: "/screen/story",
+    icon: "play",
+    blurb: "Follow the energy from the wind, through Lawrence Weston, to a home and a gamer's laptop.",
+    image: "renderInside",
+  },
+  {
     key: "site",
     title: "3D Site",
     to: "/site",

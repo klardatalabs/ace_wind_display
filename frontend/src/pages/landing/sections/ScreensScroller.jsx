@@ -64,7 +64,7 @@ export default function ScreensScroller() {
   return (
     <section id="screens" className="pt-16 pb-10 md:pt-24 md:pb-14 xl:pt-28">
       <div className="px-6 md:px-12 xl:px-36">
-        <SectionHeading eyebrow="Three screens, one turbine" title="A story for every audience." />
+        <SectionHeading eyebrow="Four screens, one turbine" title="A story for every audience." />
       </div>
       <div className="relative mt-10 md:mt-16">
         <div ref={scroller} data-lenis-prevent className="no-scrollbar snap-x snap-mandatory scroll-pl-6 overflow-x-auto md:scroll-pl-12 xl:scroll-pl-36">
