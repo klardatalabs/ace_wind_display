@@ -52,3 +52,5 @@ export const MOOD_LINES = {
     generating: "GENERATING — partial / full load",
   },
 };
+
+MOOD_LINES.story = MOOD_LINES.community;

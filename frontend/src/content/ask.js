@@ -18,6 +18,12 @@ export const ASK = {
   },
 };
 
+ASK.story = {
+  title: "Ask Ace",
+  greeting: "Follow the energy from the blades to the shared grid. Ask about any part of the journey.",
+  suggestions: ["Why is there no gearbox?", "What does the converter at the tower base do?", "How many homes' worth of power are you making?"],
+};
+
 export const REMOTE_ACTIONS = [
   { action: "walk_start", label: "Walk inside", icon: "walk" },
   { action: "look_inside", label: "Look inside", icon: "eye" },

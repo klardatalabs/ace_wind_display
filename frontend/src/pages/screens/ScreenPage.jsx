@@ -51,7 +51,7 @@ function Hoarding({ screen }) {
   const tagRefs = useRef(new Map());
   const markerRef = useRef(null);
   const data = useScreenData();
-  const story = useStoryLoop(screen.chapters, sceneRef);
+  const story = useStoryLoop(screen.chapters, sceneRef, screen.rail);
   const weather = useEnvironmentStore((s) => s.environment?.weather);
   const [toast, setToast] = useState(null);
   const [walk, setWalk] = useState(null); // { s, height } while the camera is climbing the tower
@@ -132,8 +132,10 @@ function Hoarding({ screen }) {
   return (
     <div className={`relative h-dvh w-screen overflow-hidden select-none ${skin.dark ? "bg-moss-950" : "bg-moss-50"}`}>
       <div className="absolute inset-0" onPointerDown={onTouch}>
-        <TurbineCanvas theme={screen.theme} sceneRef={sceneRef} frameShift={0.1} onWalk={onWalk} onPick={onPick} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
+        <TurbineCanvas theme={screen.theme} sceneRef={sceneRef} frameShift={0.1} storyRail={screen.rail} onWalk={onWalk} onPick={onPick} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
       </div>
+      {screen.rail && <div className="pointer-events-none absolute inset-0 bg-moss-950" style={{ opacity: story.fade }} />}
+      {screen.rail && story.railState && new URLSearchParams(window.location.search).has("debug") && <output hidden data-story-state>{JSON.stringify(story.railState)}</output>}
 
       <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-[46vh] ${skin.scrimBottom}`} />
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-[18vh] bg-gradient-to-b ${skin.dark ? "from-black/40" : "from-white/50"} to-transparent`} />
@@ -160,7 +162,7 @@ function Hoarding({ screen }) {
       ) : (
         <>
           <main className="pointer-events-none absolute z-10 flex flex-col landscape:bottom-[17vmin] landscape:left-[4vmin] portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin]">
-            <CinematicCaption key={chapter.id} chapter={chapter} data={data} skin={skin} />
+            <CinematicCaption key={chapter.id} chapter={chapter} data={data} skin={skin} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
           </main>
 
           {!pick && chapter.viz === "homes" && (
@@ -193,7 +195,7 @@ function Hoarding({ screen }) {
           />
           <p className={`flex items-center gap-[0.8vmin] text-[clamp(11px,1.4vmin,26px)] ${skin.muted}`}>
             <Icon name="handPointer" className="size-[1.3em]" />
-            {story.paused ? "You're in control. The story resumes shortly." : "Tap anything to find out what it is · drag to look around"}
+            {screen.rail ? "Follow the glow · tap a chapter to jump · drag to look around" : story.paused ? "You're in control. The story resumes shortly." : "Tap anything to find out what it is · drag to look around"}
           </p>
         </div>
         <QrCard screenKey={screen.key} label={screen.askLabel} hint={screen.askHint} skin={skin} className="pointer-events-auto" />

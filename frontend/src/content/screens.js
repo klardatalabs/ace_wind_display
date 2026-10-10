@@ -310,4 +310,17 @@ export const SCREENS = {
   },
 };
 
+SCREENS.story = {
+  key: "story", name: "Follow the Energy", theme: "realistic", rail: true,
+  askLabel: "Ask Ace", askHint: "Scan to explore the journey from wind to home",
+  chapters: [
+    { id: "wind", label: "Wind", seconds: 11, stage: {}, eyebrow: "01 · Wind into motion", line: () => "It starts with the wind.", sub: () => "The blades turn the hub. Pitch helps them catch or spill wind; available wind power rises roughly as P ∝ v³ until rated output." },
+    { id: "generator", label: "Generator", seconds: 12, stage: {}, eyebrow: "02 · Motion into electricity", line: () => "Magnets pass copper coils. Current flows.", sub: () => "ACE's ring generator turns at blade speed. Direct drive — no gearbox. Watch the coils glow as the magnets pass." },
+    { id: "converter", label: "Converter", seconds: 7, stage: {}, eyebrow: "03 · Getting ready for the grid", line: () => "The next stop is the converter at the tower base.", sub: () => "The full-power converter decouples the variable-speed generator from the 50 Hz grid. First, the electricity travels down these cables." },
+    { id: "tower", label: "Tower", seconds: 10, stage: {}, eyebrow: "04 · Follow the cable", line: () => "Down the tower. Into the converter.", sub: () => "Power cables hang beside the ladder and service lift, carrying electricity to the cabinets at the base." },
+    { id: "transformer", label: "Transformer", seconds: 10, stage: {}, eyebrow: "05 · Into the network", line: () => "The transformer steps the voltage up.", sub: () => "Higher voltage helps power travel with less loss. From here, the supply joins the shared grid." },
+    { id: "cables", label: "Power lines", seconds: 14, stage: {}, eyebrow: "06 · Across Lawrence Weston", line: () => "Follow the glow along the power lines.", sub: () => "The pylons lead us towards the red-roof neighbourhood. This route illustrates the shared network; it is not a surveyed connection to particular homes." },
+  ],
+};
+
 export const SCREEN_KEYS = Object.keys(SCREENS);

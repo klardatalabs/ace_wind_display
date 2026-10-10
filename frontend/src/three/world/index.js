@@ -68,5 +68,5 @@ export function buildWorld() {
     trees.uniforms.uTime.value = time;
   };
 
-  return { group, update, tick, groundHeight: terrainHeight, stackTop: industrial.stackTop, stats: { trees: trees.count, houses: estate.houseCount } };
+  return { group, update, tick, groundHeight: terrainHeight, stackTop: industrial.stackTop, estate, pylons, stats: { trees: trees.count, houses: estate.houseCount } };
 }

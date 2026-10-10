@@ -121,7 +121,7 @@ function buildTower() {
     g.add(c);
   });
 
-  return { group: g, lift };
+  return { group: g, lift, cablePath };
 }
 
 function buildNacelle() {
@@ -158,6 +158,7 @@ function buildNacelle() {
     coils.setMatrixAt(i, m);
   }
   g.add(coils);
+  g.userData.coils = coils;
 
   // Floor of the machine room, with the hatch down to the tower.
   const floorShape = new THREE.Shape();
@@ -222,5 +223,5 @@ export function buildInteriors(nodes, towerPivot) {
     { id: "converter", text: "Converter", detail: "Matches the power to the grid", anchor: anchor(towerPivot, "lbl-conv", 0, 2.4, 0) },
   ];
 
-  return { towerInterior: tower.group, nacelleInterior: nacelle, lift: tower.lift, labels, nacelleLights: nacelle.userData.lights };
+  return { towerInterior: tower.group, nacelleInterior: nacelle, lift: tower.lift, labels, nacelleLights: nacelle.userData.lights, cablePath: tower.cablePath, coils: nacelle.userData.coils };
 }

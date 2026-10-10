@@ -6,10 +6,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const PAUSE_AFTER_VISITOR_MS = 25_000;
 
-export function useStoryLoop(chapters, sceneRef) {
+export function useStoryLoop(chapters, sceneRef, rail = false) {
   const [index, setIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [fade, setFade] = useState(0);
+  const [railState, setRailState] = useState(null);
   const started = useRef(performance.now());
   const pausedUntil = useRef(0);
   // ?still keeps the story from running (for demos, screenshots and testing the 3D scene by hand)
@@ -25,7 +27,7 @@ export function useStoryLoop(chapters, sceneRef) {
 
   // Enter a chapter: run its camera move / effect.
   useEffect(() => {
-    if (still) return undefined;
+    if (still || rail) return undefined;
     started.current = performance.now();
     setProgress(0);
     // The scene may still be loading on the very first chapter; retry briefly.
@@ -38,10 +40,21 @@ export function useStoryLoop(chapters, sceneRef) {
     };
     let timer = setTimeout(attempt, chapter.walk ? 4500 : 0);
     return () => clearTimeout(timer);
-  }, [index, chapters, sceneRef]);
+  }, [index, chapters, sceneRef, rail]);
 
   // Tick the progress ring and advance.
   useEffect(() => {
+    if (rail) {
+      const id = setInterval(() => {
+        const state = sceneRef.current?.story?.getState();
+        if (!state) return;
+        setIndex(state.index);
+        setProgress(state.progress);
+        setFade(state.fade);
+        setRailState(state);
+      }, 100);
+      return () => clearInterval(id);
+    }
     if (still) return undefined;
     const id = setInterval(() => {
       const now = performance.now();
@@ -55,19 +68,24 @@ export function useStoryLoop(chapters, sceneRef) {
       else setProgress(p);
     }, 100);
     return () => clearInterval(id);
-  }, [index, chapters, paused]);
+  }, [index, chapters, paused, rail, sceneRef]);
 
-  const goTo = useCallback((i) => setIndex(((i % chapters.length) + chapters.length) % chapters.length), [chapters.length]);
+  const goTo = useCallback((i) => {
+    const next = ((i % chapters.length) + chapters.length) % chapters.length;
+    if (rail) sceneRef.current?.story?.seekChapter(next);
+    setIndex(next);
+  }, [chapters.length, rail, sceneRef]);
 
   /** A visitor (phone or touch) took control: run their action and hold the story. */
   const yieldTo = useCallback(
     (action, value) => {
+      if (rail) { runAction(action, value); return; }
       pausedUntil.current = performance.now() + PAUSE_AFTER_VISITOR_MS;
       setPaused(true);
       runAction(action, value);
     },
-    [runAction]
+    [runAction, rail]
   );
 
-  return { index, chapter: chapters[index], progress, paused, goTo, yieldTo };
+  return { index, chapter: chapters[index], progress, paused, fade, railState, goTo, yieldTo };
 }

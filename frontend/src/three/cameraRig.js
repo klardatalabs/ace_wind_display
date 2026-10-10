@@ -43,6 +43,8 @@ export class CameraRig {
     this.lastInteraction = -Infinity;
     this.returnAfter = 7; // seconds of no touching before the camera drifts home
     this.walk = null; // { s, lookYaw, lookPitch } while walking through the turbine
+    this.rail = false;
+    this.railInside = false;
     this._eye = new THREE.Vector3();
     this._look = new THREE.Vector3();
     this._tween = null;
@@ -97,7 +99,16 @@ export class CameraRig {
   }
 
   get isInside() {
-    return Boolean(this.walk) || this.current === "machineRoom" || this.current === "towerInside";
+    return this.railInside || Boolean(this.walk) || this.current === "machineRoom" || this.current === "towerInside";
+  }
+
+  /** The story rail supplies world coordinates; it must not inherit turbine yaw. */
+  setRailPose(position, target, inside = false) {
+    this.rail = true;
+    this.railInside = inside;
+    this.current = "rail";
+    this.pos.copy(position);
+    this.target.copy(target);
   }
 
   /** Begin (or resume) the first-person walk at progress s. */
@@ -152,6 +163,15 @@ export class CameraRig {
     for (const key of ["yaw", "pitch", "zoom"]) this.user[key] += (this.userTarget[key] - this.user[key]) * k;
 
     const inside = this.isInside;
+    if (this.rail) {
+      this._offset.copy(this.pos).sub(this.target);
+      this._offset.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.user.yaw);
+      this._offset.y += this.user.pitch * Math.max(this._offset.length(), 2);
+      this._offset.multiplyScalar(1 / this.user.zoom);
+      this.camera.position.copy(this.target).add(this._offset);
+      this.camera.lookAt(this.target);
+      return;
+    }
     const sway = inside ? 0.02 : 0.05 * this.swayAmount;
     const yaw = this.getYaw() + Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04;
 

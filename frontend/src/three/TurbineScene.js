@@ -18,6 +18,7 @@ import { sunPosition, sunDirection, skyState } from "./environment.js";
 import { createWeatherFx } from "./fx.js";
 import { buildAnnotations } from "./annotations.js";
 import { walkHeight } from "./walk.js";
+import { StoryRail } from "./storyRail.js";
 import { resolveHotspot } from "./hotspots.js";
 import { londonHourToDate } from "@shared/time.js";
 
@@ -42,16 +43,18 @@ export class TurbineScene {
    * @param {"cartoon"|"realistic"|"blueprint"} [options.theme]
    * @param {boolean} [options.interactive]  drag to orbit, pinch / wheel to zoom, double-tap to open
    * @param {number} [options.frameShift]     on wide screens, push the subject this fraction of the width to the right (room for text)
+   * @param {boolean} [options.storyRail]     opt into the continuous energy journey
    * @param {(u: number) => void} [options.onLookInside]
    * @param {(pick: { id: string, x: number, y: number } | null) => void} [options.onPick]  something was tapped (id of its description card), or null
    * @param {(s: number, height: number) => void} [options.onWalk]  progress 0..1 and metres climbed during the walk
    * @param {() => void} [options.onReady]
    * @param {(err: Error) => void} [options.onError]
    */
-  constructor(canvas, { theme = "realistic", interactive = true, frameShift = 0, onLookInside, onWalk, onPick, onReady, onError } = {}) {
+  constructor(canvas, { theme = "realistic", interactive = true, frameShift = 0, storyRail = false, onLookInside, onWalk, onPick, onReady, onError } = {}) {
     this.canvas = canvas;
     this.frameShift = frameShift;
     this.theme = theme;
+    this.storyRailEnabled = storyRail;
     this.callbacks = { onLookInside, onReady, onError, onWalk, onPick };
     this.live = { rpm: 0, yaw: 0 };
     this.shown = { rpm: 0, yaw: 0 }; // eased toward live, so jumps in the data look mechanical
@@ -62,7 +65,7 @@ export class TurbineScene {
     this.disposed = false;
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, storyRail ? 1 : 1.75));
     this.renderer.localClippingEnabled = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
@@ -189,10 +192,11 @@ export class TurbineScene {
       this.applyTheme(this.theme);
       root.updateMatrixWorld(true);
       this.lookInside = new LookInside(shells, (u) => this.callbacks.onLookInside?.(u));
+      if (this.storyRailEnabled) this.story = new StoryRail(this, interiors);
 
       this.callbacks.onReady?.({});
       // Opening move: drift from the wide establishing shot into the hero framing.
-      this.rig.flyTo("hero", { duration: 5, ease: "power2.inOut" });
+      if (!this.story) this.rig.flyTo("hero", { duration: 5, ease: "power2.inOut" });
     } catch (err) {
       console.error("[3d] failed to load turbine", err);
       this.callbacks.onError?.(err);
@@ -443,6 +447,11 @@ export class TurbineScene {
   /** Runs one of SCREEN_ACTIONS. Resolves when its camera move has finished. */
   async command(action, value) {
     if (!this.lookInside) return;
+    if (this.story) {
+      const chapter = { blades: 0, hub: 0, hero: 0, spin_blades: 0, look_inside: 1, fly_to_nacelle: 1, tower_inside: 3, walk_start: 3, walk_to: 3, tower: 3, base: 4, fly_to_base: 4, overview: 5, close_inside: 5 }[action];
+      if (chapter != null) this.story.seekChapter(chapter);
+      return;
+    }
     const token = ++this.commandToken;
     const still = () => token === this.commandToken && !this.disposed;
     // anything but a walk command takes the visitor back out of the turbine first
@@ -764,6 +773,7 @@ export class TurbineScene {
     this.world.tick(t);
     this.fx.update({ time: t, camera: this.camera, rain: this.env.rain, windMs: this.env.windMs, windVec: this._windVec ?? new THREE.Vector2(1, 0), windViz: this.windViz, dt });
 
+    this.story?.update(realDt);
     this.rig.update(dt);
     this.sky.position.copy(this.camera.position);
     this.#updateLabels();
@@ -773,6 +783,7 @@ export class TurbineScene {
 
   dispose() {
     this.disposed = true;
+    this.story?.dispose();
     this.renderer.setAnimationLoop(null);
     this.resizeObserver?.disconnect();
     this.unbindPointer?.();

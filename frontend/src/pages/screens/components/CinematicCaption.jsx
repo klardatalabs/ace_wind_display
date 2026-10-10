@@ -7,13 +7,13 @@ import { useRef } from "react";
 import { gsap, useGSAP } from "../../../lib/gsap.js";
 import { prefersReducedMotion } from "../../../hooks/useReducedMotion.js";
 
-export default function CinematicCaption({ chapter, data, skin }) {
+export default function CinematicCaption({ chapter, data, skin, instant = false }) {
   const root = useRef(null);
   const words = chapter.line(data).split(" ");
 
   useGSAP(
     () => {
-      if (prefersReducedMotion()) return;
+      if (instant || prefersReducedMotion()) return;
       gsap
         .timeline()
         .from(".cap-eyebrow", { y: 14, opacity: 0, duration: 0.6 })

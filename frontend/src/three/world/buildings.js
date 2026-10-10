@@ -141,7 +141,7 @@ export function buildEstate() {
   const group = new THREE.Group();
   group.name = "Estate";
   group.add(mesh, windows);
-  return { group, setLights, houseCount: houses.length };
+  return { group, setLights, houseCount: houses.length, houses };
 }
 
 // ---------------------------------------------------------------- industrial
@@ -291,6 +291,7 @@ export function buildPylons() {
 
   // sagging cables between pylons (a parabola, three per side)
   const points = [];
+  const energyRoute = [];
   for (let i = 0; i < count - 1; i++) {
     for (const side of [-1, 0, 1]) {
       const h0 = 32 + (side + 1) * 7;
@@ -300,6 +301,7 @@ export function buildPylons() {
         const t = s / 12;
         const pos = a.clone().addScaledVector(dir, (i + t) * spacing).add(off);
         pos.y = h0 - 7 * 4 * t * (1 - t);
+        if (side === 0 && (s > 0 || i === 0)) energyRoute.push(pos.clone());
         if (prev) points.push(prev.x, prev.y, prev.z, pos.x, pos.y, pos.z);
         prev = pos;
       }
@@ -310,5 +312,5 @@ export function buildPylons() {
   const lines = new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: 0x2a3036 }));
   mark(lines, "pylons");
   group.add(legs, arms, lines);
-  return { group };
+  return { group, energyRoute, tops };
 }

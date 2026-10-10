@@ -8,7 +8,7 @@
 import crypto from "node:crypto";
 import { config } from "../config/env.js";
 
-export const SCREENS = ["students", "community", "college"];
+export const SCREENS = ["students", "community", "college", "story"];
 
 function sign(payload) {
   return crypto.createHmac("sha256", config.chat.sessionSecret).update(payload).digest("base64url");
