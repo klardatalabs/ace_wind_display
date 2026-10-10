@@ -114,6 +114,7 @@ function Hoarding({ screen }) {
   // Step pills are sized for laptops; scale them up on big hoarding panels.
   const pillZoom = Math.min(2.4, Math.max(1, Math.min(window.innerWidth, window.innerHeight) / 900));
   const chapter = story.chapter;
+  const captionChapter = story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
   const panel = chapter.panel;
   const tagIds = useMemo(() => (chapter.tags ?? []).filter((id) => TAGS[id]), [chapter]);
   const tagDefs = useMemo(() => tagIds.map((id) => ({ id, anchor: TAGS[id].anchor })), [tagIds]);
@@ -131,7 +132,7 @@ function Hoarding({ screen }) {
 
   return (
     <div className={`relative h-dvh w-screen overflow-hidden select-none ${skin.dark ? "bg-moss-950" : "bg-moss-50"}`}>
-      <div className="absolute inset-0" onPointerDown={onTouch}>
+      <div className="absolute inset-0" onPointerDown={onTouch} style={screen.rail ? { filter: `blur(${story.railState?.blur ?? 0}px)` } : undefined}>
         <TurbineCanvas theme={screen.theme} sceneRef={sceneRef} frameShift={0.1} storyRail={screen.rail} onWalk={onWalk} onPick={onPick} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
       </div>
       {screen.rail && <div className="pointer-events-none absolute inset-0 bg-moss-950" style={{ opacity: story.fade }} />}
@@ -162,7 +163,7 @@ function Hoarding({ screen }) {
       ) : (
         <>
           <main className="pointer-events-none absolute z-10 flex flex-col landscape:bottom-[17vmin] landscape:left-[4vmin] portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin]">
-            <CinematicCaption key={chapter.id} chapter={chapter} data={data} skin={skin} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
+            <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
           </main>
 
           {!pick && chapter.viz === "homes" && (

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { chapterAt, chapterStart, railProgress, STORY_SECONDS } from "./storyTimeline.ts";
+import { buildStoryHome } from "./storyHome.js";
 
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 const up = new THREE.Vector3(0, 1, 0);
@@ -45,8 +46,16 @@ export class StoryRail {
     scene.shown.yaw = scene.live.yaw;
     scene.nodes.yaw.rotation.y = scene.shown.yaw;
     scene.towerPivot.rotation.y = scene.shown.yaw;
+    this.neighbourVisible = scene.neighbour.visible;
+    const destination = scene.world.pylons.energyRoute[60].clone().add(v(40, 0, -65));
+    this.house = scene.world.estate.houses.reduce((best, house) => v(house.x, 0, house.z).distanceToSquared(destination) < v(best.x, 0, best.z).distanceToSquared(destination) ? house : best);
+    this.houseAt = (x, y, z) => v(x, y, z).applyAxisAngle(up, this.house.rot).add(v(this.house.x, 0, this.house.z));
+    this.window = this.houseAt(-1.4, 2.5, 4.03);
+    this.home = buildStoryHome(v(this.house.x, 1000, this.house.z));
+    scene.scene.add(this.home.group);
     this.buildPaths();
     this.buildGenerator();
+    this.buildBranches();
     this.update(0);
   }
 
@@ -75,7 +84,19 @@ export class StoryRail {
     boundaries.push(add(line[0].clone().add(v(-12, 9, 15))));
     for (let i = 2; i < line.length; i += 2) add(line[i].clone().add(v(-12, 9, 15)));
     boundaries.push(points.length - 1);
-    this.railTimes = [0, 11, 23, 30, 40, 46, 50, 64];
+    add(this.houseAt(-20, 32, 65)); add(this.houseAt(-9, 20, 45));
+    boundaries.push(add(this.houseAt(-1.4, 7, 15)));
+    boundaries.push(add(this.window.clone().add(v(0, 0.3, 1.2))));
+    // The window dissolve masks the transit to the separate room on the same rail.
+    add(this.home.at(-1.6, 3.7, 9)); add(this.home.at(-1.5, 3.5, 8));
+    boundaries.push(add(this.home.at(-1.4, 3.2, 7)));
+    add(this.home.at(-1.2, 2.7, 5)); add(this.home.at(0, 2.3, 3.5));
+    boundaries.push(add(this.home.at(2.8, 2.1, 2.7)));
+    add(this.home.at(2.5, 2.1, 1.9));
+    boundaries.push(add(this.home.at(1.1, 2.2, 1.8)));
+    add(this.home.at(1.5, 2.6, 2.4));
+    boundaries.push(add(this.home.at(2.2, 3.1, 3.4)));
+    this.railTimes = [0, 11, 23, 30, 40, 46, 50, 64, 76, 78, 80, 88, 94, 100];
     this.cameraCurve = new THREE.CatmullRomCurve3(points, false, "centripetal");
     this.cameraCurve.arcLengthDivisions = 2400;
     const lengths = this.cameraCurve.getLengths(2400);
@@ -99,7 +120,19 @@ export class StoryRail {
     markers.push(route.length - 1);
     for (const point of line.slice(1)) route.push(point.clone());
     markers.push(route.length - 1);
+    route.push(v(line.at(-1).x, 0.4, line.at(-1).z), this.houseAt(-1.4, 0.4, 6), this.houseAt(-1.4, 1.1, 4.15));
+    markers.push(route.length - 1);
+    route.push(this.window.clone()); markers.push(route.length - 1);
+    route.push(this.home.cablePoints[0].clone()); markers.push(route.length - 1);
+    for (const point of this.home.cablePoints.slice(1, 4)) route.push(point.clone());
+    markers.push(route.length - 1);
+    for (const point of this.home.cablePoints.slice(4, 8)) route.push(point.clone());
+    markers.push(route.length - 1);
+    route.push(this.home.cablePoints[8].clone()); markers.push(route.length - 1);
     this.energyCurve = new THREE.CurvePath();
+    // CurvePath.getPoint already uses exact segment lengths; avoid a second sampled remap.
+    this.energyCurve.getPointAt = (u, target) => this.energyCurve.getPoint(u, target);
+    this.energyCurve.getTangentAt = (u, target) => this.energyCurve.getTangent(u, target);
     const cumulative = [0];
     for (let i = 1; i < route.length; i++) {
       this.energyCurve.add(new THREE.LineCurve3(route[i - 1], route[i]));
@@ -107,16 +140,29 @@ export class StoryRail {
     }
     this.energyLength = cumulative[cumulative.length - 1];
     this.energyDistances = markers.map((index) => cumulative[index] / this.energyLength);
+    if (this.energyCurve.getPointAt(this.energyDistances[10]).distanceTo(this.home.cablePoints[0]) > 0.001) throw new Error("Story energy path must enter the room at the consumer unit");
     this.route = route;
     this.baseRoute = route.map((point) => point.clone());
     this.towerEnd = markers[4];
-    this.uniforms = { uFront: { value: 0 }, uLength: { value: this.energyLength }, uTime: { value: 0 }, uOn: { value: 0 }, uYaw: { value: 0 }, uTowerEnd: { value: cumulative[this.towerEnd] } };
+    this.uniforms = { uFront: { value: 0 }, uLength: { value: this.energyLength }, uTime: { value: 0 }, uOn: { value: 0 }, uYaw: { value: 0 }, uTowerEnd: { value: cumulative[this.towerEnd] }, uTransitStart: { value: cumulative[markers[9]] }, uTransitEnd: { value: cumulative[markers[10]] } };
     const material = new THREE.ShaderMaterial({
       uniforms: this.uniforms, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
       vertexShader: "varying float distanceAlong; uniform float uLength; uniform float uYaw; uniform float uTowerEnd; void main(){ distanceAlong=uv.x*uLength; float angle=uYaw*(1.0-smoothstep(uTowerEnd,uTowerEnd+6.0,distanceAlong)); vec3 p=position; p.x=position.x*cos(angle)+position.z*sin(angle); p.z=-position.x*sin(angle)+position.z*cos(angle); gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0); }",
-      fragmentShader: "varying float distanceAlong; uniform float uFront; uniform float uTime; uniform float uOn; void main(){ float reached=1.0-smoothstep(uFront-0.8,uFront+0.8,distanceAlong); float pulse=pow(max(0.0,cos((distanceAlong-uTime*12.0)*0.5)),16.0); gl_FragColor=vec4(mix(vec3(0.12,0.65,0.37),vec3(0.7,1.0,0.85),pulse), reached*(0.22+0.78*pulse)*uOn); }",
+      fragmentShader: "varying float distanceAlong; uniform float uFront; uniform float uTime; uniform float uOn; uniform float uTransitStart; uniform float uTransitEnd; void main(){ if(distanceAlong>uTransitStart && distanceAlong<uTransitEnd) discard; float reached=1.0-smoothstep(uFront-0.8,uFront+0.8,distanceAlong); float pulse=pow(max(0.0,cos((distanceAlong-uTime*12.0)*0.5)),16.0); gl_FragColor=vec4(mix(vec3(0.12,0.65,0.37),vec3(0.7,1.0,0.85),pulse), reached*(0.22+0.78*pulse)*uOn); }",
     });
-    this.cable = new THREE.Mesh(new THREE.TubeGeometry(this.energyCurve, 900, 0.24, 6, false), material);
+    // Separate tube segments keep the final room wiring thin at this close scale.
+    const geometry = new THREE.TubeGeometry(this.energyCurve, 2400, 0.24, 6, false);
+    const position = geometry.attributes.position;
+    const uv = geometry.attributes.uv;
+    const center = v(0, 0, 0);
+    const roomStart = cumulative[markers[10]] / this.energyLength;
+    this.roomStartMetres = cumulative[markers[10]];
+    for (let i = 0; i < position.count; i++) if (uv.getX(i) >= roomStart) {
+      this.energyCurve.getPointAt(uv.getX(i), center);
+      this.point.fromBufferAttribute(position, i).sub(center).multiplyScalar(0.08).add(center);
+      position.setXYZ(i, this.point.x, this.point.y, this.point.z);
+    }
+    this.cable = new THREE.Mesh(geometry, material);
     this.cable.name = "StoryContinuousEnergyPath";
     this.cable.renderOrder = 20;
     this.group.add(this.cable);
@@ -131,6 +177,25 @@ export class StoryRail {
       this.group.add(sprite);
       return sprite;
     });
+  }
+
+  buildBranches() {
+    const junction = this.scene.world.pylons.energyRoute[60];
+    const homes = [...this.scene.world.estate.houses].sort((a, b) => Math.hypot(a.x - this.house.x, a.z - this.house.z) - Math.hypot(b.x - this.house.x, b.z - this.house.z)).slice(1, 6);
+    this.branches = homes.map((house) => {
+      const curve = new THREE.CatmullRomCurve3([junction.clone(), v(junction.x, 0.4, junction.z), v(house.x, 0.4, house.z + 6), v(house.x, 2.5, house.z + 4)]);
+      const material = this.cable.material.clone();
+      material.uniforms.uLength.value = curve.getLength();
+      material.uniforms.uYaw.value = 0;
+      const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 100, 0.16, 6, false), material);
+      mesh.renderOrder = 20; this.group.add(mesh);
+      const glow = new THREE.Sprite(this.glows[0].material.clone());
+      glow.renderOrder = 22; glow.scale.setScalar(2); this.group.add(glow);
+      return { mesh, glow, curve, length: curve.getLength() };
+    });
+    const halo = new THREE.Mesh(new THREE.RingGeometry(3.5, 3.7, 40), new THREE.MeshBasicMaterial({ color: 0x9dffc4, side: THREE.DoubleSide, transparent: true, opacity: 0.8, depthTest: false }));
+    halo.rotation.x = -Math.PI / 2; halo.position.copy(v(this.house.x, 0.2, this.house.z));
+    this.group.add(halo); this.houseHalo = halo;
   }
 
   buildGenerator() {
@@ -171,7 +236,8 @@ export class StoryRail {
     const beat = chapterAt(this.time);
     const fade = this.frozen ? 0 : Math.max(0, 1 - this.time / 0.65, (this.time - (STORY_SECONDS - 0.65)) / 0.65);
     const lead = this.energyCurve.getPointAt(this.uniforms.uFront.value / this.energyLength);
-    return { ...beat, seconds: this.time, fade, camera: this.scene.camera.position.toArray(), rail: this.eye.toArray(), userOffset: { ...this.scene.rig.user }, energyMetres: this.uniforms.uFront.value, lead: lead.toArray(), leadNdc: lead.clone().project(this.scene.camera).toArray(), fps: this.fps, magnetAngle: this.magnetRing.rotation.x };
+    const transition = THREE.MathUtils.smoothstep(this.time, 77.2, 78) * (1 - THREE.MathUtils.smoothstep(this.time, 80.2, 81.2));
+    return { ...beat, seconds: this.time, fade: Math.max(fade, transition), blur: transition * 16, final: this.time >= 94, charging: this.time >= 90, camera: this.scene.camera.position.toArray(), rail: this.eye.toArray(), userOffset: { ...this.scene.rig.user }, energyMetres: this.uniforms.uFront.value, lead: lead.toArray(), leadNdc: lead.clone().project(this.scene.camera).toArray(), fps: this.fps, drawCalls: this.scene.renderer.info.render.calls, triangles: this.scene.renderer.info.render.triangles, magnetAngle: this.magnetRing.rotation.x };
   }
 
   update(dt) {
@@ -191,20 +257,46 @@ export class StoryRail {
       for (let i = 0; i <= 13; i++) this.cameraCurve.points[i].copy(this.baseCameraPoints[i]).applyAxisAngle(up, delta);
       this.cameraCurve.updateArcLengths();
       for (let i = 0; i <= this.towerEnd; i++) this.route[i].copy(this.baseRoute[i]).applyAxisAngle(up, delta);
-      this.energyCurve.cacheLengths = null;
+      for (let i = 0; i <= this.towerEnd; i++) this.energyCurve.curves[i].updateArcLengths();
+      this.energyCurve.updateArcLengths();
       this.uniforms.uYaw.value = delta;
       this.lastYaw = scene.shown.yaw;
     }
     const cameraU = railProgress(time, this.cameraDistances, this.railTimes);
     this.cameraCurve.getPointAt(cameraU, this.eye);
     const front = railProgress(time, this.energyDistances, this.railTimes) * this.energyLength;
-    const lookAhead = time >= 23 && time < 40 ? 0.8 : 5;
+    const lookAhead = time >= 80 ? 0.12 : time >= 23 && time < 40 ? 0.8 : 5;
     this.energyCurve.getPointAt(Math.max(0, Math.min(1, (front + lookAhead) / this.energyLength)), this.look);
     scene.nodes.yaw.localToWorld(this.point.set(time < 11 ? 4.6 : 2.35, 3, 0));
     this.look.lerp(this.point, 1 - THREE.MathUtils.smoothstep(time, 21, 25));
     const atTransformer = THREE.MathUtils.smoothstep(time, 39, 41) * (1 - THREE.MathUtils.smoothstep(time, 46, 49));
     this.look.lerp(this.transformerTarget, atTransformer);
-    scene.rig.setRailPose(this.eye, this.look, time >= 11 && time < 40);
+    if (time >= 64 && time < 76) this.look.lerp(this.houseAt(0, 4, 0), 0.6 * THREE.MathUtils.smoothstep(time, 64, 66));
+    if (time >= 75 && time < 79) this.look.lerp(this.window, THREE.MathUtils.smoothstep(time, 75, 76));
+    if (time >= 80) {
+      const socket = this.home.at(2.4, 1.45, -2.13);
+      const laptop = this.home.at(1, 1.74, -1.06);
+      this.look.lerp(time < 88 ? this.home.at(-0.2, 1.25, -1.9) : laptop, time < 88 ? 0.6 : THREE.MathUtils.smoothstep(time, 88, 91));
+      if (time >= 88 && time < 90) this.look.lerp(socket, 1 - THREE.MathUtils.smoothstep(time, 88, 90));
+    }
+    scene.rig.setRailPose(this.eye, this.look, (time >= 11 && time < 40) || time >= 80);
+    this.home.group.visible = time >= 79;
+    scene.world.group.visible = scene.nodes.root.visible = time < 79;
+    scene.neighbour.visible = time < 79 && this.neighbourVisible;
+    if (time >= 79) this.home.update(time);
+    this.cable.material.depthTest = this.pulses.material.depthTest = time >= 80;
+    for (const glow of this.glows) glow.material.depthTest = time >= 80;
+    this.houseHalo.visible = time >= 64 && time < 78;
+    this.group.visible = time < 78 || time >= 80;
+    for (const branch of this.branches) {
+      branch.mesh.visible = time >= 64 && time < 78;
+      branch.glow.visible = branch.mesh.visible;
+      branch.mesh.material.uniforms.uOn.value = 1;
+      const progress = THREE.MathUtils.smoothstep(time, 64, 70);
+      branch.mesh.material.uniforms.uFront.value = progress * branch.length;
+      branch.mesh.material.uniforms.uTime.value = time;
+      branch.curve.getPointAt(progress, branch.glow.position);
+    }
     const cutaway = time < 9 ? 0 : time < 12 ? (time - 9) / 3 : time < 40 ? 1 : Math.max(0, 1 - (time - 40) / 3);
     scene.lookInside.u = cutaway;
     scene.lookInside.apply();
@@ -223,10 +315,10 @@ export class StoryRail {
     this.uniforms.uTime.value = time;
     this.uniforms.uOn.value = time >= 11 ? 1 : 0;
     for (let i = 0; i < this.pulses.count; i++) {
-      const distance = front - i * 14;
-      const visible = time >= 11 && distance >= 0;
+      const distance = front - i * (time >= 80 ? 0.6 : 14);
+      const visible = time >= 11 && distance >= (time >= 80 ? this.roomStartMetres : 0);
       this.energyCurve.getPointAt(Math.max(0, distance) / this.energyLength, this.point);
-      const radius = visible ? THREE.MathUtils.clamp(this.point.distanceTo(this.eye) * 0.009, 0.15, 0.8) : 0;
+      const radius = visible ? THREE.MathUtils.clamp(this.point.distanceTo(this.eye) * 0.009, time >= 80 ? 0.015 : 0.15, time >= 80 ? 0.035 : 0.8) : 0;
       this.matrix.compose(this.point, this.rotation.identity(), this.scale.setScalar(radius));
       this.pulses.setMatrixAt(i, this.matrix);
       this.glows[i].position.copy(this.point);
@@ -238,5 +330,6 @@ export class StoryRail {
 
   dispose() {
     this.glows[0].material.map.dispose();
+    this.home.dispose();
   }
 }

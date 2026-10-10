@@ -1,4 +1,4 @@
-export const STORY_DURATIONS = [11, 12, 7, 10, 10, 14] as const;
+export const STORY_DURATIONS = [11, 12, 7, 10, 10, 14, 12, 12, 12] as const;
 export const STORY_SECONDS = STORY_DURATIONS.reduce((sum, seconds) => sum + seconds, 0);
 
 export function chapterStart(index: number): number {
@@ -17,7 +17,7 @@ export function chapterAt(seconds: number): { index: number; progress: number } 
 }
 
 /** Monotonic time-to-distance mapping: camera speed changes without stopping at beats. */
-export function railProgress(seconds: number, distances: readonly number[], times: readonly number[] = [0, 11, 23, 30, 40, 50, 64]): number {
+export function railProgress(seconds: number, distances: readonly number[], times: readonly number[] = [0, 11, 23, 30, 40, 50, 64, 76, 88, 100]): number {
   const time = Math.max(times[0], Math.min(seconds, times[times.length - 1]));
   let index = 0;
   while (index < times.length - 2 && time >= times[index + 1]) index++;

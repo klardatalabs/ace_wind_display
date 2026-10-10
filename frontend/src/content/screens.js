@@ -314,12 +314,15 @@ SCREENS.story = {
   key: "story", name: "Follow the Energy", theme: "realistic", rail: true,
   askLabel: "Ask Ace", askHint: "Scan to explore the journey from wind to home",
   chapters: [
-    { id: "wind", label: "Wind", seconds: 11, stage: {}, eyebrow: "01 · Wind into motion", line: () => "It starts with the wind.", sub: () => "The blades turn the hub. Pitch helps them catch or spill wind; available wind power rises roughly as P ∝ v³ until rated output." },
+    { id: "wind", label: "Wind", seconds: 11, stage: {}, eyebrow: "01 · Avonmouth / Lawrence Weston, Bristol", line: () => "Local wind. Community power.", sub: () => "The blades turn the hub. Pitch helps them catch or spill wind; available wind power rises roughly as P ∝ v³ until rated output." },
     { id: "generator", label: "Generator", seconds: 12, stage: {}, eyebrow: "02 · Motion into electricity", line: () => "Magnets pass copper coils. Current flows.", sub: () => "ACE's ring generator turns at blade speed. Direct drive — no gearbox. Watch the coils glow as the magnets pass." },
     { id: "converter", label: "Converter", seconds: 7, stage: {}, eyebrow: "03 · Getting ready for the grid", line: () => "The next stop is the converter at the tower base.", sub: () => "The full-power converter decouples the variable-speed generator from the 50 Hz grid. First, the electricity travels down these cables." },
     { id: "tower", label: "Tower", seconds: 10, stage: {}, eyebrow: "04 · Follow the cable", line: () => "Down the tower. Into the converter.", sub: () => "Power cables hang beside the ladder and service lift, carrying electricity to the cabinets at the base." },
     { id: "transformer", label: "Transformer", seconds: 10, stage: {}, eyebrow: "05 · Into the network", line: () => "The transformer steps the voltage up.", sub: () => "Higher voltage helps power travel with less loss. From here, the supply joins the shared grid." },
     { id: "cables", label: "Power lines", seconds: 14, stage: {}, eyebrow: "06 · Across Lawrence Weston", line: () => "Follow the glow along the power lines.", sub: () => "The pylons lead us towards the red-roof neighbourhood. This route illustrates the shared network; it is not a surveyed connection to particular homes." },
+    { id: "neighbourhood", label: "Our streets", seconds: 12, stage: {}, tags: ["homes"], eyebrow: "07 · Lawrence Weston, Bristol", line: (d) => `Enough power for about ${formatInt(d.homes)} homes right now.`, sub: () => "A live homes-equivalent estimate, not a count of connected houses. Residents set up Ambition Community Energy; the income goes back into the neighbourhood." },
+    { id: "home", label: "One home", seconds: 12, stage: {}, eyebrow: "08 · One home in our neighbourhood", line: () => "From the street to your socket.", sub: () => "Follow the illustrative cutaway: consumer unit, wall wiring, socket and charger. This room represents a home; it is not a particular Bristol address." },
+    { id: "laptop", label: "Your game", seconds: 12, stage: {}, eyebrow: "09 · A little power, a big adventure", line: () => "Low battery. Plug in. Play on.", sub: () => "From the community turbine to everyday moments: a Bristol gamer's laptop connects to its charger. The battery stays at 1% as charging begins." },
   ],
 };
 
