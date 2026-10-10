@@ -316,7 +316,7 @@ export class TurbineScene {
     this.theme = theme;
     const roots = [this.nodes?.root, this.neighbour].filter(Boolean);
     const meshes = [];
-    for (const r of roots) r.traverse((o) => o.isMesh && !o.userData.isOutline && !o.userData.isEdges && meshes.push(o));
+    for (const r of roots) r.traverse((o) => o.isMesh && !o.userData.isAnnotation && !o.userData.isOutline && !o.userData.isEdges && meshes.push(o));
 
     for (const mesh of meshes) {
       for (const child of [...mesh.children]) {
@@ -631,7 +631,6 @@ export class TurbineScene {
    * @param {{ action?: string, value?: number, annotations?: string[], wind?: boolean, lapse?: [number, number, number] }} stage
    */
   applyStage(stage = {}) {
-    this.annotations?.show(this.rig.walk ? [] : stage.annotations ?? []);
     this.windViz = stage.wind ? 1 : 0;
     if (stage.lapse) {
       const [from, to, seconds] = stage.lapse;
@@ -640,7 +639,9 @@ export class TurbineScene {
       this.timeLapseTween.kill();
       this.setTimeOfDay(null);
     }
-    if (stage.action) return this.command(stage.action, stage.value);
+    const action = stage.action ? this.command(stage.action, stage.value) : undefined;
+    this.annotations?.show(this.rig.walk ? [] : stage.annotations ?? []);
+    return action;
   }
 
   /** The data tags to show: [{ id, anchor }] where anchor names an entry of this.anchors. */

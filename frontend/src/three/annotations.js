@@ -88,36 +88,44 @@ export function buildAnnotations(towerPivot, yaw) {
   items.bigben = { group: ben.group, mats: ben.mats, anchor: ben.top.clone().add(new THREE.Vector3(-46, 0, 18)), root: towerPivot, kind: "ghost" };
 
   const state = {};
-  /** Draws a set of annotations in (and the rest out). `names` e.g. ["height", "bigben"]. */
+  for (const it of Object.values(items)) {
+    it.group.visible = false;
+    it.progress = { v: 0 };
+    it.group.traverse((o) => {
+      o.userData.noPick = true;
+      o.userData.isAnnotation = true;
+    });
+  }
+
+  /** Only the active chapter's measurements belong in the scene. */
   function show(names = []) {
     for (const [name, it] of Object.entries(items)) {
       const on = names.includes(name);
       if (state[name] === on) continue;
       state[name] = on;
-      gsap.killTweensOf(it);
-      if (it.kind === "bar") {
-        const p = { v: on ? 0 : 1 };
-        gsap.to(p, {
-          v: on ? 1 : 0,
-          duration: on ? 1.6 : 0.6,
-          ease: on ? "power3.out" : "power2.in",
-          onUpdate: () => {
-            it.bar.scale.set(1, Math.max(0.0001, p.v * it.length), 1);
-            it.mat.opacity = 0.92 * Math.min(1, p.v * 3);
-          },
-        });
-      } else {
-        const p = { v: on ? 0 : 1 };
-        gsap.to(p, {
-          v: on ? 1 : 0,
-          duration: on ? 1.4 : 0.6,
-          ease: "power2.out",
-          onUpdate: () => {
-            it.mats[0].opacity = 0.2 * p.v;
-            it.mats[1].opacity = 0.85 * p.v;
-          },
-        });
+      gsap.killTweensOf(it.progress);
+      it.group.visible = on;
+      if (!on) {
+        it.progress.v = 0;
+        if (it.kind === "bar") it.mat.opacity = 0;
+        else for (const mat of it.mats) mat.opacity = 0;
+        continue;
       }
+      gsap.to(it.progress, {
+        v: 1,
+        duration: it.kind === "bar" ? 1.6 : 1.4,
+        ease: it.kind === "bar" ? "power3.out" : "power2.out",
+        onUpdate: () => {
+          const v = it.progress.v;
+          if (it.kind === "bar") {
+            it.bar.scale.set(1, Math.max(0.0001, v * it.length), 1);
+            it.mat.opacity = 0.92 * Math.min(1, v * 3);
+          } else {
+            it.mats[0].opacity = 0.2 * v;
+            it.mats[1].opacity = 0.85 * v;
+          }
+        },
+      });
     }
   }
 
@@ -130,8 +138,6 @@ export function buildAnnotations(towerPivot, yaw) {
     it.root.add(o);
     anchors[name] = o;
   }
-
-  for (const it of Object.values(items)) it.group.traverse((o) => (o.userData.noPick = true));
 
   return { show, anchors, items };
 }
