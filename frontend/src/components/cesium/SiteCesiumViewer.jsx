@@ -22,6 +22,17 @@ async function findGroundHeight(terrainProvider) {
   return heights.length === 3 ? heights[1] : (heights[1] + heights[2]) / 2;
 }
 
+function turbineFootprint(lon, lat, radiusM = 62) {
+  const points = Array.from({ length: 16 }, (_, index) => {
+    const angle = index * Math.PI / 8;
+    return Cesium.Cartesian3.fromDegrees(
+      lon + Math.cos(angle) * radiusM / (111320 * Math.cos(Cesium.Math.toRadians(lat))),
+      lat + Math.sin(angle) * radiusM / 111320
+    );
+  });
+  return new Cesium.ClippingPolygon({ positions: points });
+}
+
 export default function SiteCesiumViewer({ className = "" }) {
   const rootRef = useRef(null);
   const cameraRef = useRef(null);
@@ -51,16 +62,13 @@ export default function SiteCesiumViewer({ className = "" }) {
           throw new Error("The site coordinates or turbine placement settings are invalid.");
         }
         if (config.cesiumIonToken) Cesium.Ion.defaultAccessToken = config.cesiumIonToken;
-        const [imageryProvider, terrainProvider] = await Promise.all([
-          Cesium.createWorldImageryAsync({ style: Cesium.IonWorldImageryStyle.AERIAL }),
-          Cesium.createWorldTerrainAsync(),
-        ]);
-        if (cancelled) return;
+        const terrainProvider = Cesium.createWorldTerrainAsync();
         viewer = new Cesium.Viewer(rootRef.current, {
-          animation: false, baseLayer: false, baseLayerPicker: false, fullscreenButton: false,
+          animation: false, baseLayerPicker: false, fullscreenButton: false,
           geocoder: Cesium.IonGeocodeProviderType.GOOGLE, homeButton: false, infoBox: false,
           navigationHelpButton: false, sceneModePicker: false, selectionIndicator: false, timeline: false,
-          baseLayer: new Cesium.ImageryLayer(imageryProvider), terrainProvider,
+          baseLayer: Cesium.ImageryLayer.fromWorldImagery({ style: Cesium.IonWorldImageryStyle.AERIAL }),
+          terrain: new Cesium.Terrain(terrainProvider),
         });
         viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
         viewer.scene.screenSpaceCameraController.minimumZoomDistance = 35;
@@ -69,7 +77,23 @@ export default function SiteCesiumViewer({ className = "" }) {
           destination: Cesium.Cartesian3.fromDegrees(SITE_COORDS.lon, SITE_COORDS.lat, 1400),
           orientation: { heading: 0, pitch: Cesium.Math.toRadians(-85), roll: 0 },
         });
-        const groundHeight = config.turbineGroundHeightM ?? await findGroundHeight(terrainProvider);
+        if (Cesium.ClippingPolygonCollection.isSupported(viewer.scene)) {
+          const tileset = await Cesium.createGooglePhotorealistic3DTileset(
+            { ...(config.googleMapTilesApiKey ? { key: config.googleMapTilesApiKey } : {}), onlyUsingWithGoogleGeocoder: true },
+            { showCreditsOnScreen: true, enableCollision: true, maximumScreenSpaceError: 12 }
+          );
+          if (cancelled) { tileset.destroy(); return; }
+          // The nearby bases are OpenStreetMap nodes 2807547707 and 2807547708.
+          tileset.clippingPolygons = new Cesium.ClippingPolygonCollection({
+            polygons: [
+              turbineFootprint(SITE_COORDS.lon, SITE_COORDS.lat),
+              turbineFootprint(-2.6733122, 51.5333800, 55),
+              turbineFootprint(-2.6770489, 51.5346489, 55),
+            ],
+          });
+          viewer.scene.primitives.add(tileset);
+        }
+        const groundHeight = config.turbineGroundHeightM ?? await findGroundHeight(await terrainProvider);
         if (cancelled) return;
         const model = await loadTurbineModel(config, groundHeight);
         if (cancelled) { model.destroy(); return; }
@@ -130,7 +154,7 @@ export default function SiteCesiumViewer({ className = "" }) {
         <div className="absolute inset-0 flex items-center justify-center bg-moss-950 p-6 text-center text-white">
           <div className="max-w-md">
             <p className="font-display text-2xl">{status === "needs-config" ? "Real-world view is being set up" : status === "error" ? "3D site unavailable" : "Loading the real site"}</p>
-            <p className="mt-3 text-sm leading-6 text-white/70">{status === "needs-config" ? "Add a Cesium ion token to enable the satellite map." : status === "error" ? message : "Loading satellite imagery and positioning the ACE turbine."}</p>
+            <p className="mt-3 text-sm leading-6 text-white/70">{status === "needs-config" ? "Add a Cesium ion token to enable the real-world 3D map." : status === "error" ? message : "Streaming the 3D surroundings and positioning the ACE turbine."}</p>
             {status === "error" && <button type="button" onClick={() => setAttempt((value) => value + 1)} className="mt-5 rounded-full bg-white px-5 py-2 text-sm font-semibold text-moss-950">Try again</button>}
           </div>
         </div>
