@@ -3,7 +3,7 @@
 *Live wind. Local energy. A turbine you can talk to.*
 
 Weston Wind is the public face of the **ACE community wind turbine** in Lawrence Weston, Bristol
-(Enercon E-115 EP3, 4.2 MW): three storytelling hoarding screens with a native Three.js turbine,
+(Enercon E-115 EP3, 4.2 MW): four storytelling hoarding screens with a native Three.js turbine,
 a private phone chat ("Ask Ace") opened from a QR code, a public website, a developer portal and an
 operator console with a wind simulator.
 
@@ -17,6 +17,7 @@ Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (se
 | `/screen/students` | Hoarding screen: kid-friendly story told over the live 3D place |
 | `/screen/community` | Hoarding screen: the community story (homes powered, this week, since 2023) |
 | `/screen/college` | Hoarding screen: spec, power curve, tip-speed ratio, generator, open data |
+| `/screen/story` | Continuous energy journey through Lawrence Weston to a home and laptop |
 | `/ask/:screen` | Phone chat opened from each screen's QR code (no login) |
 
 ## The hoarding screens
@@ -56,6 +57,30 @@ npm start              # http://localhost:4100
 
 Development with hot reload: `npm run dev` (API on :4100) and `npm run dev:web` (Vite on :5173,
 proxying `/api` and `/ws`).
+
+## Codebase graph (Graphify)
+
+Graphify is optional development tooling. Install it once:
+
+```bash
+pip install graphifyy
+graphify install --platform codex
+graphify codex install
+```
+
+From the repository root, build or refresh the local code graph:
+
+```bash
+graphify update .
+graphify query "How does StoryRail connect to TurbineScene?" --budget 1500
+graphify explain "TurbineScene"
+```
+
+Open `graphify-out/graph.html` for the interactive map. The graph and verification screenshots
+are generated locally and ignored by Git. Code extraction uses no LLM/API calls; documentation,
+image, and semantic analysis are separate work. `AGENTS.md` gives Codex the graph-first workflow.
+The generated `.codex/hooks.json` is machine-local; the current Codex hook is a no-op, so the
+workflow is provided by `AGENTS.md` rather than automatic enforcement.
 
 ## Real-world 3D site
 

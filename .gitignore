@@ -7,3 +7,10 @@ data/
 *.db
 .env
 dist/
+
+# Local verification and generated code graphs
+/artifacts/
+/graphify-out/
+/.codex/hooks.json
+__pycache__/
+*.pyc
