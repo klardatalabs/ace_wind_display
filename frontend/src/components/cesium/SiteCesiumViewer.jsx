@@ -88,9 +88,12 @@ export default function SiteCesiumViewer({ className = "" }) {
         }
       }
     }
-    init();
+    // React's development Strict Mode runs setup-cleanup-setup synchronously.
+    // Deferring starts only the surviving setup, so Cesium never fetches one tileset twice.
+    const start = window.setTimeout(init, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(start);
       stopAnimation?.();
       camera?.dispose();
       cameraRef.current = null;

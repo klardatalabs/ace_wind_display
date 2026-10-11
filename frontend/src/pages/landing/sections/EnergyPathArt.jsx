@@ -18,7 +18,7 @@ export default function EnergyPathArt() {
         <path d="M232 412 L238 160 H250 L256 412 Z" fill="white" stroke="var(--color-moss-200)" strokeWidth="2" />
         <rect x="236" y="146" width="44" height="20" rx="9" fill="white" stroke="var(--color-moss-200)" strokeWidth="2" />
         {/* rotor */}
-        <g className="art-rotor" style={{ transformBox: "fill-box" }}>
+        <g className="art-rotor" style={{ transformBox: "view-box", transformOrigin: "244px 156px" }}>
           {[0, 120, 240].map((r) => (
             <path key={r} d="M244 156 C238 120 238 80 244 40 C250 80 252 120 244 156 Z" fill="white" stroke="var(--color-moss-300)" strokeWidth="2" transform={`rotate(${r} 244 156)`} />
           ))}

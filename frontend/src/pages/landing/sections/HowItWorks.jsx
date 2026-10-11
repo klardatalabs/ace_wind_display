@@ -34,7 +34,7 @@ export default function HowItWorks() {
         });
         tl.to(path, { strokeDashoffset: 0, ease: "none", duration: 1 }, 0)
           .to(".art-gust", { x: 40, opacity: 0, stagger: 0.05, duration: 0.25 }, 0)
-          .to(".art-rotor", { rotation: 360, transformOrigin: "50% 50%", ease: "none", duration: 1 }, 0)
+          .to(".art-rotor", { rotation: 360, svgOrigin: "244 156", ease: "none", duration: 1 }, 0)
           .to(".art-home-glow", { opacity: 1, stagger: 0.04, duration: 0.2 }, 0.75);
       });
       mm.add("(max-width: 1023px)", () => {
