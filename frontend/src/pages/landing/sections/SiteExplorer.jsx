@@ -16,7 +16,7 @@ export default function SiteExplorer() {
               See where Ace meets the sky.
             </h2>
             <p className="mt-4 max-w-[680px] text-base leading-7 text-moss-900/70">
-              Move around the turbine at Lawrence Weston. The surrounding land and buildings stream from real-world 3D map data; Ace is our own model in the scene.
+              Move around the turbine at Lawrence Weston. The surrounding land streams from satellite map data; Ace is the only turbine model in the scene.
             </p>
           </div>
           <Button to="/site" variant="secondary" icon="arrowRight">Open full view</Button>
