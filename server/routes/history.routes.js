@@ -18,7 +18,7 @@ router.get('/health',async(_req,res)=>{
   try {res.json({...await getHistoryHealth(),backend:canonicalHistory?'timescale':'legacy'});}
   catch {unavailable(res);}
 });
-router.get('/export',streamHistoryCsv);
+router.get('/export',(req,res)=>streamHistoryCsv(req,res));
 
 // Today vs yesterday, month vs month, or custom ranges
 router.get("/compare", async (req, res) => {

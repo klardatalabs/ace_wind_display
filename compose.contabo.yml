@@ -1,0 +1,97 @@
+name: we-do-wind
+services:
+  timescaledb:
+    image: timescale/timescaledb@sha256:6f139d56042989bd35f50ba5986e492cd32e35cc6778c50be2659add298dc09f
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE}
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./scripts/init_timescaledb.sql:/docker-entrypoint-initdb.d/init_timescaledb.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes: [redis_data:/data]
+  app:
+    image: we-do-wind:ef6e066
+    build:
+      context: .
+      args:
+        VITE_CESIUM_ION_TOKEN: ${VITE_CESIUM_ION_TOKEN:-}
+        VITE_GOOGLE_MAP_TILES_API_KEY: ${VITE_GOOGLE_MAP_TILES_API_KEY:-}
+    user: '1003:1003'
+    restart: unless-stopped
+    env_file: .env
+    environment: &appenv
+      PORT: 4100
+      HOME: /tmp
+      PGHOST: timescaledb
+      PGPORT: 5432
+      REDIS_URL: redis://redis:6379
+      DATA_DIR: /data
+      ZENODO_DIR: /data/zenodo
+      HISTORY_OPERATIONS_DIR: /data/operations
+      HISTORY_PYTHON: /opt/history-python/bin/python
+      HISTORY_BACKEND: legacy
+    ports: ['127.0.0.1:4100:4100']
+    volumes: ['./data:/data']
+    depends_on:
+      timescaledb: {condition: service_healthy}
+      redis: {condition: service_started}
+  collector:
+    image: we-do-wind:ef6e066
+    user: '1003:1003'
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *appenv
+      HISTORY_BACKEND: timescale
+    command: [node, --input-type=module, -e, "import './server/config/env.js'; import {startHistoryWorker} from './server/history/worker.js'; startHistoryWorker();"]
+    volumes: ['./data:/data']
+    depends_on:
+      timescaledb: {condition: service_healthy}
+  grafana:
+    image: grafana/grafana:11.6.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_SERVER_ROOT_URL: https://we-do-wind.89-117-57-40.sslip.io/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
+      PGDATABASE: ${PGDATABASE}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    ports: ['127.0.0.1:3100:3000']
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+  backup:
+    image: timescale/timescaledb@sha256:6f139d56042989bd35f50ba5986e492cd32e35cc6778c50be2659add298dc09f
+    restart: unless-stopped
+    entrypoint: [sh, /scripts/history-backup.sh, loop]
+    environment:
+      PGHOST: timescaledb
+      PGPORT: 5432
+      PGUSER: ${PGUSER}
+      PGDATABASE: ${PGDATABASE}
+      PGPASSWORD: ${PGPASSWORD}
+      BACKUP_COPY_OFFHOST: '0'
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./data:/data
+      - history_backups:/backups
+volumes:
+  timescaledb_data:
+  redis_data:
+  grafana_data:
+  history_backups:

@@ -1,6 +1,7 @@
 # How Weston Wind works
 
-Checked on **12 October 2026**. The new history system is built and tested, but **not switched on yet**.
+Checked on **12 October 2026**. The new history database is collecting on Contabo.
+The screens and chatbot still use their existing history connections during testing.
 
 ## The server and the screens
 
@@ -38,15 +39,17 @@ We do not have six months of ten-minute readings yet.
 ```text
 LIVE NOW:     ACE API -> server memory -> live screens
 
-HISTORY, AFTER THE SWITCH:
+NEW HISTORY DATABASE, COLLECTING NOW:
               ACE ten-minute history ----+
-                                        +-> one history database -> graphs, Ask Ace,
-              monthly Zenodo files -----+                          CSV and Grafana
+                                        +-> one history database -> Grafana and CSV
+              supplied Zenodo files ----+
+                                         Screens and Ask Ace switch after checks.
 ```
 
-The new database will save ten-minute readings. ACE wins when both sources have the same time.
-Zenodo fills missing times. ACE will be checked every ten minutes; new Zenodo releases, daily.
-All history views will read this database. Daily energy will be labelled as an estimate.
+The new database saves ten-minute readings. ACE wins when both sources have the same time.
+Zenodo fills missing times. Your supplied file had 10,304 readings; all matched ACE, so it added no rows.
+ACE is checked every ten minutes. Future automatic Zenodo imports are currently blocked by Zenodo refusing the server's requests.
+After the switch, all history views will read this database. Daily energy will be labelled as an estimate.
 Live readings and animation stay live. Story chapters, cameras and 3D models are unchanged.
 
 Today's small fixes merged duplicate database times, corrected UK clock handling,
@@ -54,8 +57,7 @@ and made old or bad live readings clearer.
 
 ## Is it working? Do I need to do anything?
 
-The existing paths remain selected. The new path passed local tests, including backup and recovery.
-**The real new database, Grafana and combined CSV downloads still need setup and activation.**
-No switch is needed for the current screens. Activation is planned after the **28 October presentation**.
-You or your server operator must set passwords, choose an off-laptop backup location,
-fill and check the new database, then turn it on. Follow [HISTORY_RUNBOOK.md](HISTORY_RUNBOOK.md).
+The website, collector and Grafana are running on Contabo. Nightly backups are enabled.
+A server backup was restored into a separate database, and a copy was saved on your laptop.
+The screens and historical chatbot answers have not switched to the new table yet.
+Review the hosted screens and charts first. See [CONTABO_DEPLOYMENT.md](CONTABO_DEPLOYMENT.md) for links and remaining work.

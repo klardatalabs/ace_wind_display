@@ -1,5 +1,9 @@
 # Maintained TimescaleDB history
 
+Contabo pilot deployed on 12 October 2026: the new collector, Grafana and nightly
+backups are running independently of the existing screen/chat history readers.
+See [CONTABO_DEPLOYMENT.md](CONTABO_DEPLOYMENT.md) for the actual deployment status.
+
 The default is `HISTORY_BACKEND=legacy` until after the 28 October 2026 presentation.
 The canonical path is implemented but requires explicit migration, validation and cutover.
 No application startup runs that migration. Never use `docker compose down -v` for an upgrade.

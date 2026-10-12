@@ -4,7 +4,21 @@ import express from 'express';
 import {createServer} from 'node:http';
 import {csvCell,streamHistoryCsv} from './export.js';
 import {pool} from '../db/timescaleDb.js';
+import historyRouter from '../routes/history.routes.js';
 after(()=>pool.end());
+
+test('public history export route uses the database rather than Express next',async()=>{
+  const original=pool.connect;let released=false;
+  pool.connect=async()=>({query:async sql=>({rows:sql.startsWith('SELECT') ? [{asset_id:'wec-1',observed_at_utc:new Date('2026-10-01T00:00:00Z'),source:'live'}] : []}),release:()=>{released=true;}});
+  const app=express();app.use('/api/history',historyRouter);
+  const server=createServer(app);await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  try {
+    const response=await fetch(`http://127.0.0.1:${server.address().port}/api/history/export?format=csv`);
+    assert.equal(response.status,200);
+    assert.match(await response.text(),/2026-10-01T00:00:00.000Z/);
+    assert.equal(released,true);
+  } finally {pool.connect=original;await new Promise(resolve=>server.close(resolve));}
+});
 test('CSV preserves nulls, UTC and quoting',()=>{
   assert.equal(csvCell(null),''); assert.equal(csvCell('a,"b"'),'"a,""b"""');
   assert.equal(csvCell(new Date('2026-10-01T00:00:00Z')),'2026-10-01T00:00:00.000Z');
