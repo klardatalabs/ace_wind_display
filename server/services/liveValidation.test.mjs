@@ -6,6 +6,11 @@ test('live validation rejects missing, stale and bad values without changing pre
   const site={timestamps:[clock*1000],series:{aggregate_wind_direction:[210],aggregate_available_power_after_external_setpoints:[4200],aggregate_theoretical_maximum_active_power:[4245]}};
   const wec={timestamps:[clock*1000],series:{wec_active_power:[0],wec_wind_speed:[4],wec_rotor_speed:[6],wec_nacelle_position:[215],wec_energy_exported:[100]}};
   assert.equal(validateLiveNow(site,wec,{},clock).now.activePowerKw,0);
+  site.quality=['Good'];wec.quality=['Good'];
+  assert.equal(validateLiveNow(site,wec,{},clock).now.activePowerKw,0);
+  wec.quality=['bad'];
+  assert.throws(()=>validateLiveNow(site,wec,{},clock));
+  wec.quality=['good'];
   assert.throws(()=>validateLiveNow(site,wec,{},clock+31000));
   wec.series.wec_wind_speed=[NaN];
   const previous={windSpeed:4};

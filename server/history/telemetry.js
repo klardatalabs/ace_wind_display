@@ -13,6 +13,9 @@ export function normaliseTimestamp(raw, tenMinute = false) {
 export function validNumber(value,min=-Infinity,max=Infinity) {
   return typeof value==='number' && Number.isFinite(value) && value>=min && value<=max;
 }
+export function isGoodQuality(value) {
+  return typeof value==='string' && value.toLowerCase()==='good';
+}
 export function normaliseHistoryPage(page,asset=process.env.HISTORY_ASSET || 'wec-1') {
   if (!Array.isArray(page?.timestamps) || !page.series || (page.asset && page.asset!==asset)) throw new Error('Invalid history response');
   for (const field of HISTORY_FIELDS) {
@@ -21,7 +24,7 @@ export function normaliseHistoryPage(page,asset=process.env.HISTORY_ASSET || 'we
   if (page.quality && (!Array.isArray(page.quality) || page.quality.length!==page.timestamps.length)) throw new Error('Misaligned quality');
   const records=[]; let rejected=0;
   for (let i=0;i<page.timestamps.length;i++) {
-    if (page.quality && page.quality[i]!=='good') { rejected++; continue; }
+    if (page.quality && !isGoodQuality(page.quality[i])) { rejected++; continue; }
     let ts;
     try { ts=normaliseTimestamp(page.timestamps[i],true); } catch { rejected++; continue; }
     const values=HISTORY_FIELDS.map((f,j)=>{
@@ -32,7 +35,7 @@ export function normaliseHistoryPage(page,asset=process.env.HISTORY_ASSET || 'we
     if (values[2]!==null && values[3]!==null && values[3]<values[2]) values[3]=null;
     if (values.every(v=>v===null)) { rejected++; continue; }
     records.push({asset_id:asset,observed_at_utc:ts,...Object.fromEntries(VALUE_COLUMNS.map((c,j)=>[c,values[j]])),source:'live',source_release:null,
-      quality:values.every(v=>v!==null) && (!page.quality || page.quality[i]==='good') ? 'complete' : 'partial'});
+      quality:values.every(v=>v!==null) && (!page.quality || isGoodQuality(page.quality[i])) ? 'complete' : 'partial'});
   }
   return {records,rejected};
 }

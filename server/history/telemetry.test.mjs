@@ -22,6 +22,11 @@ test('history keeps zero and negative net power; invalid fields become partial',
   const {records} = normaliseHistoryPage(page);
   assert.equal(records[0].active_power_mean_kw, -2);
   assert.equal(records[0].quality, 'complete');
+  page.quality=['Good'];
+  assert.equal(normaliseHistoryPage(page).records[0].quality,'complete');
+  page.quality=['bad'];
+  assert.equal(normaliseHistoryPage(page).rejected,1);
+  page.quality=['good'];
   page.series.wind_speed_max = [NaN];
   assert.equal(normaliseHistoryPage(page).records[0].quality, 'partial');
   page.series.active_power_mean=[9000];

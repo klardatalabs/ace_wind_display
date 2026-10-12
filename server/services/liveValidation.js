@@ -1,4 +1,4 @@
-import { normaliseTimestamp,validNumber } from '../history/telemetry.js';
+import { normaliseTimestamp,validNumber,isGoodQuality } from '../history/telemetry.js';
 const fields = [
   ['activePowerKw','wec_active_power',-1000,6500],['windSpeed','wec_wind_speed',0,100],
   ['rotorRpm','wec_rotor_speed',0,30],['nacelleDeg','wec_nacelle_position',0,360],
@@ -14,7 +14,7 @@ export function validateLiveNow(site,wec,previous,clock=Date.now()) {
     const series=data?.series?.[field]; const times=data?.timestamps;
     if (!Array.isArray(series) || !Array.isArray(times) || series.length!==times.length || !times.length) throw new Error(`Missing live field: ${field}`);
     const ts=Date.parse(normaliseTimestamp(times.at(-1)));
-    if (clock-ts>30000 || ts-clock>60000 || (data.quality && data.quality.at(-1)!=='good')) throw new Error('Live observation is stale or invalid');
+    if (clock-ts>30000 || ts-clock>60000 || (data.quality && !isGoodQuality(data.quality.at(-1)))) throw new Error('Live observation is stale or invalid');
     const value=series.at(-1);
     if (!validNumber(value,min,max)) throw new Error(`Invalid live field: ${field}`);
     snapshot[name]=value; observed.push(ts);
