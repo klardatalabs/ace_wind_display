@@ -9,10 +9,10 @@ function Clock({ className }) {
     const id = setInterval(() => setNow(new Date()), 15_000);
     return () => clearInterval(id);
   }, []);
-  return <span className={`font-mono tabular-nums ${className}`}>{now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>;
+  return <span className={`font-mono tabular-nums ${className}`}>{now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone:'Europe/London' })}</span>;
 }
 
-export default function ScreenTopBar({ skin, screenName, mood, screenKey }) {
+export default function ScreenTopBar({ skin, screenName, mood, statusStale=false, screenKey }) {
   return (
     <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-6 p-[2.2vmin]">
       <div className="flex items-center gap-[1.2vmin]">
@@ -25,7 +25,7 @@ export default function ScreenTopBar({ skin, screenName, mood, screenKey }) {
         </div>
       </div>
       <div className="flex items-center gap-[1vmin]">
-        <MoodPill mood={mood} screenKey={screenKey} skin={skin} />
+        <MoodPill mood={mood} stale={statusStale} screenKey={screenKey} skin={skin} />
         <LiveBadge tone={skin.dark ? "dark" : "light"} className="px-[1.4vmin]! py-[0.6vmin]! text-[clamp(11px,1.3vmin,24px)]!" />
         <Clock className={`text-[clamp(13px,1.6vmin,30px)] ${skin.text}`} />
       </div>

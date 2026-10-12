@@ -27,14 +27,15 @@ async function answerFor(intent, prompt, ctx) {
     }
     case "records": {
       const r = await generationHistory.run({ period: "records" });
-      if (r?.peak_power) {
-        return `My all-time bests so far:\n\n- **Peak power:** ${fmt(r.peak_power.power_max_kw)} kW\n- **Strongest gust:** ${r.peak_wind?.wind_max_ms} m/s\n- **Best day:** ${fmt(Math.round(r.highest_daily_energy?.energy_kwh))} kWh`;
-      }
-      return "My record book is offline at the moment — ask me again a bit later!";
+      const lines=[];
+      if(r?.peak_power?.power_max_kw!=null)lines.push(`- **Peak power:** ${fmt(r.peak_power.power_max_kw)} kW`);
+      if(r?.peak_wind?.wind_max_ms!=null)lines.push(`- **Strongest gust:** ${r.peak_wind.wind_max_ms} m/s`);
+      if(r?.highest_daily_energy?.energy_kwh!=null)lines.push(`- **Best day:** ${fmt(Math.round(r.highest_daily_energy.energy_kwh))} kWh${r.energy_method ? ' (estimated)' : ''}`);
+      return lines.length ? `${r.scope==='stored history' ? 'Records for my stored history' : 'My all-time bests so far'}:\n\n${lines.join('\n')}` : 'I have no stored record figures available right now.';
     }
     case "history": {
       const d = await generationHistory.run({ period: "last_24_hours" });
-      if (d?.energy_kwh) return `Over my most recent 24 hours of data I made **${fmt(d.energy_kwh)} kWh** of clean electricity, peaking at **${fmt(d.max_power_kw)} kW** with winds averaging **${d.avg_wind_ms} m/s**.`;
+      if (d?.energy_kwh != null) return `Over ${d.period || 'my most recent 24 hours of data'} ${d.energy_method ? 'my estimated net energy was' : 'I made'} **${fmt(d.energy_kwh)} kWh**.${d.max_power_kw!=null ? ` Peak power was **${fmt(d.max_power_kw)} kW**.` : ''}${d.avg_wind_ms!=null ? ` Winds averaged **${d.avg_wind_ms} m/s**.` : ''}${d.coverage_pct!=null ? ` Coverage: ${Math.round(d.coverage_pct)}% of the period.` : ''}`;
       return "I can't reach my history database right now, but I can tell you what I'm doing live — just ask!";
     }
     case "compare": {
@@ -45,8 +46,9 @@ async function answerFor(intent, prompt, ctx) {
     }
     case "live": {
       const s = await liveStatus.run();
-      if (!s.spinning) return `Right now the wind is a **${s.wind_description.toLowerCase()}** at **${s.wind_speed_ms} m/s**, so I'm resting and waiting for a stronger gust. Today I've made **${fmt(s.today_energy_kwh)} kWh** so far.`;
-      return `Right now I'm making **${fmt(s.power_kw)} kW** — enough for about **${fmt(s.homes_powered_now)} homes**. The wind is **${s.wind_speed_ms} m/s** and my blade tips are moving at about **${s.blade_tip_speed_mph} mph**!`;
+      const label=s.data_mode==='live' ? '' : `These are ${s.data_mode}. `;
+      if (!s.spinning) return `${label}The wind is a **${s.wind_description.toLowerCase()}** at **${s.wind_speed_ms} m/s**, so I'm resting and waiting for a stronger gust. Today's ${s.today_data_stale ? 'last known ' : ''}energy is **${fmt(s.today_energy_kwh)} kWh** so far.`;
+      return `${label}I'm making **${fmt(s.power_kw)} kW** — enough for about **${fmt(s.homes_powered_now)} homes**. The wind is **${s.wind_speed_ms} m/s** and my blade tips are moving at about **${s.blade_tip_speed_mph} mph**!`;
     }
     default: {
       if (!isWebSearchEnabled()) {

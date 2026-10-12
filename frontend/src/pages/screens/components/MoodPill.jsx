@@ -3,7 +3,7 @@ import { MOOD_LINES } from "../../../lib/mood.js";
 
 const ICON = { storm: "wind", calm: "moon", fault: "cogs", maintenance: "cogs", curtailed: "plug", starting: "sun", generating: "bolt", connecting: "clock" };
 
-export default function MoodPill({ mood, screenKey, skin }) {
+export default function MoodPill({ mood, stale=false, screenKey, skin }) {
   const line = MOOD_LINES[screenKey]?.[mood];
   if (!line) return null;
   return (
@@ -13,7 +13,7 @@ export default function MoodPill({ mood, screenKey, skin }) {
       }`}
     >
       <Icon name={ICON[mood] ?? "wind"} className="size-[1.2em]" />
-      {line}
+      {line}{stale ? ' · last known status' : ''}
     </span>
   );
 }

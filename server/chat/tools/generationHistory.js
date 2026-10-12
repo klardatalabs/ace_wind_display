@@ -1,5 +1,6 @@
 import { pool, isDbAvailable, getTimescaleRecords, getTimescaleComparisonMetrics } from "../../db/timescaleDb.js";
-import { getDailyRollups } from "../../db/sqliteDb.js";
+import {canonicalHistory} from '../../history/config.js';
+import {getPast24Hours,getSingleDay} from '../../history/database.js';
 
 export const definition = {
   type: "function",
@@ -46,14 +47,15 @@ async function singleDay(date) {
 export async function run({ period, date } = {}) {
   try {
     if (!(await isDbAvailable())) {
+      if(canonicalHistory)return {error:'Historical database unavailable'};
       // SQLite fallback only holds daily rollups.
-      const days = getDailyRollups(7);
+      const days = (await import('../../db/sqliteDb.js')).getDailyRollups(7);
       return days.length ? { source: "local cache", recent_days: days } : { message: "Historical database is offline right now." };
     }
     if (period === "records") return await getTimescaleRecords();
     if (period === "monthly_comparison") return await getTimescaleComparisonMetrics({ mode: "summary" });
-    if (period === "date") return await singleDay(date);
-    return await last24Hours();
+    if (period === "date") return canonicalHistory ? await getSingleDay(date) : await singleDay(date);
+    return canonicalHistory ? await getPast24Hours() : await last24Hours();
   } catch (err) {
     return { error: `History lookup failed: ${err.message}` };
   }

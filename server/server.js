@@ -6,16 +6,22 @@ import { createApp } from "./app.js";
 import { attachSocketHub } from "./realtime/socketHub.js";
 import { startPolling } from "./services/turbineState.js";
 import { startWeatherPolling } from "./services/environmentService.js";
-import { startSyncJob } from "./jobs/sqliteSyncJob.js";
-import { startTimescaleSyncJob } from "./jobs/timescaleSyncJob.js";
+import {canonicalHistory} from './history/config.js';
+import {startHistoryWorker} from './history/worker.js';
 
 const httpServer = createServer(createApp());
 attachSocketHub(httpServer);
 
 startPolling();
 startWeatherPolling();
-startSyncJob(12 * 60 * 1000);
-startTimescaleSyncJob(12 * 60 * 1000);
+if(canonicalHistory) {
+  if(process.env.HISTORY_SYNC_ENABLED!=='0')startHistoryWorker();
+} else {
+  const {startSyncJob}=await import('./jobs/sqliteSyncJob.js');
+  const {startTimescaleSyncJob}=await import('./jobs/timescaleSyncJob.js');
+  startSyncJob(12 * 60 * 1000);
+  startTimescaleSyncJob(12 * 60 * 1000);
+}
 
 httpServer.listen(config.port, () => {
   const base = `http://localhost:${config.port}`;

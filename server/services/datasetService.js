@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { pool } from "../db/timescaleDb.js";
+import {historyConfig} from '../history/config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SECRET_KEY = process.env.DATASET_SECRET_KEY || "ace-wind-dataset-secret-token-key-2026";
@@ -11,7 +12,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
 const DATASET_FILES = {
   "10m_scada": {
     filename: "ace-wind-2026-10m-latest.parquet",
-    label: "10-Minute SCADA Telemetry (11,219 Intervals)",
+    label: "10-Minute SCADA Telemetry",
     format: "Apache Parquet",
     approxSize: "8.7 MB",
   },
@@ -93,7 +94,7 @@ export function verifyDownloadToken(token) {
  */
 export function getDatasetFilePath(datasetType) {
   const meta = DATASET_FILES[datasetType] || DATASET_FILES["10m_scada"];
-  const filePath = path.join(__dirname, "..", "..", "data", "zenodo", meta.filename);
+  const filePath = path.join(historyConfig.archive, meta.filename);
   if (!fs.existsSync(filePath)) {
     throw new Error(`Dataset file ${meta.filename} not found on server disk.`);
   }

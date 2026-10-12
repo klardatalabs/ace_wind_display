@@ -19,17 +19,18 @@ import {
 import { COMMISSION_DATE_ISO, RATED_POWER_KW, ROTOR_DIAMETER_M } from "@shared/constants.js";
 import { theoreticalPowerKw, E115_REFERENCE_CURVE } from "@shared/physics.js";
 import { cupsOfTea, phoneCharges } from "../../lib/impact.js";
+import {londonDate} from '@shared/time.js';
 
 const REFRESH_MS = 10 * 60 * 1000;
 
 /** Daily rollups + power curve, refreshed every 10 minutes. Failures leave the defaults. */
 function useHistory() {
-  const [history, setHistory] = useState({ daily: [], curve: { empirical: [], theoretical: E115_REFERENCE_CURVE } });
+  const [history, setHistory] = useState({ daily: [], curve: { empirical: [], theoretical: E115_REFERENCE_CURVE },stale:false,curveStale:false });
   useEffect(() => {
     let alive = true;
     const load = () => {
-      api.daily(14).then((daily) => alive && Array.isArray(daily) && setHistory((h) => ({ ...h, daily }))).catch(() => {});
-      api.powerCurve().then((curve) => alive && curve?.theoretical && setHistory((h) => ({ ...h, curve }))).catch(() => {});
+      api.daily(14).then((daily) => alive && Array.isArray(daily) && setHistory((h) => ({ ...h, daily,stale:daily.some(d=>d.history_stale) }))).catch(() => alive && setHistory(h=>({...h,stale:true})));
+      api.powerCurve().then((curve) => alive && curve?.theoretical && setHistory((h) => ({ ...h, curve,curveStale:false }))).catch(() => alive && setHistory(h=>({...h,curveStale:true})));
     };
     load();
     const id = setInterval(load, REFRESH_MS);
@@ -54,12 +55,16 @@ export function useScreenData() {
     const lifetimeKwh = now.lifetimeEnergyKwh ?? 0;
     const tipMs = tipSpeedMs(rotorRpm);
     const co2Kg = co2AvoidedKg(todayKwh);
-    const weekKwh = history.daily.slice(0, 7).reduce((sum, d) => sum + (d.energy_kwh || 0), 0);
+    const todayDate=new Date(`${londonDate()}T12:00:00Z`);
+    const monday=new Date(todayDate.getTime()-((todayDate.getUTCDay()+6)%7)*86400000).toISOString().slice(0,10);
+    const weekDays=history.daily.some(d=>d.energy_method) ? history.daily.filter(d=>d.date_london>=monday) : history.daily.slice(0,7);
+    const weekKwh = weekDays.reduce((sum,d)=>sum+(d.energy_kwh || 0),0);
     return {
       ready: Boolean(state),
       mode: state?.mode ?? "live",
       connected: state?.connected ?? false,
       mood: classifyMood(state),
+      statusStale:state?.mode!=='simulate' && Boolean(state?.freshness?.status?.failures),
       powerKw,
       power: formatPower(powerKw),
       windSpeed,
@@ -72,6 +77,7 @@ export function useScreenData() {
       tsr: windSpeed > 0.5 ? (rotorRpm * 2 * Math.PI * (ROTOR_DIAMETER_M / 2)) / 60 / windSpeed : 0,
       homes: homesPoweredNow(powerKw),
       todayKwh,
+      todayStale:state?.mode!=='simulate' && Boolean(state?.today?.stale || state?.freshness?.today?.failures),
       today: formatEnergy(todayKwh),
       co2Kg,
       trees: treesEquivalent(co2Kg),
@@ -85,6 +91,8 @@ export function useScreenData() {
       utilisation: (powerKw / RATED_POWER_KW) * 100,
       weekKwh,
       daily: history.daily,
+      historyStale:history.stale,
+      curveStale:history.curveStale,
       curve: history.curve,
     };
   }, [state, history]);

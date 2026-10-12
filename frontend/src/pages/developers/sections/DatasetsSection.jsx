@@ -34,7 +34,7 @@ export default function DatasetsSection() {
     <section id="data" className="scroll-mt-28 px-6 py-20 md:px-12 xl:px-36">
       <div className="mx-auto max-w-[1280px]">
         <SectionHeading eyebrow="Open data · CC-BY-4.0" title="The whole history, as Parquet.">
-          Every 10-minute SCADA interval since commissioning, daily aggregates and the status event log.
+          Published 10-minute SCADA intervals, daily aggregates and the original status event log.
         </SectionHeading>
         <div className="mt-12 grid gap-8 lg:grid-cols-2">
           <ul className="space-y-3">

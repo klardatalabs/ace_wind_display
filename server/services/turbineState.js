@@ -2,7 +2,9 @@
 // Either polls the real ACE API ("live" mode) or holds whatever the admin
 // portal last set ("simulate" mode) - display pages don't know which.
 
-import { getSiteLatest, getWecLatest, getStatusLatest, getWecStdRange } from "../clients/aceClient.js";
+import { getSiteLatest, getWecLatest, getStatusLatest, getWecStdRangeAll as getWecStdRange } from "../clients/aceClient.js";
+import { validateLiveNow,validateStatus } from './liveValidation.js';
+import { validNumber } from '../history/telemetry.js';
 import { londonDayStart } from "../../shared/time.js";
 import { POLL_NOW_MS, POLL_TODAY_MS, POLL_STATUS_MS, OFFLINE_AFTER_FAILURES } from "../../shared/constants.js";
 
@@ -12,6 +14,7 @@ const state = {
   mode: "live", // "live" | "simulate"
   connected: false, // whether live polling is currently succeeding (irrelevant in simulate mode)
   liveAt: null, // ISO time of the last successful poll; null = never connected, `now` below is sample data
+  freshness: {now:null,today:null,status:null},
   now: {
     activePowerKw: 185.0,
     windSpeed: 4.8,
@@ -28,11 +31,11 @@ const state = {
   updatedAt: new Date().toISOString(),
 };
 
-let consecutiveFailures = 0;
+const consecutiveFailures = {now:0,today:0,status:0};
 
 function publish() {
   state.updatedAt = new Date().toISOString();
-  const snapshot = JSON.parse(JSON.stringify(state));
+  const snapshot = getState();
   for (const fn of listeners) {
     try {
       fn(snapshot);
@@ -48,14 +51,12 @@ export function onStateChange(fn) {
 }
 
 export function getState() {
-  return JSON.parse(JSON.stringify(state));
+  const snapshot=JSON.parse(JSON.stringify(state));
+  if (state.mode==='live') snapshot.connected=Boolean(state.liveAt) && Date.now()-Date.parse(state.liveAt)<=30000 && consecutiveFailures.now<OFFLINE_AFTER_FAILURES;
+  return snapshot;
 }
 
-function last(series) {
-  return Array.isArray(series) && series.length ? series[series.length - 1] : undefined;
-}
-
-async function pollNowOnce() {
+export async function pollNowOnce() {
   if (state.mode !== "live") return;
   try {
     const [site, wec] = await Promise.all([
@@ -82,37 +83,40 @@ async function pollNowOnce() {
       ),
     ]);
 
-    state.now = {
-      activePowerKw: last(wec.series?.wec_active_power),
-      windSpeed: last(wec.series?.wec_wind_speed),
-      aggregateWindDir: last(site.series?.aggregate_wind_direction),
-      nacelleDeg: last(wec.series?.wec_nacelle_position),
-      rotorRpm: last(wec.series?.wec_rotor_speed),
-      lifetimeEnergyKwh: last(wec.series?.wec_energy_exported),
-      operatingHours: last(wec.series?.wec_operating_hours),
-      availablePowerAfterSetpoints: last(site.series?.aggregate_available_power_after_external_setpoints),
-      theoreticalMaxPower: last(site.series?.aggregate_theoretical_maximum_active_power),
-    };
-    onFetchSuccess();
+    if (state.mode!=='live') return;
+    const validated=validateLiveNow(site,wec,state.now);
+    state.now=validated.now;
+    state.liveAt=validated.observedAt;
+    onFetchSuccess('now');
   } catch (err) {
     onFetchFailure(err, "now");
   }
   publish();
 }
 
-async function pollTodayOnce() {
+export async function pollTodayOnce() {
   if (state.mode !== "live") return;
   try {
     const now = new Date();
     const midnight = londonDayStart(now);
+    if (process.env.HISTORY_BACKEND==='timescale') {
+      const {getTodaySummary}=await import('../history/database.js');
+      const today=await getTodaySummary();
+      if(state.mode!=='live')return;
+      state.today=today;
+      onFetchSuccess('today');
+      publish(); return;
+    }
     const data = await getWecStdRange(["energy_produced", "wind_speed_mean"], {
       resolution: "10m",
       start: midnight.toISOString(),
       end: now.toISOString(),
       pageSize: 200,
     });
-    const energySeries = data.series?.energy_produced ?? [];
-    const windSeries = data.series?.wind_speed_mean ?? [];
+    const energySeries = (data.series?.energy_produced ?? []).filter(v=>validNumber(v,0));
+    const windSeries = (data.series?.wind_speed_mean ?? []).filter(v=>validNumber(v,0));
+    if (!energySeries.length) throw new Error('No valid today meter readings');
+    if (state.mode!=='live') return;
     const startEnergy = energySeries[0];
     const latestEnergy = energySeries[energySeries.length - 1];
     state.today = {
@@ -122,36 +126,37 @@ async function pollTodayOnce() {
           : undefined,
       avgWindSpeed: windSeries.length ? windSeries.reduce((a, b) => a + b, 0) / windSeries.length : undefined,
     };
-    onFetchSuccess();
+    onFetchSuccess('today');
   } catch (err) {
     onFetchFailure(err, "today");
   }
   publish();
 }
 
-async function pollStatusOnce() {
+export async function pollStatusOnce() {
   if (state.mode !== "live") return;
   try {
     const data = await getStatusLatest({ limit: 1 });
-    state.statusEvent = data.events?.[0]?.values ?? null;
-    onFetchSuccess();
+    if (state.mode!=='live') return;
+    state.statusEvent = validateStatus(data.events?.[0]?.values);
+    onFetchSuccess('status');
   } catch (err) {
     onFetchFailure(err, "status");
   }
   publish();
 }
 
-function onFetchSuccess() {
-  consecutiveFailures = 0;
-  state.connected = true;
-  state.liveAt = new Date().toISOString();
+function onFetchSuccess(which) {
+  consecutiveFailures[which]=0;
+  state.freshness[which]={lastSuccessAt:new Date().toISOString(),failures:0};
 }
 
 function onFetchFailure(err, which) {
-  consecutiveFailures += 1;
+  consecutiveFailures[which] += 1;
+  state.freshness[which]={...state.freshness[which],failures:consecutiveFailures[which]};
   const msg = err?.message ?? (typeof err === "string" ? err : "Unknown error");
   console.warn(`ACE API poll (${which}) failed:`, msg);
-  if (consecutiveFailures >= OFFLINE_AFTER_FAILURES) {
+  if (which==='now' && consecutiveFailures.now >= OFFLINE_AFTER_FAILURES) {
     state.connected = false;
   }
 }
@@ -165,7 +170,7 @@ export function startPolling() {
         console.error("Uncaught in pollNowOnce:", e);
       }
     }
-    setTimeout(loopNow, 2000);
+    setTimeout(loopNow, POLL_NOW_MS);
   }
 
   async function loopToday() {
@@ -253,7 +258,7 @@ export function applyPreset(name) {
 
 export function resumeLive() {
   state.mode = "live";
-  consecutiveFailures = 0;
+  for (const key of Object.keys(consecutiveFailures)) consecutiveFailures[key]=0;
   pollNowOnce();
   pollTodayOnce();
   pollStatusOnce();

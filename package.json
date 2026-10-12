@@ -11,7 +11,12 @@
     "build": "npm --prefix frontend run build",
     "start": "node server/server.js",
     "render:stills": "node scripts/render-stills.mjs",
-    "check:api": "node scripts/api-check.mjs"
+    "check:api": "node scripts/api-check.mjs",
+    "test:history": "node --test server/history/*.test.mjs server/db/sqliteDb.test.mjs server/services/liveValidation.test.mjs server/services/turbineState.test.mjs server/clients/aceClient.test.mjs",
+    "history:normalise": "node scripts/normalise_sqlite.mjs",
+    "history:migrate": "node scripts/history-migrate.mjs",
+    "history:sync": "node scripts/history-sync.mjs",
+    "history:zenodo": "node scripts/history-zenodo.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

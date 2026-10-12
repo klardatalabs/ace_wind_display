@@ -11,7 +11,7 @@ const MAX_KW = 4500;
 const x = (w) => PAD.l + (Math.min(w, MAX_WIND) / MAX_WIND) * (W - PAD.l - PAD.r);
 const y = (kw) => H - PAD.b - (Math.max(0, kw) / MAX_KW) * (H - PAD.t - PAD.b);
 
-export default function PowerCurvePanel({ curve, windSpeed, powerKw, skin, className = "" }) {
+export default function PowerCurvePanel({ curve, stale=false, windSpeed, powerKw, skin, className = "" }) {
   const path = useMemo(
     () => (curve?.theoretical ?? []).filter((p) => p.wind <= MAX_WIND).map((p, i) => `${i ? "L" : "M"}${x(p.wind).toFixed(1)},${y(p.power).toFixed(1)}`).join(" "),
     [curve]
@@ -24,7 +24,7 @@ export default function PowerCurvePanel({ curve, windSpeed, powerKw, skin, class
       <figcaption className={`mb-[1vmin] flex items-baseline justify-between text-[clamp(12px,1.6vmin,30px)] font-medium ${skin.text}`}>
         <span>Power curve</span>
         <span className={`font-mono ${skin.accent}`}>
-          {measured.length ? `${measured.reduce((s, b) => s + b.sample_count, 0).toLocaleString("en-GB")} measured intervals` : "manufacturer reference"}
+          {measured.length ? `${measured.reduce((s, b) => s + b.sample_count, 0).toLocaleString("en-GB")} measured intervals${stale ? ' · last known' : ''}` : "manufacturer reference"}
         </span>
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} className="block w-[clamp(280px,38vmin,820px)]" role="img" aria-label="Power output against wind speed">

@@ -85,35 +85,6 @@ export async function checkRateLimit(key, maxRequests = 6, windowSec = 60) {
   };
 }
 
-/**
- * Cache current 1-second live telemetry for instant 0ms AI tool resolution.
- * @param {object} state Current normalized turbine state
- */
-export async function cacheLiveTelemetry(state) {
-  if (isRedisAvailable && redis) {
-    try {
-      await redis.setex("live:turbine:ace-01", 10, JSON.stringify(state));
-    } catch (e) {
-      // ignore
-    }
-  }
-}
-
-/**
- * Retrieve cached 1-second live telemetry.
- */
-export async function getCachedLiveTelemetry() {
-  if (isRedisAvailable && redis) {
-    try {
-      const raw = await redis.get("live:turbine:ace-01");
-      if (raw) return JSON.parse(raw);
-    } catch (e) {
-      // ignore
-    }
-  }
-  return null;
-}
-
 /** True while the Redis connection is healthy (read at call time, not import time). */
 export function redisReady() {
   return Boolean(isRedisAvailable && redis);

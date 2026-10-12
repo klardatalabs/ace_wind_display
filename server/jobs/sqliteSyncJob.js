@@ -1,4 +1,5 @@
-import { getWecStdRange } from "../clients/aceClient.js";
+import { getWecStdRangeAll as getWecStdRange } from "../clients/aceClient.js";
+import { normaliseTimestamp } from '../history/telemetry.js';
 import { getLatestStoredTimestamp, upsert10mBatch } from "../db/sqliteDb.js";
 
 const SYNC_FIELDS = [
@@ -15,12 +16,15 @@ const SYNC_FIELDS = [
   "operating_hours",
 ];
 
+let running = false;
 export async function runSyncJob() {
+  if (running) return { skipped:true };
+  running = true;
   try {
     const latestTs = getLatestStoredTimestamp();
     const now = new Date();
     // Default fallback if table is empty: start from July 21, 2026
-    const start = latestTs || "2026-07-21T10:40:00Z";
+    const start = latestTs ? new Date(Date.parse(latestTs)-86400000).toISOString() : "2026-07-21T10:40:00Z";
     const startMs = new Date(start).getTime();
     const nowMs = now.getTime();
 
@@ -50,11 +54,7 @@ export async function runSyncJob() {
     for (let i = 0; i < timestamps.length; i++) {
       const rawTs = timestamps[i];
       // Live API returns timestamps in microseconds (16 digits)
-      const dateObj = typeof rawTs === "number" && rawTs > 1e14 
-        ? new Date(rawTs / 1000) 
-        : new Date(rawTs);
-
-      const tsIso = dateObj.toISOString();
+      const tsIso = normaliseTimestamp(rawTs,true);
 
       records.push({
         timestamp: tsIso,
@@ -80,6 +80,8 @@ export async function runSyncJob() {
   } catch (err) {
     console.warn(`[Sync Job] Warning: Sync failed (${err.message}). Will retry on next cycle.`);
     return { error: err.message };
+  } finally {
+    running = false;
   }
 }
 

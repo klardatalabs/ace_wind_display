@@ -13,7 +13,7 @@ if (fs.existsSync(envPath)) {
     const idx = trimmed.indexOf("=");
     const key = trimmed.slice(0, idx).trim();
     const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
-    process.env[key] = val;
+    if (process.env[key] === undefined) process.env[key] = val;
   }
 }
 

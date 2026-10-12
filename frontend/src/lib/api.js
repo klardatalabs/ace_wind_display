@@ -64,6 +64,8 @@ export const ENDPOINTS = [
   { group: "History", method: "GET", path: "/api/history/compare", about: "Today vs yesterday, this month vs last (or custom ranges with mode, start1, end1, start2, end2).", tryIt: true },
   { group: "History", method: "GET", path: "/api/history/records", about: "All-time records: best day, peak gust, cumulative energy.", tryIt: true },
   { group: "History", method: "GET", path: "/api/history/power-curve", about: "Measured power curve binned by wind speed, with the theoretical curve alongside.", tryIt: true },
+  { group: "History", method: "GET", path: "/api/history/health", about: "Stored coverage, freshness and maintenance outcomes.", tryIt: true },
+  { group: "History", method: "GET", path: "/api/history/export?format=csv", about: "Stream the combined maintained history as CSV, with units, quality and provenance." },
   { group: "Open data", method: "GET", path: "/api/datasets/list", about: "Downloadable Parquet datasets (CC-BY-4.0).", tryIt: true },
   { group: "Open data", method: "POST", path: "/api/datasets/request", about: "Request a signed, time-limited download link for a dataset." },
   { group: "Ask Ace", method: "POST", path: "/api/chat/session", about: "Mint an anonymous, signed session token for one browser tab ({ screen })." },

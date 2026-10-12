@@ -1,4 +1,5 @@
-import { getWecStdRange } from "../clients/aceClient.js";
+import { getWecStdRangeAll as getWecStdRange } from "../clients/aceClient.js";
+import { normaliseTimestamp } from '../history/telemetry.js';
 import { isDbAvailable, getLatestStoredTimestamp, upsertLive10mBatch, refreshDailyRollup } from "../db/timescaleDb.js";
 
 const SYNC_FIELDS = [
@@ -15,7 +16,11 @@ const SYNC_FIELDS = [
   "operating_hours",
 ];
 
+let running = false;
 export async function runTimescaleSync() {
+  if (running) return {skipped:true};
+  running = true;
+  try {
   const dbOk = await isDbAvailable();
   if (!dbOk) {
     console.warn("[Timescale Sync] TimescaleDB is not reachable. Skipping sync (app continues with live memory stream).");
@@ -26,7 +31,7 @@ export async function runTimescaleSync() {
     const latestTs = await getLatestStoredTimestamp();
     const now = new Date();
     // Default fallback if table is empty: start from July 21, 2026
-    const start = latestTs || "2026-07-21T10:40:00Z";
+    const start = latestTs ? new Date(Date.parse(latestTs)-86400000).toISOString() : "2026-07-21T10:40:00Z";
     const startMs = new Date(start).getTime();
     const nowMs = now.getTime();
     const gapMinutes = Math.floor((nowMs - startMs) / (60 * 1000));
@@ -59,9 +64,7 @@ export async function runTimescaleSync() {
     for (let i = 0; i < timestamps.length; i++) {
       const rawTs = timestamps[i];
       // Live API returns microsecond timestamps (16 digits)
-      const dateObj = typeof rawTs === "number" && rawTs > 1e14
-        ? new Date(rawTs / 1000)
-        : new Date(rawTs);
+      const dateObj = new Date(normaliseTimestamp(rawTs,true));
 
       records.push({
         ts: dateObj.toISOString(),
@@ -93,6 +96,7 @@ export async function runTimescaleSync() {
     console.warn(`[Timescale Sync] Error during sync: ${err.message}. Will retry on next schedule.`);
     return { ok: false, error: err.message };
   }
+  } finally { running = false; }
 }
 
 export function startTimescaleSyncJob(intervalMs = 12 * 60 * 1000) {

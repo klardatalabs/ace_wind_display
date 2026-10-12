@@ -1,180 +1,131 @@
+"""Fill missing canonical history observations; never overwrite API or archive rows."""
+import argparse
+import datetime as dt
+import json
+import math
 import os
-import glob
-import psycopg2
-from psycopg2.extras import execute_values
-import pyarrow.parquet as pq
-import pandas as pd
+from pathlib import Path
 
-DB_HOST = os.environ.get("PGHOST", "127.0.0.1")
-DB_PORT = int(os.environ.get("PGPORT", "5432"))
-DB_USER = os.environ.get("PGUSER", "ace_user")
-DB_PASS = os.environ.get("PGPASSWORD", "ace_password")
-DB_NAME = os.environ.get("PGDATABASE", "ace_wind")
+FIELDS = ['wind_speed_mean', 'wind_speed_max', 'active_power_mean', 'active_power_max', 'energy_produced']
+COLUMNS = ['wind_speed_mean_ms', 'wind_speed_max_ms', 'active_power_mean_kw', 'active_power_max_kw', 'energy_meter_kwh']
 
-ZENODO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "zenodo"))
+def normalize_values(values):
+    result = []
+    for i, field in enumerate(FIELDS):
+        value = values.get(field)
+        good = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+        if i in (0, 1, 4):
+            good = good and value >= 0
+        if i in (0, 1):
+            good = good and value <= 100
+        if i in (2, 3):
+            good = good and -1000 <= value <= 6500
+        result.append(float(value) if good else None)
+    for mean, maximum in ((0, 1), (2, 3)):
+        if result[mean] is not None and result[maximum] is not None and result[maximum] < result[mean]:
+            result[maximum] = None
+    return result
 
-def ingest():
-    print(f"Connecting to TimescaleDB at {DB_HOST}:{DB_PORT}/{DB_NAME}...")
-    conn = psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        user=DB_USER,
-        password=DB_PASS,
-        dbname=DB_NAME
-    )
-    conn.autocommit = False
-    cur = conn.cursor()
+def ingest(file, release, validate_files=()):
+    import pyarrow.parquet as pq
+    import psycopg2
+    from psycopg2.extras import execute_values
 
-    # Find 10m files (sort so latest is processed last)
-    ten_m_files = glob.glob(os.path.join(ZENODO_DIR, "*10m*.parquet"))
-    ten_m_files.sort(key=lambda p: os.path.getmtime(p))
-
-    min_ts_overall = None
-    max_ts_overall = None
-    total_10m_inserted = 0
-
-    for fpath in ten_m_files:
-        print(f"Processing 10m file: {os.path.basename(fpath)}")
-        df = pq.read_table(fpath).to_pandas()
-        df_wec = df[df['family'] == 'wecstd'].sort_values('observed_at')
-        if df_wec.empty:
-            continue
-
-        records = []
-        for _, row in df_wec.iterrows():
-            ts = row['observed_at'].to_pydatetime()
-            vals = dict(row['values'])
-            records.append((
-                ts,
-                vals.get('wind_speed_mean'),
-                vals.get('wind_speed_max'),
-                vals.get('wind_speed_min'),
-                vals.get('active_power_mean'),
-                vals.get('active_power_max'),
-                vals.get('active_power_min'),
-                vals.get('rotor_speed_mean'),
-                vals.get('rotor_speed_max'),
-                vals.get('nacelle_position'),
-                vals.get('energy_produced'),
-                vals.get('operating_hours'),
-                'zenodo'
-            ))
-
-        if records:
-            file_min_ts = records[0][0]
-            file_max_ts = records[-1][0]
-            if min_ts_overall is None or file_min_ts < min_ts_overall:
-                min_ts_overall = file_min_ts
-            if max_ts_overall is None or file_max_ts > max_ts_overall:
-                max_ts_overall = file_max_ts
-
-            query = """
-            INSERT INTO scada_10m (
-                ts, wind_speed_mean, wind_speed_max, wind_speed_min,
-                active_power_mean, active_power_max, active_power_min,
-                rotor_speed_mean, rotor_speed_max, nacelle_position_mean,
-                energy_produced, operating_hours, source
-            ) VALUES %s
-            ON CONFLICT (ts) DO UPDATE SET
-                wind_speed_mean = EXCLUDED.wind_speed_mean,
-                wind_speed_max = EXCLUDED.wind_speed_max,
-                wind_speed_min = EXCLUDED.wind_speed_min,
-                active_power_mean = EXCLUDED.active_power_mean,
-                active_power_max = EXCLUDED.active_power_max,
-                active_power_min = EXCLUDED.active_power_min,
-                rotor_speed_mean = EXCLUDED.rotor_speed_mean,
-                rotor_speed_max = EXCLUDED.rotor_speed_max,
-                nacelle_position_mean = EXCLUDED.nacelle_position_mean,
-                energy_produced = EXCLUDED.energy_produced,
-                operating_hours = EXCLUDED.operating_hours,
-                source = 'zenodo';
-            """
-            execute_values(cur, query, records, page_size=2000)
-            conn.commit()
-            total_10m_inserted += len(records)
-            print(f"  Upserted {len(records)} rows from {os.path.basename(fpath)}")
-
-    print(f"Total 10m rows upserted: {total_10m_inserted}")
-
-    # Process events parquets
-    event_files = glob.glob(os.path.join(ZENODO_DIR, "*event*.parquet"))
-    event_files.sort(key=lambda p: os.path.getmtime(p))
-    total_events_inserted = 0
-
-    for fpath in event_files:
-        print(f"Processing events file: {os.path.basename(fpath)}")
-        df = pq.read_table(fpath).to_pandas()
-        df_status = df[df['event_family'] == 'wec_status'].sort_values('observed_at')
-        if df_status.empty:
-            continue
-
-        seen_keys = set()
-        ev_records = []
-        for _, row in df_status.iterrows():
-            ts = row['observed_at'].to_pydatetime()
-            node_id = str(row.get('opc_node_id', ''))
-            key = (ts, node_id)
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-
-            raw = str(row.get('raw_value', ''))
-            parts = [int(p) if p.isdigit() else 0 for p in raw.split(',')]
-            while len(parts) < 7:
-                parts.append(0)
-            main_st, sub_st, fault_flag, info, add_info, warn_flag, srv_flag = parts[:7]
-
-            ev_records.append((
-                ts,
-                str(row.get('asset', 'wec-1')),
-                node_id,
-                'wec_status',
-                main_st,
-                sub_st,
-                fault_flag,
-                warn_flag,
-                srv_flag,
-                raw,
-                'zenodo'
-            ))
-
-        if ev_records:
-            ev_query = """
-            INSERT INTO status_events (
-                observed_at, asset, opc_node_id, event_family,
-                main_status, substatus, fault_message_flag,
-                warning_message_flag, service_flag, raw_value, source
-            ) VALUES %s
-            ON CONFLICT (observed_at, opc_node_id) DO UPDATE SET
-                main_status = EXCLUDED.main_status,
-                substatus = EXCLUDED.substatus,
-                fault_message_flag = EXCLUDED.fault_message_flag,
-                warning_message_flag = EXCLUDED.warning_message_flag,
-                service_flag = EXCLUDED.service_flag,
-                raw_value = EXCLUDED.raw_value,
-                source = 'zenodo';
-            """
-            execute_values(cur, ev_query, ev_records, page_size=2000)
-            conn.commit()
-            total_events_inserted += len(ev_records)
-            print(f"  Upserted {len(ev_records)} events from {os.path.basename(fpath)}")
-
-    print(f"Total status events upserted: {total_events_inserted}")
-
-    # Refresh continuous aggregate daily_rollup for the affected range
-    if min_ts_overall and max_ts_overall:
+    asset = os.environ.get('HISTORY_ASSET', 'wec-1')
+    for candidate in [file, *validate_files]:
+        pq.read_metadata(candidate)
+    parquet = pq.ParquetFile(file)
+    required = {'observed_at', 'family', 'asset', 'values'}
+    if not required.issubset(parquet.schema_arrow.names):
+        raise ValueError('Archive schema is missing required columns')
+    conn = psycopg2.connect(host=os.environ.get('PGHOST', '127.0.0.1'), port=os.environ.get('PGPORT', '5432'),
+        user=os.environ.get('PGUSER', 'ace_user'), password=os.environ.get('PGPASSWORD'), dbname=os.environ.get('PGDATABASE', 'ace_wind'), connect_timeout=10)
+    report = {'release': release, 'read': 0, 'rejected': 0, 'inserted': 0, 'overlap': 0, 'mismatches': {}, 'archive_corrections': {}, 'differences': []}
+    seen = {}
+    try:
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute('SELECT pg_try_advisory_lock(877001)')
+            if not cur.fetchone()[0]:
+                raise RuntimeError('Another history job is running')
+        conn.autocommit = False
+        with conn.cursor() as cur:
+            cur.execute('CREATE TEMP TABLE archive_stage (LIKE history.scada_10m INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING INDEXES) ON COMMIT PRESERVE ROWS')
+            selected = list(required) + (['quality'] if 'quality' in parquet.schema_arrow.names else [])
+            for batch in parquet.iter_batches(batch_size=2000, columns=selected):
+                records = []
+                for row in batch.to_pylist():
+                    if row['family'] != 'wecstd' or row['asset'] != asset:
+                        continue
+                    report['read'] += 1
+                    ts = row['observed_at']
+                    if not isinstance(ts, dt.datetime) or ts.tzinfo is None or ts.microsecond or ts.second or ts.minute % 10:
+                        raise ValueError('Invalid or unaligned archive timestamp')
+                    ts = ts.astimezone(dt.timezone.utc)
+                    if ts > dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=15):
+                        raise ValueError('Archive contains future observations')
+                    if row.get('quality') not in (None, 'good'):
+                        report['rejected'] += 1
+                        continue
+                    values = normalize_values(dict(row['values']))
+                    if all(v is None for v in values):
+                        report['rejected'] += 1
+                        continue
+                    if ts in seen:
+                        if seen[ts] != values:
+                            raise ValueError('Conflicting duplicate archive observation')
+                        continue
+                    seen[ts] = values
+                    records.append((asset, ts, *values, 'zenodo', release, 'complete' if all(v is not None for v in values) else 'partial'))
+                if records:
+                    # Conflicting duplicate observations fail the release instead of selecting by file order.
+                    execute_values(cur, f'INSERT INTO archive_stage (asset_id,observed_at_utc,{",".join(COLUMNS)},source,source_release,quality) VALUES %s', records)
+            if not seen:
+                raise ValueError('Empty or unusable wecstd archive')
+            cur.execute("SELECT COUNT(*) FROM archive_stage z JOIN history.scada_10m a USING(asset_id,observed_at_utc) WHERE a.source='live'")
+            report['overlap'] = cur.fetchone()[0]
+            for column in COLUMNS:
+                cur.execute(f"SELECT COUNT(*) FILTER(WHERE a.{column} IS DISTINCT FROM z.{column}),MAX(ABS(a.{column}-z.{column})) FROM archive_stage z JOIN history.scada_10m a USING(asset_id,observed_at_utc) WHERE a.source='live'")
+                count, difference = cur.fetchone()
+                report['mismatches'][column] = {'count': count, 'max_absolute_difference': difference}
+                cur.execute(f"SELECT COUNT(*) FILTER(WHERE a.{column} IS DISTINCT FROM z.{column}),MAX(ABS(a.{column}-z.{column})) FROM archive_stage z JOIN history.scada_10m a USING(asset_id,observed_at_utc) WHERE a.source='zenodo'")
+                count, difference = cur.fetchone()
+                report['archive_corrections'][column] = {'count': count, 'max_absolute_difference': difference}
+            condition = ' OR '.join(f'a.{c} IS DISTINCT FROM z.{c}' for c in COLUMNS)
+            cur.execute(f"SELECT z.observed_at_utc,ROW_TO_JSON(a),ROW_TO_JSON(z) FROM archive_stage z JOIN history.scada_10m a USING(asset_id,observed_at_utc) WHERE a.source='live' AND ({condition}) ORDER BY z.observed_at_utc LIMIT 20")
+            report['differences'] = [{'observed_at_utc': ts.isoformat(), 'api': a, 'zenodo': z} for ts, a, z in cur.fetchall()]
+            cur.execute(f'INSERT INTO history.scada_10m (asset_id,observed_at_utc,{",".join(COLUMNS)},source,source_release,quality) SELECT asset_id,observed_at_utc,{",".join(COLUMNS)},source,source_release,quality FROM archive_stage ON CONFLICT(asset_id,observed_at_utc) DO NOTHING')
+            report['inserted'] = cur.rowcount
+            cur.execute('SELECT MIN(observed_at_utc),MAX(observed_at_utc) FROM archive_stage')
+            first, last = cur.fetchone()
+            report['first'] = first.isoformat()
+            report['latest'] = last.isoformat()
+            cur.execute('SELECT COUNT(*) FROM (SELECT energy_meter_kwh,LAG(energy_meter_kwh) OVER(ORDER BY observed_at_utc) AS previous FROM archive_stage WHERE energy_meter_kwh IS NOT NULL) meters WHERE energy_meter_kwh<previous')
+            report['meter_resets'] = cur.fetchone()[0]
         conn.commit()
         conn.autocommit = True
-        print(f"Refreshing continuous aggregate daily_rollup from {min_ts_overall} to {max_ts_overall}...")
-        cur.execute(
-            "CALL refresh_continuous_aggregate('daily_rollup', %s, %s);",
-            (min_ts_overall, max_ts_overall)
-        )
-        print("Continuous aggregate daily_rollup refreshed successfully.")
+        with conn.cursor() as cur:
+            cur.execute("CALL refresh_continuous_aggregate('history.daily_base',%s,%s)", (first-dt.timedelta(days=2), last+dt.timedelta(days=2)))
+        return report
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
-    cur.close()
-    conn.close()
-    print("Zenodo TimescaleDB ingest complete!")
-
-if __name__ == "__main__":
-    ingest()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--file', required=True)
+    parser.add_argument('--release', required=True)
+    parser.add_argument('--validate-file', action='append', default=[])
+    args = parser.parse_args()
+    if not args.release.startswith('10.5281/zenodo.') or not args.release.removeprefix('10.5281/zenodo.').isdigit():
+        parser.error('Use the immutable Zenodo record DOI as --release')
+    report = ingest(args.file, args.release, args.validate_file)
+    operations = Path(os.environ.get('HISTORY_OPERATIONS_DIR', Path(os.environ.get('DATA_DIR', 'data')) / 'operations'))
+    operations.mkdir(parents=True, exist_ok=True)
+    target = operations / f'zenodo-report-{args.release.split(".")[-1]}.json'
+    temporary = target.with_suffix('.tmp')
+    temporary.write_text(json.dumps(report, default=str, indent=2), encoding='utf8')
+    temporary.replace(target)
+    print(json.dumps(report, default=str))

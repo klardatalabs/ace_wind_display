@@ -152,7 +152,7 @@ function Hoarding({ screen }) {
         <span className="absolute -top-[0.6vmin] -left-[0.6vmin] block size-[1.2vmin] rounded-full bg-white shadow-[0_0_14px_rgb(255_255_255/0.9)]" />
       </div>
 
-      <ScreenTopBar skin={skin} screenName={screen.name} mood={data.mood} screenKey={screen.key} />
+      <ScreenTopBar skin={skin} screenName={screen.name} mood={data.mood} statusStale={data.statusStale} screenKey={screen.key} />
       <div className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20">
         <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={skin} />
       </div>
@@ -173,8 +173,8 @@ function Hoarding({ screen }) {
           )}
           {!pick && panel && (
             <aside key={panel} className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:bottom-[34vmin] portrait:right-[3vmin]">
-              {panel === "curve" && <PowerCurvePanel curve={data.curve} windSpeed={data.windSpeed} powerKw={data.powerKw} skin={skin} />}
-              {panel === "daily" && <DailyBarsPanel daily={data.daily} skin={skin} />}
+              {panel === "curve" && <PowerCurvePanel curve={data.curve} stale={data.curveStale} windSpeed={data.windSpeed} powerKw={data.powerKw} skin={skin} />}
+              {panel === "daily" && <DailyBarsPanel daily={data.daily} stale={data.historyStale} skin={skin} />}
               {panel === "spec" && <SpecPanel skin={skin} />}
             </aside>
           )}

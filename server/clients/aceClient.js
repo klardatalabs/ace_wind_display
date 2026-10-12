@@ -5,9 +5,12 @@
 // exponential backoff on 429/5xx, sequential (never parallel) range pagination.
 
 import { API_BASE as DEFAULT_API_BASE, SITE_ID, WEC_ASSET } from "../../shared/constants.js";
+import { normaliseTimestamp } from '../history/telemetry.js';
 
 // ACE_API_BASE lets you point the server at a staging copy or a local stand-in.
 const API_BASE = (process.env.ACE_API_BASE || DEFAULT_API_BASE).replace(/\/$/, "");
+const siteId = process.env.HISTORY_SITE || SITE_ID;
+const assetId = process.env.HISTORY_ASSET || WEC_ASSET;
 
 class ApiError extends Error {
   constructor(message, status, body) {
@@ -29,13 +32,16 @@ async function request(path, params = {}, { retries = 3 } = {}) {
     try {
       const res = await fetch(url.toString(), {
         method: "GET",
+        signal: AbortSignal.timeout(Number(process.env.ACE_TIMEOUT_MS) || 15000),
         headers: { Accept: "application/json", "User-Agent": "ACE-Community-Display/2.0" },
       });
 
       if (res.status === 429 || res.status === 503) {
         lastErr = new ApiError(`HTTP ${res.status} for ${path}`, res.status);
-        const retryAfter = Number(res.headers.get("Retry-After")) || 2 ** attempt;
-        await sleep(retryAfter * 1000);
+        if (attempt === retries) break;
+        const header = res.headers.get('Retry-After');
+        const retryAfter = header === null ? 2 ** attempt : Number.isFinite(Number(header)) ? Number(header) : Math.max(0,(Date.parse(header)-Date.now())/1000);
+        await sleep(Math.max(0,Number.isFinite(retryAfter) ? retryAfter : 2 ** attempt) * 1000);
         attempt++;
         continue;
       }
@@ -48,6 +54,7 @@ async function request(path, params = {}, { retries = 3 } = {}) {
       return await res.json();
     } catch (err) {
       lastErr = err;
+      if (err.status >= 400 && err.status < 500 && err.status !== 429) break;
       if (attempt === retries) break;
       await sleep(500 * 2 ** attempt);
       attempt++;
@@ -69,7 +76,7 @@ function sleep(ms) {
 }
 
 export function getSiteLatest(fields, { resolution = "1s", limit = 1 } = {}) {
-  return request(`/v1/sites/${SITE_ID}/data/site_instantaneous/latest`, {
+  return request(`/v1/sites/${siteId}/data/site_instantaneous/latest`, {
     resolution,
     fields: fields.join(","),
     limit,
@@ -77,7 +84,7 @@ export function getSiteLatest(fields, { resolution = "1s", limit = 1 } = {}) {
 }
 
 export function getWecLatest(fields, { resolution = "1s", limit = 1 } = {}) {
-  return request(`/v1/sites/${SITE_ID}/assets/${WEC_ASSET}/data/wec_instantaneous/latest`, {
+  return request(`/v1/sites/${siteId}/assets/${assetId}/data/wec_instantaneous/latest`, {
     resolution,
     fields: fields.join(","),
     limit,
@@ -85,17 +92,49 @@ export function getWecLatest(fields, { resolution = "1s", limit = 1 } = {}) {
 }
 
 export function getStatusLatest({ limit = 1 } = {}) {
-  return request(`/v1/sites/${SITE_ID}/assets/${WEC_ASSET}/events/status/latest`, { limit });
+  return request(`/v1/sites/${siteId}/assets/${assetId}/events/status/latest`, { limit });
 }
+export function getApiStatus() { return request('/v1/status'); }
 
-export function getWecStdRange(fields, { resolution = "10m", start, end, pageSize = 2000 } = {}) {
-  return request(`/v1/sites/${SITE_ID}/assets/${WEC_ASSET}/data/wecstd/range`, {
+export function getWecStdRange(fields, { resolution = "10m", start, end, pageSize = 2000, cursor } = {}) {
+  return request(`/v1/sites/${siteId}/assets/${assetId}/data/wecstd/range`, {
     resolution,
     fields: fields.join(","),
     start,
     end,
     page_size: pageSize,
+    cursor,
   });
+}
+
+export async function* getWecStdPages(fields, options = {}) {
+  const seen = new Set(); let cursor; let previous = -Infinity;
+  do {
+    const data = await getWecStdRange(fields,{...options,cursor});
+    if (!Array.isArray(data.timestamps) || !data.series) throw new Error('Invalid range response');
+    if ((data.asset && data.asset!==assetId) || (data.site && data.site!==siteId) || (data.resolution && data.resolution!==(options.resolution || '10m'))) throw new Error('Unexpected range identity or resolution');
+    for (const field of fields) if (data.series[field] !== undefined && (!Array.isArray(data.series[field]) || data.series[field].length !== data.timestamps.length)) throw new Error('Misaligned range series');
+    for (const raw of data.timestamps) {
+      const instant = Date.parse(normaliseTimestamp(raw));
+      if (instant <= previous) throw new Error('Range timestamps did not advance');
+      previous = instant;
+    }
+    const next = data.page?.next_cursor;
+    if (data.page?.has_more && (!next || !data.timestamps.length)) throw new Error('Incomplete range page');
+    if (next && seen.has(next)) throw new Error('Repeated range cursor');
+    if (next) seen.add(next);
+    yield data;
+    cursor = next;
+  } while (cursor);
+}
+
+export async function getWecStdRangeAll(fields, options = {}) {
+  const out = {timestamps:[],series:Object.fromEntries(fields.map(f=>[f,[]]))};
+  for await (const page of getWecStdPages(fields,options)) {
+    out.timestamps.push(...page.timestamps);
+    for (const field of fields) out.series[field].push(...(page.series[field] ?? page.timestamps.map(()=>null)));
+  }
+  return out;
 }
 
 export { ApiError };

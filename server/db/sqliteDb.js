@@ -2,13 +2,15 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { londonDate } from '../../shared/time.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, "..", "..", "data", "ace_history.db");
+const DB_PATH = process.env.SQLITE_PATH || path.join(process.env.DATA_DIR || path.join(__dirname,'..','..','data'),'ace_history.db');
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
+db.function('london_date',{deterministic:true},(timestamp)=>londonDate(new Date(timestamp)));
 
 // Ensure tables & view exist (in case python script hasn't run yet)
 db.exec(`
@@ -49,12 +51,7 @@ DROP VIEW IF EXISTS daily_rollup;
 CREATE VIEW daily_rollup AS
 WITH adjusted AS (
   SELECT *,
-    strftime('%Y-%m-%d', datetime(timestamp, CASE 
-      WHEN strftime('%m', timestamp) IN ('04','05','06','07','08','09') THEN '+1 hour'
-      WHEN strftime('%m', timestamp) = '03' AND strftime('%d', timestamp) >= '25' THEN '+1 hour'
-      WHEN strftime('%m', timestamp) = '10' AND strftime('%d', timestamp) < '25' THEN '+1 hour'
-      ELSE '+0 hour'
-    END)) AS date_london
+    london_date(timestamp) AS date_london
   FROM scada_10m
 )
 SELECT 

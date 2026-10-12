@@ -1,0 +1,371 @@
+{
+  "uid": "weston-history",
+  "title": "Weston Wind maintained history",
+  "schemaVersion": 40,
+  "version": 1,
+  "timezone": "Europe/London",
+  "refresh": "5m",
+  "time": {
+    "from": "now-6M",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "window",
+        "label": "Calendar window",
+        "type": "custom",
+        "query": "week,month,all",
+        "current": {
+          "text": "month",
+          "value": "month"
+        },
+        "options": [
+          {
+            "text": "week",
+            "value": "week",
+            "selected": false
+          },
+          {
+            "text": "month",
+            "value": "month",
+            "selected": true
+          },
+          {
+            "text": "all",
+            "value": "all",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "asset",
+        "type": "query",
+        "datasource": {
+          "type": "postgres",
+          "uid": "weston-history"
+        },
+        "query": "SELECT DISTINCT asset_id AS __text,asset_id AS __value FROM history.scada_10m ORDER BY asset_id",
+        "refresh": 1,
+        "current": {
+          "text": "wec-1",
+          "value": "wec-1"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Estimated energy in calendar window",
+      "type": "stat",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT SUM(energy_kwh) AS estimated_kwh FROM history.daily_rollup WHERE asset_id=${asset:sqlstring} AND bucket>=(CASE ${window:sqlstring} WHEN 'week' THEN date_trunc('week',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' WHEN 'month' THEN date_trunc('month',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' ELSE '-infinity'::timestamptz END) AND bucket<NOW()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 2,
+      "title": "Full-day power coverage (today is partial)",
+      "type": "stat",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH bounds AS (\n SELECT CASE WHEN MIN(bucket) IS NULL THEN NULL ELSE GREATEST(MIN(bucket),(CASE ${window:sqlstring} WHEN 'week' THEN date_trunc('week',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' WHEN 'month' THEN date_trunc('month',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' ELSE '-infinity'::timestamptz END)) END AS first_day\n FROM history.daily_rollup WHERE asset_id=${asset:sqlstring}\n), expected AS (\n SELECT SUM(EXTRACT(EPOCH FROM (((day+INTERVAL '1 day') AT TIME ZONE 'Europe/London')-(day AT TIME ZONE 'Europe/London')))/600.0) AS n\n FROM bounds,LATERAL generate_series(first_day AT TIME ZONE 'Europe/London',(NOW() AT TIME ZONE 'Europe/London')::date::timestamp,INTERVAL '1 day') day\n)\nSELECT 100.0*SUM(valid_power_count)/(SELECT NULLIF(n,0) FROM expected) AS coverage_pct\nFROM history.daily_rollup WHERE asset_id=${asset:sqlstring} AND bucket>=(CASE ${window:sqlstring} WHEN 'week' THEN date_trunc('week',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' WHEN 'month' THEN date_trunc('month',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' ELSE '-infinity'::timestamptz END) AND bucket<NOW()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 3,
+      "title": "Daily estimated net energy",
+      "type": "timeseries",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT bucket AS time,energy_kwh FROM history.daily_rollup WHERE asset_id=${asset:sqlstring} AND bucket>=(CASE ${window:sqlstring} WHEN 'week' THEN date_trunc('week',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' WHEN 'month' THEN date_trunc('month',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' ELSE '-infinity'::timestamptz END) AND bucket<NOW() ORDER BY bucket"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 4,
+      "title": "Wind mean and maximum",
+      "type": "timeseries",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT bucket AS time,wind_speed_avg,wind_speed_max FROM history.daily_rollup WHERE asset_id=${asset:sqlstring} AND bucket>=(CASE ${window:sqlstring} WHEN 'week' THEN date_trunc('week',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' WHEN 'month' THEN date_trunc('month',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' ELSE '-infinity'::timestamptz END) AND bucket<NOW() ORDER BY bucket"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "velocityms",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 5,
+      "title": "Power mean and maximum",
+      "type": "timeseries",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT bucket AS time,active_power_avg,active_power_max FROM history.daily_rollup WHERE asset_id=${asset:sqlstring} AND bucket>=(CASE ${window:sqlstring} WHEN 'week' THEN date_trunc('week',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' WHEN 'month' THEN date_trunc('month',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' ELSE '-infinity'::timestamptz END) AND bucket<NOW() ORDER BY bucket"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatt",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 6,
+      "title": "Coverage and partial observations",
+      "type": "timeseries",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT bucket AS time,coverage_pct,partial_count FROM history.daily_rollup WHERE asset_id=${asset:sqlstring} AND bucket>=(CASE ${window:sqlstring} WHEN 'week' THEN date_trunc('week',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' WHEN 'month' THEN date_trunc('month',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' ELSE '-infinity'::timestamptz END) AND bucket<NOW() ORDER BY bucket"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "title": "History freshness (1800s is stale)",
+      "type": "stat",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT EXTRACT(EPOCH FROM NOW()-MAX(observed_at_utc)) AS age_seconds FROM history.scada_10m WHERE asset_id=${asset:sqlstring}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 8,
+      "title": "Winning source counts",
+      "type": "table",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT source,COUNT(*) AS observations FROM history.scada_10m WHERE asset_id=${asset:sqlstring} AND observed_at_utc>=(CASE ${window:sqlstring} WHEN 'week' THEN date_trunc('week',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' WHEN 'month' THEN date_trunc('month',NOW() AT TIME ZONE 'Europe/London') AT TIME ZONE 'Europe/London' ELSE '-infinity'::timestamptz END) GROUP BY source"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 9,
+      "title": "Last API sync and monthly report",
+      "type": "table",
+      "datasource": {
+        "type": "postgres",
+        "uid": "weston-history"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT obj_description('history.scada_10m'::regclass)::jsonb->'api-sync' AS api_sync,obj_description('history.scada_10m'::regclass)::jsonb->'zenodo' AS zenodo"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 10,
+      "title": "Reading this dashboard",
+      "type": "text",
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Energy is estimated from ten-minute mean net power. All time means stored observations, not lifetime since commissioning. Missing days are absent, never zero-filled. Today has partial full-day coverage. Failure details: /api/history/health. Sync/import outcomes are mirrored into the table comment; database-down failures remain visible through app health."
+      }
+    }
+  ]
+}

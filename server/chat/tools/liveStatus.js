@@ -1,4 +1,3 @@
-import { getCachedLiveTelemetry } from "../../db/redisClient.js";
 import { getState } from "../../services/turbineState.js";
 import { homesPoweredNow, co2AvoidedKg, tipSpeedMs, msToMph, beaufortLabel } from "../../../shared/impact.js";
 import { CUT_IN_WIND_MS } from "../../../shared/constants.js";
@@ -14,7 +13,7 @@ export const definition = {
 };
 
 export async function run() {
-  const snapshot = (await getCachedLiveTelemetry()) || getState();
+  const snapshot = getState();
   const now = snapshot.now || {};
   const powerKw = Math.max(0, now.activePowerKw || 0);
   const wind = now.windSpeed || 0;
@@ -31,7 +30,9 @@ export async function run() {
     today_energy_kwh: Math.round(todayKwh),
     today_co2_avoided_kg: Math.round(co2AvoidedKg(todayKwh)),
     nacelle_direction_deg: Math.round(now.nacelleDeg || 0),
-    data_mode: snapshot.mode === "simulate" ? "demo (simulated values)" : snapshot.connected ? "live" : "last known values",
+    data_mode: snapshot.mode === "simulate" ? "demo (simulated values)" : snapshot.connected ? "live" : snapshot.liveAt ? "last known values" : "sample values",
+    observed_at: snapshot.liveAt,
+    today_data_stale: snapshot.mode!=='simulate' && Boolean(snapshot.today?.stale || snapshot.freshness?.today?.failures),
     updated_at: snapshot.updatedAt,
   };
 }

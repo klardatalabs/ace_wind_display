@@ -1,26 +1,29 @@
-// Time helpers shared by the server and the frontend. The turbine is in Bristol, so "today"
-// and "7 am" mean UK time (including summer time), whatever the viewer's or kiosk's clock says.
-
-/** Start of the current UK day, as a UTC instant. */
-export function londonDayStart(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  const get = (type) => Number(parts.find((p) => p.type === type).value);
-  const sinceMidnightMs = ((get("hour") * 60 + get("minute")) * 60 + get("second")) * 1000;
-  return new Date(now.getTime() - now.getMilliseconds() - sinceMidnightMs);
+// UK wall-clock times use the offset at the requested time, including DST.
+const formatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit',
+  hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23',
+});
+function parts(date) {
+  return Object.fromEntries(formatter.formatToParts(date).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
 }
-
-/** Hours since UK midnight (0–24) for an instant. */
-export function londonHour(now = new Date()) {
-  return (now.getTime() - londonDayStart(now).getTime()) / 3_600_000;
+export function londonDate(date = new Date()) {
+  const p=parts(date);
+  return `${p.year}-${String(p.month).padStart(2,'0')}-${String(p.day).padStart(2,'0')}`;
 }
-
-/** Today's date at a given UK clock hour (e.g. 19.5 = 7:30 pm), as a UTC instant. */
 export function londonHourToDate(hour, now = new Date()) {
-  return new Date(londonDayStart(now).getTime() + hour * 3_600_000);
+  const p=parts(now);
+  const target=Date.UTC(p.year,p.month-1,p.day)+hour*3_600_000;
+  let instant=target;
+  for (let i=0;i<3;i++) {
+    const q=parts(new Date(instant));
+    const delta=target-Date.UTC(q.year,q.month-1,q.day,q.hour,q.minute,q.second);
+    if (!delta) break;
+    instant+=delta;
+  }
+  return new Date(instant);
+}
+export function londonDayStart(now = new Date()) { return londonHourToDate(0,now); }
+export function londonHour(now = new Date()) {
+  const p=parts(now);
+  return p.hour+p.minute/60+(p.second+now.getMilliseconds()/1000)/3600;
 }

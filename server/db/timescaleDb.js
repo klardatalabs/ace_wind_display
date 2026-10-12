@@ -1,4 +1,6 @@
 import pg from "pg";
+import {canonicalHistory,historyConfig} from "../history/config.js";
+import {londonDate} from '../../shared/time.js';
 import { E115_REFERENCE_CURVE } from "../../shared/physics.js";
 
 const { Pool } = pg;
@@ -108,23 +110,23 @@ export async function refreshDailyRollup(windowStart, windowEnd) {
  */
 export async function getTimescaleRecords() {
   const [maxPowerRes, maxWindRes, maxDayRes, totalRes] = await Promise.all([
-    pool.query(`
-      SELECT ts, active_power_mean, active_power_max, wind_speed_mean, rotor_speed_mean
+    analyticsQuery(`
+      SELECT ts, active_power_mean, active_power_max, wind_speed_mean
       FROM scada_10m
       ORDER BY active_power_max DESC NULLS LAST LIMIT 1;
     `),
-    pool.query(`
+    analyticsQuery(`
       SELECT ts, wind_speed_mean, wind_speed_max, active_power_mean
       FROM scada_10m
       ORDER BY wind_speed_max DESC NULLS LAST LIMIT 1;
     `),
-    pool.query(`
+    analyticsQuery(`
       SELECT bucket AS day, energy_kwh, active_power_max, wind_speed_avg, wind_speed_max,
              ROUND((energy_kwh / (4200.0 * 24.0) * 100.0)::numeric, 1)::double precision AS capacity_factor_pct
       FROM daily_rollup
       ORDER BY energy_kwh DESC NULLS LAST LIMIT 1;
     `),
-    pool.query(`
+    analyticsQuery(`
       SELECT 
         ROUND(SUM(energy_kwh)::numeric, 1)::double precision AS total_energy_kwh,
         COUNT(*) AS total_days,
@@ -140,6 +142,7 @@ export async function getTimescaleRecords() {
   const maxWind = maxWindRes.rows[0] || {};
 
   return {
+    ...(canonicalHistory ? {scope:'stored history',energy_method:'estimated from 10-minute mean net power'} : {}),
     peak_power: {
       power_max_kw: maxPower.active_power_max,
       power_mean_kw: maxPower.active_power_mean,
@@ -153,7 +156,7 @@ export async function getTimescaleRecords() {
       power_kw: maxWind.active_power_mean,
     },
     highest_daily_energy: {
-      date: maxDay.day ? new Date(maxDay.day).toISOString().slice(0, 10) : null,
+      date: maxDay.day ? canonicalHistory ? londonDate(new Date(maxDay.day)) : new Date(maxDay.day).toISOString().slice(0, 10) : null,
       energy_kwh: maxDay.energy_kwh,
       peak_power_kw: maxDay.active_power_max,
       avg_wind_ms: maxDay.wind_speed_avg,
@@ -174,7 +177,7 @@ export async function getTimescaleRecords() {
  * the theoretical Enercon E-115 4.2MW manufacturer power curve.
  */
 export async function getTimescalePowerCurve() {
-  const res = await pool.query(`
+  const res = await analyticsQuery(`
     SELECT 
       width_bucket(wind_speed_mean, 0.0, 25.0, 50) AS bin_idx,
       ROUND((width_bucket(wind_speed_mean, 0.0, 25.0, 50) * 0.5 - 0.25)::numeric, 2)::double precision AS bin_wind,
@@ -213,7 +216,7 @@ export async function getTimescalePowerCurve() {
 export async function getTimescaleComparisonMetrics({ mode = "summary", start1, end1, start2, end2 } = {}) {
   if (mode === "custom" && start1 && end1 && start2 && end2) {
     const [p1, p2] = await Promise.all([
-      pool.query(`
+      analyticsQuery(`
         SELECT 
           ROUND(SUM(energy_kwh)::numeric, 1)::double precision AS energy_kwh,
           ROUND(AVG(active_power_avg)::numeric, 1)::double precision AS power_avg_kw,
@@ -223,7 +226,7 @@ export async function getTimescaleComparisonMetrics({ mode = "summary", start1, 
         FROM daily_rollup
         WHERE bucket >= $1::timestamptz AND bucket <= $2::timestamptz
       `, [start1, end1]),
-      pool.query(`
+      analyticsQuery(`
         SELECT 
           ROUND(SUM(energy_kwh)::numeric, 1)::double precision AS energy_kwh,
           ROUND(AVG(active_power_avg)::numeric, 1)::double precision AS power_avg_kw,
@@ -251,7 +254,7 @@ export async function getTimescaleComparisonMetrics({ mode = "summary", start1, 
 
   if (mode === "zenodo_vs_live") {
     // Compare summary of Zenodo dataset vs Live dataset
-    const res = await pool.query(`
+    const res = await analyticsQuery(`
       SELECT 
         source,
         MIN(ts) AS first_ts,
@@ -271,7 +274,7 @@ export async function getTimescaleComparisonMetrics({ mode = "summary", start1, 
 
   // Default: Today vs Yesterday, August vs September comparisons
   const [augustRes, septemberRes, recentDaysRes] = await Promise.all([
-    pool.query(`
+    analyticsQuery(`
       SELECT 
         ROUND(SUM(energy_kwh)::numeric, 1)::double precision AS energy_kwh,
         ROUND(AVG(active_power_avg)::numeric, 1)::double precision AS avg_power_kw,
@@ -280,7 +283,7 @@ export async function getTimescaleComparisonMetrics({ mode = "summary", start1, 
       FROM daily_rollup
       WHERE bucket >= '2026-08-01 00:00:00Z' AND bucket < '2026-09-01 00:00:00Z'
     `),
-    pool.query(`
+    analyticsQuery(`
       SELECT 
         ROUND(SUM(energy_kwh)::numeric, 1)::double precision AS energy_kwh,
         ROUND(AVG(active_power_avg)::numeric, 1)::double precision AS avg_power_kw,
@@ -289,7 +292,7 @@ export async function getTimescaleComparisonMetrics({ mode = "summary", start1, 
       FROM daily_rollup
       WHERE bucket >= '2026-09-01 00:00:00Z' AND bucket < '2026-10-01 00:00:00Z'
     `),
-    pool.query(`
+    analyticsQuery(`
       SELECT bucket AS day, energy_kwh, active_power_avg, active_power_max, wind_speed_avg, wind_speed_max
       FROM daily_rollup
       ORDER BY bucket DESC
@@ -311,7 +314,7 @@ export async function getTimescaleComparisonMetrics({ mode = "summary", start1, 
         : null
     },
     recent_7_days: recent.map(r => ({
-      date: new Date(r.day).toISOString().slice(0, 10),
+      date: canonicalHistory ? londonDate(new Date(r.day)) : new Date(r.day).toISOString().slice(0, 10),
       energy_kwh: r.energy_kwh,
       avg_power_kw: r.active_power_avg,
       peak_power_kw: r.active_power_max,
@@ -322,4 +325,18 @@ export async function getTimescaleComparisonMetrics({ mode = "summary", start1, 
 }
 
 export default pool;
+
+// Legacy response names stay stable while all canonical analytics read one schema.
+async function analyticsQuery(sql,params=[]) {
+  if(!canonicalHistory)return pool.query(sql,params);
+  const asset=`$${params.length+1}`;
+  sql=sql.replace('4200.0 * 24.0','4245.0 * day_duration_hours')
+    .replace('wind_speed_mean >= 0','wind_speed_mean >= 0 AND wind_speed_mean < 25')
+    .replaceAll(/'(2026-\d{2}-01) 00:00:00Z'/g,"'$1 00:00:00 Europe/London'");
+  return pool.query(`WITH scada_10m AS (
+    SELECT observed_at_utc AS ts,wind_speed_mean_ms AS wind_speed_mean,wind_speed_max_ms AS wind_speed_max,
+      active_power_mean_kw AS active_power_mean,active_power_max_kw AS active_power_max,source
+    FROM history.scada_10m WHERE asset_id=${asset}
+  ),daily_rollup AS (SELECT * FROM history.daily_rollup WHERE asset_id=${asset}) ${sql}`,[...params,historyConfig.asset]);
+}
 

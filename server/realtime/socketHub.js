@@ -5,7 +5,6 @@
 
 import { WebSocketServer } from "ws";
 import { getState, onStateChange } from "../services/turbineState.js";
-import { cacheLiveTelemetry } from "../db/redisClient.js";
 import { SCREENS } from "../chat/session.js";
 import { getEnvironment, onEnvironmentChange } from "../services/environmentService.js";
 
@@ -49,7 +48,6 @@ export function attachSocketHub(httpServer) {
   });
 
   onStateChange((snapshot) => {
-    cacheLiveTelemetry(snapshot);
     const payload = JSON.stringify({ type: "state", state: snapshot });
     for (const client of wss.clients) send(client, payload);
   });
