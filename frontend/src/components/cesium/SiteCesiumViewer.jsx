@@ -4,6 +4,9 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import { SITE_COORDS, getSiteViewerConfig } from "../../cesium/siteConfig.js";
 import { createSiteCamera } from "../../cesium/siteCamera.js";
 import { animateTurbine, loadTurbineModel } from "../../cesium/turbineModel.js";
+import { applySiteEnvironment } from "../../cesium/siteEnvironment.js";
+import ConditionsLine from "../live/ConditionsLine.jsx";
+import { useSiteConditions } from "../../hooks/useSiteConditions.js";
 
 async function findGroundHeight(terrainProvider) {
   const deltaLat = 8 / 111320;
@@ -41,6 +44,7 @@ export default function SiteCesiumViewer({ className = "" }) {
   const [mode, setMode] = useState("orbit");
   const [attempt, setAttempt] = useState(0);
   const [message, setMessage] = useState("");
+  const conditions = useSiteConditions();
 
   useEffect(() => {
     if (!config.cesiumIonToken.trim()) {
@@ -51,6 +55,7 @@ export default function SiteCesiumViewer({ className = "" }) {
     let viewer;
     let camera;
     let stopAnimation;
+    let stopEnvironment;
 
     async function init() {
       setStatus("loading");
@@ -77,8 +82,9 @@ export default function SiteCesiumViewer({ className = "" }) {
           destination: Cesium.Cartesian3.fromDegrees(SITE_COORDS.lon, SITE_COORDS.lat, 1400),
           orientation: { heading: 0, pitch: Cesium.Math.toRadians(-85), roll: 0 },
         });
+        let tileset;
         if (Cesium.ClippingPolygonCollection.isSupported(viewer.scene)) {
-          const tileset = await Cesium.createGooglePhotorealistic3DTileset(
+          tileset = await Cesium.createGooglePhotorealistic3DTileset(
             { ...(config.googleMapTilesApiKey ? { key: config.googleMapTilesApiKey } : {}), onlyUsingWithGoogleGeocoder: true },
             { showCreditsOnScreen: true, enableCollision: true, maximumScreenSpaceError: 12 }
           );
@@ -99,6 +105,7 @@ export default function SiteCesiumViewer({ className = "" }) {
         if (cancelled) { model.destroy(); return; }
         viewer.scene.primitives.add(model);
         stopAnimation = animateTurbine(viewer.scene, model);
+        stopEnvironment = applySiteEnvironment(viewer, tileset);
         camera = createSiteCamera(viewer, groundHeight);
         cameraRef.current = camera;
         setMode("orbit");
@@ -118,6 +125,7 @@ export default function SiteCesiumViewer({ className = "" }) {
       cancelled = true;
       window.clearTimeout(start);
       stopAnimation?.();
+      stopEnvironment?.();
       camera?.dispose();
       cameraRef.current = null;
       if (viewer && !viewer.isDestroyed()) viewer.destroy();
@@ -142,7 +150,9 @@ export default function SiteCesiumViewer({ className = "" }) {
             <p className="mt-2 rounded-xl bg-moss-950/80 px-3 py-2 text-xs backdrop-blur">
               {mode === "orbit" ? "Drag to rotate and tilt · Scroll or pinch to zoom" : "Drag to move around the real site · Scroll to zoom"}
             </p>
+            <ConditionsLine conditions={conditions} className="mt-2 w-fit rounded-xl bg-moss-950/80 px-3 py-2 text-xs backdrop-blur" />
           </div>
+          {conditions.look.raining && <div className="rain-overlay pointer-events-none absolute inset-0" aria-hidden="true" />}
           <div className="absolute top-4 right-4 flex flex-col gap-2 md:top-6 md:right-6">
             <button type="button" aria-label="Zoom in" onClick={() => cameraRef.current?.zoom(0.8)} disabled={mode !== "orbit"} className="size-10 rounded-xl bg-white text-xl text-moss-950 shadow-lg disabled:opacity-50">+</button>
             <button type="button" aria-label="Zoom out" onClick={() => cameraRef.current?.zoom(1.25)} disabled={mode !== "orbit"} className="size-10 rounded-xl bg-white text-xl text-moss-950 shadow-lg disabled:opacity-50">−</button>
