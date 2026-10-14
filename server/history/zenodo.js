@@ -34,6 +34,12 @@ async function updateRelease() {
     const status=await getApiStatus();
     const doi=status.zenodo?.record_doi; const id=doi?.match(/zenodo\.(\d+)$/)?.[1];
     if(!id || status.zenodo.status!=='ok')throw new Error('No verified Zenodo release');
+    if(previous.release===doi && previous.ok) {
+      const receipt={...previous,checkedAt};
+      await writeReceipt('zenodo',receipt);
+      await withHistoryLock(client=>publishHistoryStatus(client,'zenodo',receipt));
+      return receipt;
+    }
     const response=await fetch(`https://zenodo.org/api/records/${id}`,{signal:AbortSignal.timeout(30000)});
     if(!response.ok)throw new Error(`Zenodo metadata HTTP ${response.status}`);
     const record=await response.json();

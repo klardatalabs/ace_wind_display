@@ -40,13 +40,14 @@ services:
       ZENODO_DIR: /data/zenodo
       HISTORY_OPERATIONS_DIR: /data/operations
       HISTORY_PYTHON: /opt/history-python/bin/python
-      HISTORY_BACKEND: legacy
+      HISTORY_BACKEND: timescale
     ports: ['127.0.0.1:4100:4100']
     volumes: ['./data:/data']
     depends_on:
       timescaledb: {condition: service_healthy}
       redis: {condition: service_started}
   collector:
+    profiles: [history-test]
     image: we-do-wind:ef6e066
     user: '1003:1003'
     restart: unless-stopped
@@ -78,7 +79,8 @@ services:
   backup:
     image: timescale/timescaledb@sha256:6f139d56042989bd35f50ba5986e492cd32e35cc6778c50be2659add298dc09f
     restart: unless-stopped
-    entrypoint: [sh, /scripts/history-backup.sh, loop]
+    entrypoint: [sh, /scripts/history-backup.sh]
+    command: [loop]
     environment:
       PGHOST: timescaledb
       PGPORT: 5432

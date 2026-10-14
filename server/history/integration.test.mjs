@@ -74,6 +74,8 @@ test('Timescale migration, DST, API precedence, correction/replay and legacy ada
       const checkpoint=(await readReceipt('api-sync')).checkpoint;
       broken=true;assert.equal((await syncHistory()).ok,false);
       assert.equal((await readReceipt('api-sync')).checkpoint,checkpoint,'Failed pages must not advance checkpoint');
+      broken=false;assert.equal((await syncHistory()).ok,true);
+      assert.equal((await readReceipt('api-sync')).error,undefined,'Successful recovery clears the prior failure');
     } finally {globalThis.fetch=originalFetch;}
     const originalQuery=pool.query;
     globalThis.fetch=async url=>new Response(JSON.stringify({timestamps:[Date.now()*1000],series:String(url).includes('site_instantaneous') ?

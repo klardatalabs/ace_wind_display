@@ -28,6 +28,7 @@ export async function run() {
     homes_powered_now: homesPoweredNow(powerKw),
     spinning: powerKw > 10 && wind >= CUT_IN_WIND_MS,
     today_energy_kwh: Math.round(todayKwh),
+    today_energy_method: snapshot.mode==='simulate' ? 'simulated' : snapshot.today?.energyMethod || 'difference between available meter readings',
     today_co2_avoided_kg: Math.round(co2AvoidedKg(todayKwh)),
     nacelle_direction_deg: Math.round(now.nacelleDeg || 0),
     data_mode: snapshot.mode === "simulate" ? "demo (simulated values)" : snapshot.connected ? "live" : snapshot.liveAt ? "last known values" : "sample values",

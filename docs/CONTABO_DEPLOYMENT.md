@@ -1,4 +1,4 @@
-# Contabo preview — 12 October 2026
+# Contabo deployment — updated 14 October 2026
 
 Website: https://we-do-wind.89-117-57-40.sslip.io/
 
@@ -19,10 +19,11 @@ Database and Redis have no public ports. App and Grafana bind to localhost.
 The existing sites, Grafana, InfluxDB and MLflow were not redeployed.
 HTTPS renewal is configured by Certbot.
 
-The app uses `HISTORY_BACKEND=legacy`; the independent collector uses `timescale`.
-Live readings, screens and Ask Ace work. Historical screens/chat remain on their
-existing readers; Grafana and CSV use the new table. Do not stop the legacy jobs
-until historical reader acceptance and cutover are complete.
+The app uses `HISTORY_BACKEND=timescale` and runs the sole history worker.
+Historical screens, Ask Ace history, Grafana and CSV read the new table.
+Today's energy is an estimate from that table, with explicit labels and chat metadata.
+Current turbine readings stay in memory and remain live. The separate collector
+is stopped and behind the `history-test` profile. Legacy stores remain for rollback.
 
 ## Verified data and checks
 
@@ -42,21 +43,30 @@ One recovery bundle was copied to the laptop under the Git-ignored
 
 ## Remaining work
 
-- Zenodo's metadata API returns HTTP 403 from this server. Daily checks report the
-  failure. Supplied files were verified and imported manually; future automatic
-  release downloads are not yet proven. Local import remains available.
+- The current Zenodo release was reverified and registered. Daily ACE discovery
+  skips an already imported immutable release. Node metadata requests still returned
+  HTTP 403 or timed out, while a Python request succeeded; automatically downloading
+  a future new release remains unproven. Local verified import remains available.
 - Backups run on the server. The laptop copy is a one-time off-server copy;
   automatic off-server backup delivery still needs a destination.
 - `acewind` has a locked password and no SSH key or administrator privileges.
   Deployment used root SSH. Set up a passphrase-protected key locally and install
   its public key for `acewind`; change the root password that was shared in chat.
-- Review the screens and graphs before switching historical readers. For cutover,
-  change app `HISTORY_BACKEND` to `timescale` in `compose.contabo.yml`, stop the
-  independent collector and restart the app. The app then maintains history itself.
-  Roll back by restoring app `legacy` and restarting the separate collector.
+- Reader cutover completed on 14 October. To roll back, restore app `legacy` in
+  `compose.contabo.yml` and `.env`, restart the app and explicitly start the collector.
 - The free `sslip.io` hostname is for the preview. A purchased domain can replace it later.
 
 ## Basic operations
+
+Before cutover, raw wind/power readings and peak records matched. Estimated total
+energy was about 0.34% higher than meter-difference totals. Best-day date was corrected
+to 9 October using London calendar dates. Eight targeted tests passed against an isolated
+database, including clock changes, recovery, CSV, cached release checks and estimate metadata.
+The frontend build passed. Pre-switch SQLite and Postgres backups were saved.
+Current coverage at the switch was 12,202 complete observations with no gaps.
+
+Manual `backup once` now overrides the default loop correctly. Nightly server backups
+run at **07:30 India time (02:00 UTC)**; only one scheduled backup container remains.
 
 From `/home/acewind/weston-wind`, use `docker compose -f compose.contabo.yml ps`
 to check services, and `logs --tail 50 collector` or `logs --tail 50 backup` for outcomes.

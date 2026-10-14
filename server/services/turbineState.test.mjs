@@ -1,6 +1,27 @@
-import test from 'node:test';
+import test,{after} from 'node:test';
 import assert from 'node:assert/strict';
 import {pollNowOnce,pollStatusOnce,getState} from './turbineState.js';
+import {pollTodayOnce} from './turbineState.js';
+import {pool} from '../db/timescaleDb.js';
+import {run as liveStatus} from '../chat/tools/liveStatus.js';
+import {respondWithoutLlm} from '../chat/fallbackResponder.js';
+import {redis} from '../db/redisClient.js';
+after(async()=>{redis?.disconnect();await pool.end();});
+
+test('canonical today energy is identified as estimated in live and fallback chat',async()=>{
+  const backend=process.env.HISTORY_BACKEND;const query=pool.query;
+  process.env.HISTORY_BACKEND='timescale';
+  pool.query=async()=>({rows:[{energy:600,wind:4,latest:new Date(),count:144}]});
+  try {
+    await pollTodayOnce();
+    const status=await liveStatus();
+    assert.equal(status.today_energy_kwh,600);
+    assert.match(status.today_energy_method,/estimated/);
+    assert.equal(status.today_data_stale,false);
+    let text='';await respondWithoutLlm('How much energy today?',{onText:t=>{text+=t;}});
+    assert.match(text,/estimated.*600/);
+  } finally {pool.query=query;if(backend===undefined)delete process.env.HISTORY_BACKEND;else process.env.HISTORY_BACKEND=backend;}
+});
 test('successful status polls cannot hide failed current-value polls',async()=>{
   const original=globalThis.fetch;let bad=false;
   globalThis.fetch=async url=>{

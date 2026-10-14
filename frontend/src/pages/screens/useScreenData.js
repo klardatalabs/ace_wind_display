@@ -77,6 +77,7 @@ export function useScreenData() {
       tsr: windSpeed > 0.5 ? (rotorRpm * 2 * Math.PI * (ROTOR_DIAMETER_M / 2)) / 60 / windSpeed : 0,
       homes: homesPoweredNow(powerKw),
       todayKwh,
+      todayEstimated:state?.mode!=='simulate' && Boolean(state?.today?.energyMethod),
       todayStale:state?.mode!=='simulate' && Boolean(state?.today?.stale || state?.freshness?.today?.failures),
       today: formatEnergy(todayKwh),
       co2Kg,

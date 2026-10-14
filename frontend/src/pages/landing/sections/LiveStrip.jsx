@@ -31,8 +31,8 @@ export default function LiveStrip() {
         <Stat icon="home" value={homesPoweredNow(live.powerKw)} label="homes powered" />
         <Stat icon="wind" value={live.windSpeed} decimals={1} unit="m/s" label="wind speed" />
         <Stat icon="fan" value={live.rotorRpm} decimals={1} unit="rpm" label="rotor speed" />
-        <Stat icon="leaf" value={co2AvoidedKg(live.todayKwh)} unit="kg" label={`CO₂ avoided today${live.todayStale ? ' · last known' : ''}`} />
-        <Stat icon="lightbulb" value={cupsOfTea(live.todayKwh)} label={`cups of tea, today${live.todayStale ? ' · last known' : ''}`} />
+        <Stat icon="leaf" value={co2AvoidedKg(live.todayKwh)} unit="kg" label={`CO₂ avoided today${live.todayEstimated ? ' · estimated' : ''}${live.todayStale ? ' · last known' : ''}`} />
+        <Stat icon="lightbulb" value={cupsOfTea(live.todayKwh)} label={`cups of tea, today${live.todayEstimated ? ' · estimated' : ''}${live.todayStale ? ' · last known' : ''}`} />
       </Reveal>
     </section>
   );

@@ -47,6 +47,7 @@ async function answerFor(intent, prompt, ctx) {
     case "live": {
       const s = await liveStatus.run();
       const label=s.data_mode==='live' ? '' : `These are ${s.data_mode}. `;
+      if (/today|kwh|energy|carbon|co₂/i.test(prompt)) return `${label}Today's ${s.today_energy_method.startsWith('estimated') ? 'estimated ' : ''}${s.today_data_stale ? 'last known ' : ''}energy is **${fmt(s.today_energy_kwh)} kWh** so far. That corresponds to about **${fmt(s.today_co2_avoided_kg)} kg of CO₂ avoided**.`;
       if (!s.spinning) return `${label}The wind is a **${s.wind_description.toLowerCase()}** at **${s.wind_speed_ms} m/s**, so I'm resting and waiting for a stronger gust. Today's ${s.today_data_stale ? 'last known ' : ''}energy is **${fmt(s.today_energy_kwh)} kWh** so far.`;
       return `${label}I'm making **${fmt(s.power_kw)} kW** — enough for about **${fmt(s.homes_powered_now)} homes**. The wind is **${s.wind_speed_ms} m/s** and my blade tips are moving at about **${s.blade_tip_speed_mph} mph**!`;
     }

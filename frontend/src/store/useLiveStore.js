@@ -25,6 +25,7 @@ export function useLive() {
     nacelleDeg: now.nacelleDeg ?? 0,
     lifetimeKwh: now.lifetimeEnergyKwh ?? 0,
     todayKwh: s?.today?.energyKwh ?? 0,
+    todayEstimated: s?.mode!=='simulate' && Boolean(s?.today?.energyMethod),
     todayStale: s?.mode!=='simulate' && Boolean(s?.today?.stale || s?.freshness?.today?.failures),
     status: s?.statusEvent ?? {},
     updatedAt: s?.updatedAt,

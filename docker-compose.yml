@@ -71,7 +71,8 @@ services:
     profiles: [backup]
     image: ${TIMESCALE_IMAGE:-timescale/timescaledb@sha256:6f139d56042989bd35f50ba5986e492cd32e35cc6778c50be2659add298dc09f}
     restart: unless-stopped
-    entrypoint: [sh, /scripts/history-backup.sh, loop]
+    entrypoint: [sh, /scripts/history-backup.sh]
+    command: [loop]
     environment:
       PGHOST: timescaledb
       PGPORT: 5432

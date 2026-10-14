@@ -35,7 +35,7 @@ function Tag({ id, tag, data, tagRefs, skin }) {
       <div ref={inner} className="opacity-0">
         <div className="-translate-x-1/2 -translate-y-full pb-[1.4vmin]">
           <div className={`rounded-[1.6vmin] px-[1.8vmin] py-[1vmin] ${skin.card}`}>
-            <p className={`text-[clamp(10px,1.3vmin,24px)] font-semibold tracking-[0.1em] uppercase ${skin.accent}`}>{tag.label}{id==='today' && data.todayStale ? ' · last known' : ''}</p>
+            <p className={`text-[clamp(10px,1.3vmin,24px)] font-semibold tracking-[0.1em] uppercase ${skin.accent}`}>{tag.label}{id==='today' && data.todayEstimated ? ' · estimated' : ''}{id==='today' && data.todayStale ? ' · last known' : ''}</p>
             <p className={`font-display text-[clamp(18px,3vmin,60px)] leading-none font-bold whitespace-nowrap tabular-nums ${skin.text}`}>{tag.value(data)}</p>
             <p className={`mt-[0.4vmin] text-[clamp(10px,1.4vmin,26px)] whitespace-nowrap ${skin.muted}`}>{tag.sub(data)}</p>
           </div>

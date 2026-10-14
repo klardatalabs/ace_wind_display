@@ -30,6 +30,7 @@ export async function syncHistory() {
       const end=Math.min(Math.floor(Date.now()/TEN_MINUTES)*TEN_MINUTES,Date.parse(availableEnd)+TEN_MINUTES);
       let cursor=Math.max(Date.parse(availableStart),Date.parse(historyConfig.start),receipt.checkpoint ? Date.parse(receipt.checkpoint)-historyConfig.lookbackMs : Date.parse(historyConfig.start));
       let result={...receipt,attemptedAt,availableStart,availableEnd,changed:0,fetched:0,rejected:0};
+      delete result.error;
       while (cursor<end) {
         const next=Math.min(end,cursor+7*86400000);
         const counts=await syncWindow(client,new Date(cursor).toISOString(),new Date(next).toISOString());
