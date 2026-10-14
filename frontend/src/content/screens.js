@@ -63,16 +63,6 @@ export const SCREENS = {
         sub: () => "I'm taller than Big Ben, and I belong to the people of Lawrence Weston.",
       },
       {
-        id: "wind",
-        label: "Wind",
-        seconds: 13,
-        stage: { action: "overview", wind: true },
-        tags: ["wind", "power"],
-        eyebrow: "Can you feel it?",
-        line: (d) => (d.windSpeed < 2.5 ? "It's very still out here. I'm waiting for the wind." : `The wind is ${d.beaufort.toLowerCase()} today, ${Math.round(mph(d.windSpeed))} mph from the ${compassPoint(d.windDir)}.`),
-        sub: () => "Watch the streaks. They show where the air is going, and my blades are catching it.",
-      },
-      {
         id: "blades",
         label: "Blades",
         seconds: 13,
@@ -141,6 +131,8 @@ export const SCREENS = {
     theme: "realistic",
     askLabel: "Ask Ace",
     askHint: "Scan with your phone camera. No app, no login.",
+    // The real Lawrence Weston scan around the turbine, in place of the generated scenery.
+    scan: true,
     chapters: [
       {
         id: "ours",
@@ -198,7 +190,7 @@ export const SCREENS = {
         id: "lifetime",
         label: "Since 2023",
         seconds: 14,
-        stage: { action: "low" },
+        stage: { action: "aerial" },
         tags: ["lifetime"],
         eyebrow: "Since spring 2023",
         line: (d) => `${d.lifetime.value} ${d.lifetime.unit} of local, clean power.`,

@@ -68,5 +68,16 @@ export function buildWorld() {
     trees.uniforms.uTime.value = time;
   };
 
-  return { group, update, tick, groundHeight: terrainHeight, stackTop: industrial.stackTop, estate, pylons, stats: { trees: trees.count, houses: estate.houseCount } };
+  /**
+   * With the real scan around the turbine, the near scenery it already shows (woods, the
+   * estate, industry, solar farm, pylons) steps aside, and the ground and estuary sink a
+   * little under the scan's own ground; what remains frames it out to the horizon.
+   */
+  const SCAN_SINK = 4;
+  const setScan = (on) => {
+    for (const part of [trees.group, estate.group, industrial.group, solar.group, pylons.group]) part.visible = !on;
+    terrain.mesh.position.y = water.mesh.position.y = on ? -SCAN_SINK : 0;
+  };
+
+  return { group, update, tick, setScan, groundHeight: terrainHeight, stackTop: industrial.stackTop, estate, pylons, stats: { trees: trees.count, houses: estate.houseCount } };
 }

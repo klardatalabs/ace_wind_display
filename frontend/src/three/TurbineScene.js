@@ -13,6 +13,7 @@ import { CameraRig, SHOTS } from "./cameraRig.js";
 import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS } from "./themes.js";
 import { createSky } from "./sky.js";
 import { buildWorld } from "./world/index.js";
+import { loadSiteSplat } from "./splat.js";
 import { markBands, applyBands, blinkAviationLight } from "./accents.js";
 import { sunPosition, sunDirection, skyState, nightReadability } from "./environment.js";
 import { createWeatherFx } from "./fx.js";
@@ -47,18 +48,20 @@ export class TurbineScene {
    * @param {boolean} [options.interactive]  drag to orbit, pinch / wheel to zoom, double-tap to open
    * @param {number} [options.frameShift]     on wide screens, push the subject this fraction of the width to the right (room for text)
    * @param {boolean} [options.storyRail]     opt into the continuous energy journey
+   * @param {boolean} [options.scan]          fade the real Lawrence Weston scan in around the turbine (realistic look)
    * @param {(u: number) => void} [options.onLookInside]
    * @param {(pick: { id: string, x: number, y: number } | null) => void} [options.onPick]  something was tapped (id of its description card), or null
    * @param {(s: number, height: number) => void} [options.onWalk]  progress 0..1 and metres climbed during the walk
    * @param {() => void} [options.onReady]
    * @param {(err: Error) => void} [options.onError]
    */
-  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
+  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, scan = false, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
     this.canvas = canvas;
     this.frameShift = frameShift;
     this.theme = theme;
     this.storyRailEnabled = storyRail;
     this.explorerEnabled = explorer;
+    this.scanEnabled = scan && !explorer;
     this.callbacks = { onLookInside, onReady, onError, onWalk, onPick, onViewChange };
     this.live = { rpm: 0, yaw: 0 };
     this.shown = { rpm: 0, yaw: 0 }; // eased toward live, so jumps in the data look mechanical
@@ -212,9 +215,32 @@ export class TurbineScene {
       this.callbacks.onReady?.({});
       // Opening move: drift from the wide establishing shot into the hero framing.
       if (!this.story && !this.explorerEnabled) this.rig.flyTo("hero", { duration: 5, ease: "power2.inOut" });
+      // The turbine is up; the real surroundings stream in behind it.
+      if (this.scanEnabled && this.theme === "realistic") this.#loadScan();
     } catch (err) {
       console.error("[3d] failed to load turbine", err);
       this.callbacks.onError?.(err);
+    }
+  }
+
+  async #loadScan() {
+    try {
+      const { splat, spark } = await loadSiteSplat(this.renderer, this.scene);
+      if (this.disposed) return splat.dispose?.();
+      this.splat = splat;
+      this.spark = spark;
+      // The scan has the neighbouring turbine in it already.
+      if (this.neighbour) this.neighbour.visible = false;
+      gsap.to(splat, {
+        opacity: 1,
+        duration: 3,
+        ease: "power1.inOut",
+        // The generated scenery under it steps aside once the scan mostly covers it.
+        onUpdate: () => this.world.setScan?.(splat.opacity > 0.6),
+      });
+    } catch (err) {
+      // No scan is fine: the generated landscape stays.
+      console.warn("[3d] the Lawrence Weston scan didn't load", err);
     }
   }
 
@@ -800,6 +826,7 @@ export class TurbineScene {
       blinkAviationLight(this.aviationLights, t, this.theme);
       this.lookInside?.updatePlanes();
       if (this.rig.walk) this.walkHatch?.(true, this.rig.walk.s > 0.93);
+      if (this.splat) this.splat.visible = this.theme === "realistic";
     }
 
     this.envClock += dt;
@@ -842,6 +869,9 @@ export class TurbineScene {
     this.resizeObserver?.disconnect();
     this.unbindPointer?.();
     gsap.killTweensOf(this);
+    if (this.splat) gsap.killTweensOf(this.splat);
+    this.splat?.dispose?.();
+    this.spark?.dispose?.();
     if (this.lookInside) gsap.killTweensOf(this.lookInside);
     this.rig._tween?.kill();
     this.scene.traverse((o) => {

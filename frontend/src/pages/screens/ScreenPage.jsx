@@ -114,6 +114,7 @@ function Hoarding({ screen }) {
   // Step pills are sized for laptops; scale them up on big hoarding panels.
   const pillZoom = Math.min(2.4, Math.max(1, Math.min(window.innerWidth, window.innerHeight) / 900));
   const chapter = story.chapter;
+  const showQr = screen.rail || story.index === screen.chapters.length - 1;
   const captionChapter = story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
   const panel = chapter.panel;
   const tagIds = useMemo(() => (chapter.tags ?? []).filter((id) => TAGS[id]), [chapter]);
@@ -133,7 +134,7 @@ function Hoarding({ screen }) {
   return (
     <div className={`relative h-dvh w-screen overflow-hidden select-none ${skin.dark ? "bg-moss-950" : "bg-moss-50"}`}>
       <div className="absolute inset-0" onPointerDown={onTouch} style={screen.rail ? { filter: `blur(${story.railState?.blur ?? 0}px)` } : undefined}>
-        <TurbineCanvas theme={screen.theme} sceneRef={sceneRef} frameShift={0.1} storyRail={screen.rail} onWalk={onWalk} onPick={onPick} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
+        <TurbineCanvas theme={screen.theme} scan={Boolean(screen.scan)} sceneRef={sceneRef} frameShift={0.1} storyRail={screen.rail} onWalk={onWalk} onPick={screen.rail ? onPick : undefined} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
       </div>
       {screen.rail && <div className="pointer-events-none absolute inset-0 bg-moss-950" style={{ opacity: story.fade }} />}
       {screen.rail && story.railState && new URLSearchParams(window.location.search).has("debug") && <output hidden data-story-state>{JSON.stringify(story.railState)}</output>}
@@ -181,7 +182,8 @@ function Hoarding({ screen }) {
         </>
       )}
 
-      <HotspotCard pick={pick} ctx={ctx} screenKey={screen.key} skin={skin} onClose={closePick} />
+      {/* Tap cards only on the story rail; the hoarding screens just tell their story. */}
+      {screen.rail && <HotspotCard pick={pick} ctx={ctx} screenKey={screen.key} skin={skin} onClose={closePick} />}
 
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-[3vmin] p-[3vmin] portrait:flex-col portrait:items-center">
         <div className="pointer-events-auto flex flex-col gap-[1.4vmin] portrait:items-center">
@@ -196,10 +198,17 @@ function Hoarding({ screen }) {
           />
           <p className={`flex items-center gap-[0.8vmin] text-[clamp(11px,1.4vmin,26px)] ${skin.muted}`}>
             <Icon name="handPointer" className="size-[1.3em]" />
-            {screen.rail ? "Follow the glow · tap a chapter to jump · drag to look around" : story.paused ? "You're in control. The story resumes shortly." : "Tap anything to find out what it is · drag to look around"}
+            {screen.rail ? "Follow the glow · tap a chapter to jump · drag to look around" : story.paused ? "You're in control. The story resumes shortly." : "Drag to look around"}
           </p>
         </div>
-        <QrCard screenKey={screen.key} label={screen.askLabel} hint={screen.askHint} skin={skin} className="pointer-events-auto" />
+        {/* The QR waits for the story's last chapter, so the opening shows the turbine alone. */}
+        <QrCard
+          screenKey={screen.key}
+          label={screen.askLabel}
+          hint={screen.askHint}
+          skin={skin}
+          className={`transition-[opacity,translate] duration-700 ease-out ${showQr ? "pointer-events-auto opacity-100" : "pointer-events-none translate-y-[2vmin] opacity-0"}`}
+        />
       </footer>
     </div>
   );
