@@ -13,9 +13,9 @@ test("tower movement stays inside the wall at every climb height", () => {
 
 test("machine-room movement stays within the aisle and roof height", () => {
   const position = constrainInterior(new Vector3(-50, 200, 50));
-  assert.equal(position.x, -6.8);
+  assert.equal(position.x, -5.8);
   assert.equal(position.y, 93.3);
-  assert.equal(position.z, 1.8);
+  assert.equal(position.z, 1.25);
 });
 
 test("a valid interior position is preserved, and movement cannot fall below the base", () => {

@@ -8,8 +8,8 @@ export function constrainInterior(position) {
     const distance = Math.hypot(position.x, position.z);
     if (distance > radius) { position.x *= radius / distance; position.z *= radius / distance; }
   } else {
-    position.x = THREE.MathUtils.clamp(position.x, -6.8, 1.15);
-    position.z = THREE.MathUtils.clamp(position.z, -1.8, 1.8);
+    position.x = THREE.MathUtils.clamp(position.x, -5.8, 1.15);
+    position.z = THREE.MathUtils.clamp(position.z, -1.25, 1.25);
   }
   return position;
 }

@@ -113,6 +113,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
     let stopAnimation;
     let stopEnvironment;
     let selection;
+    let whiteShader;
+    let stopReady;
 
     async function init() {
       setStatus("loading");
@@ -165,7 +167,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
         if (cancelled) { model.destroy(); return; }
         viewer.scene.primitives.add(model);
         if (screenMode) {
-          model.customShader = new Cesium.CustomShader({ fragmentShaderText: "void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) { material.diffuse = vec3(1.0); material.specular = vec3(0.04); material.roughness = 0.65; material.emissive = vec3(0.12); }" });
+          whiteShader = new Cesium.CustomShader({ fragmentShaderText: "void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) { material.diffuse = vec3(1.0); material.specular = vec3(0.04); material.roughness = 0.65; material.emissive = vec3(0.12); }" });
+          model.customShader = whiteShader;
         }
         stopAnimation = animateTurbine(viewer.scene, model);
         stopEnvironment = applySiteEnvironment(viewer, tileset);
@@ -182,7 +185,12 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
         if (import.meta.env.DEV && new URLSearchParams(location.search).has("debug")) window.__liveMap = { viewer, model };
         setStatus("ready");
         viewer.useDefaultRenderLoop = callbacksRef.current.active;
-        callbacksRef.current.onReady?.();
+        if (model.ready) callbacksRef.current.onReady?.();
+        else stopReady = model.readyEvent.addEventListener(() => {
+          stopReady?.();
+          stopReady = null;
+          if (!cancelled) callbacksRef.current.onReady?.();
+        });
       } catch (error) {
         console.error("[site-viewer] initialization failed", error);
         if (!cancelled) {
@@ -199,6 +207,7 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
       window.clearTimeout(start);
       stopAnimation?.();
       stopEnvironment?.();
+      stopReady?.();
       selection?.dispose();
       selectionRef.current = null;
       camera?.dispose();
@@ -207,6 +216,7 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
       if (controllerRef) controllerRef.current = null;
       if (window.__liveMap?.viewer === viewer) delete window.__liveMap;
       if (viewer && !viewer.isDestroyed()) viewer.destroy();
+      if (whiteShader && !whiteShader.isDestroyed()) whiteShader.destroy();
     };
   }, [attempt, config, selectTurbine, screenMode, controllerRef]);
 

@@ -83,7 +83,11 @@ export class ExplorerNavigation {
       this.canvas.focus({ preventScroll: true });
       this.canvas.setPointerCapture(event.pointerId);
       this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY, lastX: event.clientX, lastY: event.clientY, moved: false, hit: this.hit(event) });
-      if (this.pointers.size > 1) for (const pointer of this.pointers.values()) pointer.moved = true;
+      if (this.pointers.size > 1) {
+        for (const pointer of this.pointers.values()) pointer.moved = true;
+        const [a, b] = [...this.pointers.values()];
+        this.pinch = Math.hypot(a.lastX - b.lastX, a.lastY - b.lastY);
+      }
     };
     let hoverTime = 0;
     const move = (event) => {
@@ -102,10 +106,17 @@ export class ExplorerNavigation {
       }
       pointer.lastX = event.clientX;
       pointer.lastY = event.clientY;
+      if (this.inside && this.pointers.size === 2) {
+        const [a, b] = [...this.pointers.values()];
+        const distance = Math.hypot(a.lastX - b.lastX, a.lastY - b.lastY);
+        if (this.pinch > 0 && distance > 0) this.step("forward", THREE.MathUtils.clamp(Math.log(distance / this.pinch) * 3, -.2, .2));
+        this.pinch = distance;
+      }
     };
     const up = (event) => {
       const pointer = this.pointers.get(event.pointerId);
       this.pointers.delete(event.pointerId);
+      if (this.pointers.size < 2) this.pinch = 0;
       if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
       if (event.type === "pointerup" && pointer && !pointer.moved && Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) <= 6) {
         const hit = pointer.hit ?? this.hit(event);
@@ -219,7 +230,7 @@ export class ExplorerNavigation {
     let radius = .6;
     if (object && !hit) {
       const size = new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3());
-      radius = size.length() / 2;
+      radius = Math.max(size.x, size.y, size.z) / 2;
       // Inspect a nearby section of a long ladder or cable, not its full height.
       if (["ladder", "cable", "lift"].includes(id)) radius = .75;
     }
