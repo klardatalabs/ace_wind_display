@@ -42,7 +42,7 @@ function Chat({ screen }) {
     <div className="flex min-h-dvh flex-col bg-gradient-to-b from-moss-25 to-moss-50">
       <ChatHeader title={copy.title} screenName={screenName} onReset={reset} canReset={messages.length > 0} />
 
-      <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 pt-5 pb-4" aria-live="polite">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pt-5 pb-4 md:gap-5 md:px-6 md:pt-8" aria-live="polite">
         <div className="flex items-end gap-2">
           <TurbineMark className="mb-1 size-8 shrink-0" />
           <div className="max-w-[85%] rounded-3xl rounded-bl-lg bg-white px-4 py-2.5 text-[15px] leading-relaxed text-moss-950 ring-1 ring-moss-100">
@@ -65,7 +65,7 @@ function Chat({ screen }) {
       </main>
 
       <footer className="sticky bottom-0 z-10 flex flex-col gap-2.5 bg-gradient-to-t from-moss-50 via-moss-50/95 to-transparent px-3 pt-6 pb-[max(env(safe-area-inset-bottom),12px)]">
-        <RemotePanel onRemote={remote} screenName={screenName} />
+        {copy.remote !== false && <RemotePanel onRemote={remote} screenName={screenName} />}
         <Composer onSend={send} onStop={stop} streaming={streaming} disabled={status !== "ready"} />
         <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-moss-900/50">
           <Icon name="eye" className="size-3.5" />

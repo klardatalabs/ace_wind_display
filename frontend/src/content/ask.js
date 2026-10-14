@@ -8,6 +8,8 @@ export const ASK = {
   },
   community: {
     title: "Ask Ace",
+    // No big-screen remote: this link is public, so anyone anywhere could move the screen.
+    remote: false,
     greeting: "Hello! I'm Ace, Lawrence Weston's community wind turbine. Ask me how much power I'm making, where the money goes, or anything else about me.",
     suggestions: ["How many homes are you powering right now?", "Who owns this turbine?", "Where does the money go?", "How much carbon did you save today?", "What was your best day ever?"],
   },

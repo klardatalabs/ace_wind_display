@@ -9,6 +9,7 @@ import TurbineMark from "../../../components/brand/TurbineMark.jsx";
 import Icon from "../../../components/ui/Icon.jsx";
 import TypingDots from "./TypingDots.jsx";
 import PhotoStrip from "./PhotoStrip.jsx";
+import ActivitySteps from "./ActivitySteps.jsx";
 
 const ACTION_TEXT = {
   look_inside: "Opened the turbine on the big screen",
@@ -42,7 +43,7 @@ export default function MessageBubble({ message }) {
   if (mine) {
     return (
       <div ref={ref} className="flex justify-end">
-        <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-gradient-to-b from-moss-700 to-moss-900 px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white shadow-[0_6px_20px_rgb(10_21_29/0.18)]">
+        <div className="max-w-[85%] rounded-3xl rounded-br-lg md:max-w-[70%] bg-gradient-to-b from-moss-700 to-moss-900 px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white shadow-[0_6px_20px_rgb(10_21_29/0.18)]">
           {message.content}
         </div>
       </div>
@@ -53,7 +54,8 @@ export default function MessageBubble({ message }) {
   return (
     <div ref={ref} className="flex items-end gap-2">
       <TurbineMark className="mb-1 size-8 shrink-0" />
-      <div className="max-w-[85%] min-w-0">
+      <div className="max-w-[85%] min-w-0 md:max-w-[78%]">
+        <ActivitySteps steps={message.steps} thinking={message.streaming && !message.content} streaming={message.streaming} />
         <PhotoStrip photos={message.photos} className="mb-2.5" />
         <div
           className={`rounded-3xl rounded-bl-lg px-4 py-2.5 text-[15px] leading-relaxed shadow-[0_6px_20px_rgb(10_21_29/0.06)] ${

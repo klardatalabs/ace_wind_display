@@ -50,12 +50,17 @@ import calendar from "line-awesome/svg/calendar.svg?raw";
 import download from "line-awesome/svg/cloud-download-alt-solid.svg?raw";
 import cloud from "line-awesome/svg/cloud-sun-solid.svg?raw";
 import child from "line-awesome/svg/child-solid.svg?raw";
+import image from "line-awesome/svg/image.svg?raw";
+import brain from "line-awesome/svg/brain-solid.svg?raw";
+import warning from "line-awesome/svg/exclamation-circle-solid.svg?raw";
+import chevron from "line-awesome/svg/angle-down-solid.svg?raw";
 
 const ICONS = {
   wind, bolt, leaf, home, school, graduation, users, code, terminal, qrcode, comments, commentDots,
   robot, chart, tree, sun, moon, arrowRight, play, eye, cogs, database, mapPin, heart, seedling, gauge,
   plug, industry, lightbulb, book, github, copy, check, close, menu, globe, cube, layers, microchip,
   handPointer, search, fan, walk, thermometer, clock, calendar, download, cloud, child,
+  image, brain, warning, chevron,
 };
 
 const withCurrentColor = Object.fromEntries(

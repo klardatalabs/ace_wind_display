@@ -29,6 +29,12 @@ export function cesiumStaticPlugin() {
         createReadStream(path).pipe(response);
       });
     },
+    // Knockout (bundled in @cesium/widgets) finds the global object with (0,eval)("this"),
+    // which the site's CSP blocks. globalThis does the same without eval.
+    transform(code, id) {
+      if (!id.includes("knockout") || !code.includes('(0,eval)("this")')) return null;
+      return { code: code.replaceAll('(0,eval)("this")', "globalThis"), map: null };
+    },
     writeBundle(options) {
       const output = options.dir ?? dirname(options.file);
       for (const directory of directories) {

@@ -131,7 +131,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
         const terrainProvider = Cesium.createWorldTerrainAsync();
         viewer = new Cesium.Viewer(rootRef.current, {
           animation: false, baseLayerPicker: false, fullscreenButton: false,
-          geocoder: Cesium.IonGeocodeProviderType.GOOGLE, homeButton: false, infoBox: false,
+          // No geocoder: its Knockout bindings compile with eval, which the CSP blocks.
+          geocoder: false, homeButton: false, infoBox: false,
           navigationHelpButton: false, sceneModePicker: false, selectionIndicator: false, timeline: false,
           baseLayer: Cesium.ImageryLayer.fromWorldImagery({ style: Cesium.IonWorldImageryStyle.AERIAL }),
           terrain: new Cesium.Terrain(terrainProvider),
