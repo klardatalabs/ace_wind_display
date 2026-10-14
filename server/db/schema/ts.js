@@ -13,8 +13,8 @@ export const siteSample = ts.table(
   {
     siteId: text("site_id").notNull().references(() => site.siteId),
     observedAt: timestamptz("observed_at").notNull(),
-    activePowerKw: float("active_power_kw").notNull(),
-    windSpeedMs: float("wind_speed_ms").notNull(),
+    activePowerKw: float("active_power_kw"),
+    windSpeedMs: float("wind_speed_ms"),
     windDirectionDeg: float("wind_direction_deg").notNull(),
     availablePowerKw: float("available_power_kw").notNull(),
     theoreticalMaxPowerKw: float("theoretical_max_power_kw").notNull(),

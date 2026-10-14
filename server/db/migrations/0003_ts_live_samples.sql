@@ -6,8 +6,8 @@
 CREATE TABLE ts.site_sample (
   site_id                   text NOT NULL REFERENCES core.site,
   observed_at               timestamptz NOT NULL,
-  active_power_kw           double precision NOT NULL CHECK (active_power_kw BETWEEN -1000 AND 6500),
-  wind_speed_ms             double precision NOT NULL CHECK (wind_speed_ms BETWEEN 0 AND 100),
+  active_power_kw           double precision CHECK (active_power_kw BETWEEN -1000 AND 6500),
+  wind_speed_ms             double precision CHECK (wind_speed_ms BETWEEN 0 AND 100),
   wind_direction_deg        double precision NOT NULL CHECK (wind_direction_deg BETWEEN 0 AND 360),
   available_power_kw        double precision NOT NULL CHECK (available_power_kw BETWEEN 0 AND 6500),
   theoretical_max_power_kw  double precision NOT NULL CHECK (theoretical_max_power_kw BETWEEN 0 AND 6500),
