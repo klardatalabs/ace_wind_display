@@ -7,7 +7,6 @@ const PRESETS = {
   anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-4-5" },
   openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini" },
   groq: { baseUrl: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile" },
-  gemini: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-flash-latest" },
 };
 
 /** @returns {{ name: string, baseUrl: string, apiKey: string, model: string } | null} */
@@ -20,7 +19,6 @@ export function resolveProvider() {
     ["anthropic", llm.anthropicKey],
     ["openai", llm.openaiKey],
     ["groq", llm.groqKey],
-    ["gemini", llm.geminiKey],
   ];
   for (const [name, apiKey] of candidates) {
     if (apiKey) return { name, apiKey, baseUrl: PRESETS[name].baseUrl, model: llm.model || PRESETS[name].model };

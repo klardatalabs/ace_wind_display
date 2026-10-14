@@ -45,7 +45,6 @@ export const config = {
     anthropicKey: env.ANTHROPIC_API_KEY || "",
     openaiKey: env.OPENAI_API_KEY || "",
     groqKey: env.GROQ_API_KEY || "",
-    geminiKey: env.GEMINI_API_KEY || "",
     genericKey: env.LLM_API_KEY || "",
     genericBaseUrl: env.LLM_BASE_URL || "",
     model: env.LLM_MODEL || "",
