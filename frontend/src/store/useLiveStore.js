@@ -18,6 +18,8 @@ export function useLive() {
     mode: s?.mode ?? "live",
     connected: s?.connected ?? false,
     liveAt: s?.liveAt ?? null, // null = never connected: the numbers are sample values
+    // A genuine turbine reading: not admin demo values and not pre-connection defaults.
+    real: Boolean(s) && s.mode !== "simulate" && Boolean(s.liveAt),
     powerKw: Math.max(0, now.activePowerKw ?? 0),
     windSpeed: now.windSpeed ?? 0,
     rotorRpm: now.rotorRpm ?? 0,

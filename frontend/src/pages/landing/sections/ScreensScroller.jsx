@@ -1,7 +1,6 @@
-// Horizontal snap-scrolling cards for the public screens, site explorer, Ask Ace and Developers.
-// Hover: the card lifts and its duotone image cross-fades to a lighter duotone.
+// The four screens. Phones swipe through them in a snap row; wider screens show a grid.
+// Hover: the card lifts and its photo brightens.
 
-import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import SectionHeading from "../../../components/ui/SectionHeading.jsx";
 import Icon from "../../../components/ui/Icon.jsx";
@@ -11,25 +10,26 @@ import { IMAGES } from "../../../content/images.js";
 function Card({ card }) {
   const img = IMAGES[card.image];
   return (
-    <li className="w-[280px] shrink-0 snap-start sm:w-[340px] md:w-[400px]">
+    <li className="w-[78vw] max-w-[340px] shrink-0 snap-start sm:w-auto sm:max-w-none">
       <Link
         to={card.to}
-        className="group relative flex aspect-[1600/2048] flex-col justify-end overflow-hidden rounded-4xl border border-moss-100 p-8 transition-transform duration-300 ease-out hover:-translate-y-1"
+        className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-4xl p-7 transition-transform duration-300 ease-out hover:-translate-y-1"
       >
-        <div className="duotone absolute inset-0">
-          <img src={img.src} alt="" loading="lazy" className="size-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-105" />
-        </div>
-        <div className="duotone duotone-soft absolute inset-0 opacity-0 transition-opacity duration-[900ms] ease-out group-hover:opacity-100" aria-hidden="true">
-          <img src={img.src} alt="" loading="lazy" className="size-full scale-105 object-cover" />
-        </div>
+        <img
+          src={img.src}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 size-full object-cover transition-[transform,filter] duration-700 ease-out group-hover:scale-105 group-hover:brightness-110"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-moss-950/85 via-moss-950/25 to-transparent" />
-        <span className="glass-ring absolute top-6 left-6 flex size-12 items-center justify-center rounded-2xl bg-white/20 text-white backdrop-blur-md">
+        {img.credit && <span className="absolute top-7 right-6 text-[10px] text-white/70">{img.credit}</span>}
+        <span className="absolute top-6 left-6 flex size-11 items-center justify-center rounded-2xl bg-white/20 text-white ring-1 ring-white/30 backdrop-blur-md">
           <Icon name={card.icon} className="size-6" />
         </span>
         <div className="relative">
-          <h3 className="font-display text-[28px] leading-none font-medium tracking-tight text-white md:text-[32px]">{card.title}</h3>
-          <p className="mt-3 text-white/80">{card.blurb}</p>
-          <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-white">
+          <h3 className="font-display text-[26px] leading-tight font-medium tracking-tight text-white">{card.title}</h3>
+          <p className="mt-2 text-[15px] text-white/80">{card.blurb}</p>
+          <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-white">
             Open <Icon name="arrowRight" className="size-4 transition-transform group-hover:translate-x-1" />
           </span>
         </div>
@@ -39,49 +39,18 @@ function Card({ card }) {
 }
 
 export default function ScreensScroller() {
-  const scroller = useRef(null);
-  const [edges, setEdges] = useState({ start: true, end: false });
-
-  useEffect(() => {
-    const el = scroller.current;
-    const update = () => setEdges({ start: el.scrollLeft <= 4, end: el.scrollLeft >= el.scrollWidth - el.clientWidth - 4 });
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    return () => {
-      el.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-    };
-  }, []);
-
-  const step = (dir) => {
-    const card = scroller.current.querySelector("li");
-    scroller.current.scrollBy({ left: dir * ((card?.getBoundingClientRect().width ?? 400) + 20), behavior: "smooth" });
-  };
-
-  const arrow = "pointer-events-auto flex size-10 items-center justify-center rounded-full border border-moss-900/5 bg-white/90 text-moss-950 shadow-[0_4px_20px_rgb(10_21_29/0.08)] backdrop-blur transition-all hover:scale-105 hover:bg-white disabled:pointer-events-none disabled:opacity-0 md:size-12";
-
   return (
-    <section id="screens" className="pt-16 pb-10 md:pt-24 md:pb-14 xl:pt-28">
-      <div className="px-6 md:px-12 xl:px-36">
-        <SectionHeading eyebrow="Four screens, one turbine" title="A story for every audience." />
-      </div>
-      <div className="relative mt-10 md:mt-16">
-        <div ref={scroller} data-lenis-prevent className="no-scrollbar snap-x snap-mandatory scroll-pl-6 overflow-x-auto md:scroll-pl-12 xl:scroll-pl-36">
-          <ul className="m-0 flex list-none gap-5 px-6 py-2 md:px-12 xl:px-36">
-            {SCREEN_CARDS.map((c) => (
-              <Card key={c.key} card={c} />
-            ))}
-          </ul>
-        </div>
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-between px-2 md:px-4 xl:px-8">
-          <button type="button" aria-label="Previous" disabled={edges.start} onClick={() => step(-1)} className={arrow}>
-            <Icon name="arrowRight" className="size-5 rotate-180" />
-          </button>
-          <button type="button" aria-label="Next" disabled={edges.end} onClick={() => step(1)} className={arrow}>
-            <Icon name="arrowRight" className="animate-nudge size-5" />
-          </button>
-        </div>
+    <section id="screens" className="px-6 pt-16 pb-10 md:px-12 md:pt-24 md:pb-14 xl:px-36">
+      <div className="mx-auto max-w-[1280px]">
+        <SectionHeading eyebrow="The screens" title="A story for every audience." />
+        <ul
+          data-lenis-prevent-touch
+          className="no-scrollbar -mx-6 mt-10 flex snap-x snap-mandatory scroll-px-6 gap-4 overflow-x-auto px-6 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 md:mt-14 lg:grid-cols-4"
+        >
+          {SCREEN_CARDS.map((c) => (
+            <Card key={c.key} card={c} />
+          ))}
+        </ul>
       </div>
     </section>
   );

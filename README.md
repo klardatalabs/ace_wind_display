@@ -42,7 +42,7 @@ Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (se
 - Replies **stream** over Server-Sent Events. The agent calls tools for live status, history,
   Tavily web search (the source for every non-live fact: the turbine, the project, the community, wind
   energy), `show_photos` (Unsplash), and `show_on_big_screen`, which sends a fixed animation name (never text) to the screen the visitor scanned.
-- Works with Anthropic (Claude Haiku by default), OpenAI, Groq, Gemini or any OpenAI-compatible
+- Works with Anthropic (Claude Haiku by default), OpenAI, Groq or any OpenAI-compatible
   endpoint; without a key it answers from templates.
 
 ## Running it

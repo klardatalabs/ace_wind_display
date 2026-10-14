@@ -1,11 +1,10 @@
-// Primary: dark green gradient with a shimmer sweep and rotating glow on hover.
-// Secondary: frosted glass with a hairline ring. Both press-scale on click.
+// Primary: solid dark ink. Secondary: white with a hairline ring. Glass: for use on photos.
 
 import { Link } from "react-router";
 import Icon from "./Icon.jsx";
 
 const base =
-  "relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl font-medium whitespace-nowrap transition-all duration-300 ease-out active:scale-[0.97] select-none";
+  "group/btn inline-flex items-center justify-center gap-2 rounded-xl font-medium whitespace-nowrap transition-colors duration-200 select-none";
 
 const sizes = {
   sm: "px-4 py-2 text-sm",
@@ -14,45 +13,37 @@ const sizes = {
 };
 
 const variants = {
-  primary:
-    "bg-gradient-to-b from-moss-800 to-moss-950 text-white shadow-[inset_0_2px_0_0_rgb(255_255_255/0.14)] hover:from-moss-700 hover:to-moss-900",
-  secondary:
-    "bg-white/60 text-moss-900 ring-1 ring-moss-200 backdrop-blur-sm shadow-[0_2px_8px_rgb(10_21_29/0.05)] hover:bg-white/90 hover:ring-moss-300 hover:shadow-[0_4px_16px_rgb(10_21_29/0.09)]",
-  glass: "bg-white/15 text-white ring-1 ring-white/35 backdrop-blur-md hover:bg-white/25 glass-ring",
+  primary: "bg-moss-900 text-white hover:bg-moss-800",
+  secondary: "bg-white text-moss-900 ring-1 ring-moss-200 hover:bg-moss-25 hover:ring-moss-300",
+  glass: "bg-white/15 text-white ring-1 ring-white/40 backdrop-blur-md hover:bg-white/25",
 };
 
 export default function Button({ to, href, variant = "primary", size = "md", icon, iconLeft, children, className = "", ...rest }) {
   const content = (
     <>
-      {variant === "primary" && (
-        <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-1000 ease-out group-hover/btn:translate-x-full" />
-      )}
-      {iconLeft && <Icon name={iconLeft} className="relative size-[18px]" />}
-      <span className="relative">{children}</span>
-      {icon && <Icon name={icon} className="relative size-4 transition-transform duration-300 group-hover/btn:translate-x-0.5" />}
+      {iconLeft && <Icon name={iconLeft} className="size-[18px]" />}
+      <span>{children}</span>
+      {icon && <Icon name={icon} className="size-4 transition-transform duration-200 group-hover/btn:translate-x-0.5" />}
     </>
   );
   const cls = `${base} ${sizes[size]} ${variants[variant]} ${className}`;
-  const inner = to ? (
-    <Link to={to} className={cls} {...rest}>
-      {content}
-    </Link>
-  ) : href ? (
-    <a href={href} className={cls} {...rest}>
-      {content}
-    </a>
-  ) : (
+  if (to) {
+    return (
+      <Link to={to} className={cls} {...rest}>
+        {content}
+      </Link>
+    );
+  }
+  if (href) {
+    return (
+      <a href={href} className={cls} {...rest}>
+        {content}
+      </a>
+    );
+  }
+  return (
     <button type="button" className={cls} {...rest}>
       {content}
     </button>
-  );
-
-  if (variant !== "primary") return <span className="group/btn inline-flex">{inner}</span>;
-  return (
-    <span className="group/btn relative inline-flex">
-      <span className="cta-glow pointer-events-none absolute -inset-1 -z-10 rounded-xl opacity-0 blur-md transition-opacity duration-500 group-hover/btn:opacity-80" />
-      <span className="cta-glow pointer-events-none absolute -inset-px -z-10 rounded-xl opacity-50 transition-opacity duration-300 group-hover/btn:opacity-90" />
-      {inner}
-    </span>
   );
 }

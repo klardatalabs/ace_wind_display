@@ -20,6 +20,7 @@ import { buildAnnotations } from "./annotations.js";
 import { walkHeight } from "./walk.js";
 import { StoryRail } from "./storyRail.js";
 import { resolveHotspot } from "./hotspots.js";
+import { ExplorerNavigation } from "./explorerNavigation.js";
 import { londonHourToDate } from "@shared/time.js";
 
 // The camera shots are composed for the turbine facing this bearing (the prevailing
@@ -52,12 +53,13 @@ export class TurbineScene {
    * @param {() => void} [options.onReady]
    * @param {(err: Error) => void} [options.onError]
    */
-  constructor(canvas, { theme = "realistic", interactive = true, frameShift = 0, storyRail = false, onLookInside, onWalk, onPick, onReady, onError } = {}) {
+  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
     this.canvas = canvas;
     this.frameShift = frameShift;
     this.theme = theme;
     this.storyRailEnabled = storyRail;
-    this.callbacks = { onLookInside, onReady, onError, onWalk, onPick };
+    this.explorerEnabled = explorer;
+    this.callbacks = { onLookInside, onReady, onError, onWalk, onPick, onViewChange };
     this.live = { rpm: 0, yaw: 0 };
     this.shown = { rpm: 0, yaw: 0 }; // eased toward live, so jumps in the data look mechanical
     this.spinBoostRpm = 0;
@@ -81,7 +83,11 @@ export class TurbineScene {
     this.#buildLights();
     this.sky = createSky();
     this.scene.add(this.sky);
-    this.world = buildWorld();
+    // The dedicated interior viewer has no synthetic exterior scenery. Its
+    // outside view is supplied by the real-world Cesium viewer on the same page.
+    this.world = explorer
+      ? { group: new THREE.Group(), stackTop: new THREE.Vector3(), tick() {}, update() {} }
+      : buildWorld();
     this.scene.add(this.world.group);
 
     // The environment: where the sun is, what the sky and weather are doing. Set from outside.
@@ -112,7 +118,7 @@ export class TurbineScene {
 
     this.applyTheme(theme);
     this.#observeSize();
-    if (interactive) this.#bindPointer();
+    if (interactive && !explorer) this.#bindPointer();
     this.timer = new THREE.Timer();
     this.renderer.setAnimationLoop(() => this.#tick());
   }
@@ -143,14 +149,16 @@ export class TurbineScene {
       this.scene.add(root);
 
       // A second, slightly smaller turbine where the scan has one (cloned before splitting).
-      this.neighbour = root.clone(true);
-      this.neighbour.name = "NeighbourTurbine";
-      this.neighbour.scale.setScalar(0.9);
-      this.neighbour.position.copy(NEIGHBOUR_POSITION);
-      this.neighbourRotor = this.neighbour.getObjectByName("RotorSpin");
-      this.neighbourYaw = this.neighbour.getObjectByName("Yaw");
-      this.neighbour.traverse((o) => (o.userData.neighbour = true));
-      this.scene.add(this.neighbour);
+      if (!this.explorerEnabled) {
+        this.neighbour = root.clone(true);
+        this.neighbour.name = "NeighbourTurbine";
+        this.neighbour.scale.setScalar(0.9);
+        this.neighbour.position.copy(NEIGHBOUR_POSITION);
+        this.neighbourRotor = this.neighbour.getObjectByName("RotorSpin");
+        this.neighbourYaw = this.neighbour.getObjectByName("Yaw");
+        this.neighbour.traverse((o) => (o.userData.neighbour = true));
+        this.scene.add(this.neighbour);
+      }
 
       // The tower turns with the nacelle so its peel always opens toward the camera.
       this.towerPivot = new THREE.Group();
@@ -160,8 +168,8 @@ export class TurbineScene {
 
       for (const blade of nodes.blades) markBands(blade, "y", [[0.74, 0.78], [0.86, 1.1]]);
       markBands(nodes.spinner, "x", [[-0.56, -0.44]]);
-      for (const blade of ["ACE_Blade_1", "ACE_Blade_2", "ACE_Blade_3"].map((n) => this.neighbour.getObjectByName(n))) {
-        markBands(blade, "y", [[0.74, 0.78], [0.86, 1.1]]);
+      for (const blade of ["ACE_Blade_1", "ACE_Blade_2", "ACE_Blade_3"].map((n) => this.neighbour?.getObjectByName(n))) {
+        if (blade) markBands(blade, "y", [[0.74, 0.78], [0.86, 1.1]]);
       }
 
       const shells = [splitShell(nodes.tower), splitShell(nodes.towerBands), splitShell(nodes.nacelleShell)];
@@ -170,6 +178,7 @@ export class TurbineScene {
       this.labels = interiors.labels;
       this.nacelleLights = interiors.nacelleLights;
       this.walkHatch = buildWalkHatch(nodes);
+      this.interiors = interiors;
 
       nodes.yaw.add(this.fx.wind);
       this.annotations = buildAnnotations(this.towerPivot, nodes.yaw);
@@ -199,9 +208,10 @@ export class TurbineScene {
       this.lookInside = new LookInside(shells, (u) => this.callbacks.onLookInside?.(u));
       if (this.storyRailEnabled) this.story = new StoryRail(this, interiors);
 
+      if (this.explorerEnabled) this.explorer = new ExplorerNavigation(this);
       this.callbacks.onReady?.({});
       // Opening move: drift from the wide establishing shot into the hero framing.
-      if (!this.story) this.rig.flyTo("hero", { duration: 5, ease: "power2.inOut" });
+      if (!this.story && !this.explorerEnabled) this.rig.flyTo("hero", { duration: 5, ease: "power2.inOut" });
     } catch (err) {
       console.error("[3d] failed to load turbine", err);
       this.callbacks.onError?.(err);
@@ -332,9 +342,12 @@ export class TurbineScene {
         }
       }
       mesh.material?.dispose?.();
-      mesh.material = createMaterial(theme, roleOf(mesh));
-      if (mesh.material.isMeshStandardMaterial) mesh.material.envMapIntensity = 0.9;
-      applyBands(mesh, theme);
+      const role = roleOf(mesh);
+      const whiteExterior = this.explorerEnabled && (role === "body" || role.startsWith("band"));
+      mesh.material = createMaterial(theme, whiteExterior ? "body" : role);
+      if (whiteExterior) mesh.material.color.set(0xffffff);
+      if (mesh.material.isMeshStandardMaterial) mesh.material.envMapIntensity = whiteExterior ? .4 : .9;
+      if (!this.explorerEnabled) applyBands(mesh, theme);
       mesh.castShadow = theme !== "blueprint" && !mesh.userData.neighbour;
 
       const plain = !mesh.isInstancedMesh && !mesh.userData.part;
@@ -524,6 +537,13 @@ export class TurbineScene {
     this.envDirty = true;
     this.headlamp.intensity = 0.7 * this.interior.f;
     for (const l of this.nacelleLights ?? []) l.intensity = 3 * this.interior.f;
+  }
+
+  setExplorerInside(active) {
+    this.interior.f = active ? .35 : 0;
+    this.#applyInterior();
+    this.headlamp.intensity = active ? 2 : 0;
+    for (const light of this.nacelleLights ?? []) light.intensity = active ? 18 : 0;
   }
 
   /** Fades the interior lighting out when leaving (while walking it follows how far in you are). */
@@ -793,7 +813,8 @@ export class TurbineScene {
     this.fx.update({ time: t, camera: this.camera, rain: this.env.rain, windMs: this.env.windMs, windVec: this._windVec ?? new THREE.Vector2(1, 0), windViz: this.windViz, dt });
 
     this.story?.update(realDt);
-    this.rig.update(dt);
+    if (this.explorer) this.explorer.update(dt);
+    else this.rig.update(dt);
     if (Boolean(this.rig.walk) !== this.walkFraming) {
       this.walkFraming = Boolean(this.rig.walk);
       const { w, h } = this.size;
@@ -802,7 +823,7 @@ export class TurbineScene {
       else this.camera.clearViewOffset();
     }
     const baseFov = this.size.w / this.size.h < 0.8 ? 52 : 38;
-    const fov = baseFov + (55 - baseFov) * (this.rig.walk ? THREE.MathUtils.smoothstep(this.rig.walk.s, 0.93, 1) : 0);
+    const fov = this.explorer?.inside ? 65 : baseFov + (55 - baseFov) * (this.rig.walk ? THREE.MathUtils.smoothstep(this.rig.walk.s, 0.93, 1) : 0);
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fov, 1 - Math.exp(-dt * 4));
       this.camera.updateProjectionMatrix();
@@ -815,6 +836,7 @@ export class TurbineScene {
 
   dispose() {
     this.disposed = true;
+    this.explorer?.dispose();
     this.story?.dispose();
     this.renderer.setAnimationLoop(null);
     this.resizeObserver?.disconnect();

@@ -1,16 +1,15 @@
-// Cleans visitor input before it reaches the model or the history store.
+// Cleans visitor input before it reaches the model or the database.
 
-import { config } from "../config/env.js";
+import { config } from "../config/index.js";
+import { badRequest } from "../lib/errors.js";
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
-/** @returns {{ ok: true, text: string } | { ok: false, error: string }} */
+/** @returns {string} the cleaned message; throws a 400 HttpError when it's empty or too long */
 export function cleanMessage(raw) {
-  if (typeof raw !== "string") return { ok: false, error: "Please type a message." };
+  if (typeof raw !== "string") throw badRequest("Please type a message.");
   const text = raw.replace(CONTROL_CHARS, "").trim();
-  if (!text) return { ok: false, error: "Please type a message." };
-  if (text.length > config.chat.maxMessageChars) {
-    return { ok: false, error: `That's a long one! Please keep it under ${config.chat.maxMessageChars} characters.` };
-  }
-  return { ok: true, text };
+  if (!text) throw badRequest("Please type a message.");
+  if (text.length > config.chat.maxMessageChars) throw badRequest(`That's a long one! Please keep it under ${config.chat.maxMessageChars} characters.`);
+  return text;
 }

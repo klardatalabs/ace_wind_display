@@ -1,9 +1,29 @@
+# Dependencies and build output
 node_modules/
-.DS_Store
-*.log
-.claude/
+dist/
+.vite/
+coverage/
+
+# Secrets: only the example env file is committed
+.env
+.env.*
+!.env.example
+
+# Local data and databases
 data/
 *.parquet
 *.db
-.env
-dist/
+
+# Logs, OS and editor files
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
+
+# Books and documents for the knowledge base (ingested into Postgres, never committed)
+ingestion/
+
+# Browser automation scratch files
+.playwright-mcp/

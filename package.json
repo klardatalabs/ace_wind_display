@@ -6,23 +6,30 @@
   "private": true,
   "scripts": {
     "setup": "npm install && npm --prefix frontend install",
-    "dev": "node --watch server/server.js",
+    "dev": "node --watch server/bin/dev.js",
     "dev:web": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
-    "start": "node server/server.js",
-    "render:stills": "node scripts/render-stills.mjs",
-    "check:api": "node scripts/api-check.mjs",
-    "test:history": "node --test server/history/*.test.mjs server/db/sqliteDb.test.mjs server/services/liveValidation.test.mjs server/services/turbineState.test.mjs server/clients/aceClient.test.mjs",
-    "history:normalise": "node scripts/normalise_sqlite.mjs",
-    "history:migrate": "node scripts/history-migrate.mjs",
-    "history:sync": "node scripts/history-sync.mjs",
-    "history:zenodo": "node scripts/history-zenodo.mjs"
+    "start": "node server/bin/dev.js",
+    "start:api": "node server/bin/api.js",
+    "start:collector": "node server/bin/collector.js",
+    "db:migrate": "node server/bin/migrate.js",
+    "knowledge": "node server/bin/knowledge.js",
+    "knowledge:eval": "node server/knowledge/eval/retrievalEval.mjs",
+    "test": "node --test \"server/**/*.test.mjs\"",
+    "render:stills": "node scripts/render-stills.mjs"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
-    "express": "^4.19.2",
-    "ioredis": "^6.0.0",
-    "pg": "^8.23.1",
-    "ws": "^8.18.0"
+    "drizzle-orm": "0.45.3",
+    "express": "5.2.1",
+    "helmet": "8.3.0",
+    "hyparquet": "1.31.2",
+    "hyparquet-compressors": "1.1.2",
+    "ioredis": "6.0.0",
+    "mammoth": "1.13.0",
+    "openai": "7.25.0",
+    "pg": "8.23.0",
+    "pgvector": "0.3.0",
+    "unpdf": "1.8.1",
+    "ws": "8.22.0"
   }
 }

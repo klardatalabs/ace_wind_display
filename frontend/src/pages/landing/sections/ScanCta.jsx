@@ -17,7 +17,7 @@ export default function ScanCta() {
             Point your phone camera at the code to talk to Ace. Your chat stays on your phone's browser tab — nobody else can see it.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button to="/ask/community" variant="glass" size="lg" icon="arrowRight" className="rounded-full!">
+            <Button to="/ask/community" variant="glass" size="lg" icon="arrowRight">
               Open chat here
             </Button>
           </div>

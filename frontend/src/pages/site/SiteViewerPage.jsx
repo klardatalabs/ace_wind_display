@@ -16,7 +16,7 @@ export default function SiteViewerPage() {
               </p>
               <h1 className="mt-2 font-display text-3xl leading-tight font-medium text-moss-950 md:text-4xl">ACE turbine site explorer</h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-moss-900/65 md:text-base">
-                Google Photorealistic 3D Tiles provide the surrounding location; the ACE turbine GLB is placed as a separate controllable model.
+                Explore ACE in its real surroundings. Select the turbine to take a closer look and see its latest readings.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -29,7 +29,7 @@ export default function SiteViewerPage() {
             </div>
           </div>
 
-          <SiteCesiumViewer className="h-[calc(100dvh-190px)] min-h-[520px] rounded-[2rem] shadow-[0_24px_80px_rgb(10_21_29/0.16)]" />
+          <SiteCesiumViewer className="h-[calc(100dvh-190px)] min-h-[620px] rounded-[2rem] shadow-[0_24px_80px_rgb(10_21_29/0.16)]" />
         </div>
       </section>
     </main>
