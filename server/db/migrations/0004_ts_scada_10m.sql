@@ -58,7 +58,7 @@ WITH days AS (
   SELECT d.*,
          m.rated_power_kw,
          (d.day_start AT TIME ZONE 'Europe/London')::date AS local_date,
-         EXTRACT(EPOCH FROM ((((d.day_start AT TIME ZONE 'Europe/London') + INTERVAL '1 day') AT TIME ZONE 'Europe/London') - d.day_start)) / 3600.0 AS day_hours,
+         (EXTRACT(EPOCH FROM ((((d.day_start AT TIME ZONE 'Europe/London') + INTERVAL '1 day') AT TIME ZONE 'Europe/London') - d.day_start)) / 3600.0)::double precision AS day_hours,
          lead(d.meter_first_kwh) OVER w AS next_meter_first_kwh,
          lead(d.day_start) OVER w AS next_day_start
   FROM ts.scada_daily d
