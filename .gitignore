@@ -21,3 +21,6 @@ Thumbs.db
 .vscode/
 .idea/
 .claude/
+
+# Books and documents for the knowledge base (ingested into Postgres, never committed)
+ingestion/
