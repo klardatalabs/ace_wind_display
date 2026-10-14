@@ -63,7 +63,7 @@ export default function Footer() {
         </div>
 
         <p
-          className="pointer-events-none mt-20 select-none font-display text-[18vw] leading-none font-black tracking-tighter text-moss-100 xl:text-[220px]"
+          className="pointer-events-none mt-20 select-none whitespace-nowrap font-display text-[min(13.5vw,200px)] leading-none font-black tracking-tighter text-moss-100"
           aria-hidden="true"
         >
           Weston Wind
@@ -76,12 +76,6 @@ export default function Footer() {
               CC-BY-4.0
             </a>
             . {ATTRIBUTION_TEXT}
-          </p>
-          <p>
-            Icons by{" "}
-            <a href="https://icons8.com/line-awesome" className="underline" target="_blank" rel="noreferrer">
-              Icons8
-            </a>
           </p>
         </div>
       </div>

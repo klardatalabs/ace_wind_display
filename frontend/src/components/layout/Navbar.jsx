@@ -1,11 +1,10 @@
-// Floating frosted-glass pill nav that tucks up when you scroll; full-screen sheet on mobile.
+// Floating pill nav that tucks up when you scroll; full-screen sheet on mobile.
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import Wordmark from "../brand/Wordmark.jsx";
 import Button from "../ui/Button.jsx";
 import Icon from "../ui/Icon.jsx";
-import LiveBadge from "../live/LiveBadge.jsx";
 import { NAV_LINKS } from "./navLinks.js";
 import { gsap } from "../../lib/gsap.js";
 import { scrollToTarget } from "../../hooks/useLenis.js";
@@ -55,11 +54,10 @@ export default function Navbar() {
       <div className={`px-3 transition-[margin] duration-300 sm:px-4 ${scrolled ? "mt-2" : "mt-3 lg:mt-6"}`}>
         <nav
           aria-label="Main"
-          className="mx-auto flex max-w-[1096px] items-center rounded-full bg-gradient-to-br from-white/90 via-white/70 to-white/30 py-2 pl-3 pr-2 shadow-[inset_0_0.5px_0_0_rgb(239_250_245/0.6),0_34px_34px_0_rgb(10_21_29/0.03),0_9px_19px_0_rgb(10_21_29/0.05)] backdrop-blur-[40px] lg:py-3 lg:pl-5 lg:pr-3"
+          className="mx-auto flex max-w-[1096px] items-center rounded-full bg-white/90 py-2 pl-3 pr-2 shadow-[0_8px_24px_rgb(10_21_29/0.06)] ring-1 ring-moss-900/5 backdrop-blur-xl lg:py-3 lg:pl-5 lg:pr-3"
         >
-          <div className="flex flex-1 items-center gap-3">
+          <div className="flex flex-1 items-center">
             <Wordmark markClassName="size-8 lg:size-9" textClassName="text-lg lg:text-xl" />
-            <LiveBadge className="hidden xl:inline-flex" />
           </div>
           <ul className="hidden items-center gap-1 lg:flex">
             {NAV_LINKS.map((l) => (
@@ -71,9 +69,11 @@ export default function Navbar() {
             ))}
           </ul>
           <div className="flex flex-1 items-center justify-end gap-2">
-            <Button to="/ask/community" size="sm" icon="commentDots" className="hidden sm:inline-flex">
-              Ask Ace
-            </Button>
+            <div className="hidden sm:block">
+              <Button to="/ask/community" size="sm">
+                Ask Ace
+              </Button>
+            </div>
             <button
               type="button"
               className="inline-flex size-10 items-center justify-center rounded-full text-moss-900 hover:bg-moss-50 lg:hidden"

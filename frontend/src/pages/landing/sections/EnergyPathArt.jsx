@@ -44,7 +44,7 @@ export default function EnergyPathArt() {
         {/* the energy line */}
         <path
           className="energy-path"
-          d="M110 130 C170 130 210 150 244 156 C262 160 266 170 248 200 L246 398 C250 410 270 400 300 398 C340 396 370 330 406 318 C430 312 440 360 474 372"
+          d="M266 156 C266 174 250 182 248 200 L246 398 C250 410 270 400 300 398 C340 396 370 330 406 318 C430 312 440 360 474 372"
           fill="none"
           stroke="var(--color-moss-600)"
           strokeWidth="5"

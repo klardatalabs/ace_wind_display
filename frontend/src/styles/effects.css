@@ -28,37 +28,22 @@
   mask-image: linear-gradient(to top, #000, transparent);
 }
 
-/* Animated glow behind the primary CTA. */
-.cta-glow {
-  background: conic-gradient(from var(--glow-angle, 0deg), var(--color-moss-300), var(--color-moss-500), var(--color-moss-200), var(--color-moss-300));
-  animation: glow-spin 4s linear infinite;
-}
-@property --glow-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
-@keyframes glow-spin {
-  to {
-    --glow-angle: 360deg;
-  }
-}
-
-/* Highlighter strokes behind key words. */
+/* Highlighter strokes behind key words. The negative margin cancels the padding so the
+   highlight bleeds slightly past the word without adding gaps around it. */
 .brushstroke {
-  background-image: linear-gradient(104deg, transparent 0.6em, var(--color-moss-200) 0.8em, var(--color-moss-100) 92%, transparent 100%);
+  background-image: linear-gradient(104deg, transparent 0, var(--color-moss-200) 0.12em, var(--color-moss-100) calc(100% - 0.12em), transparent 100%);
   background-size: 100% 58%;
   background-position: 0 85%;
   background-repeat: no-repeat;
   border-radius: 0.4em;
-  padding: 0 0.15em;
+  padding: 0 0.12em;
+  margin: 0 -0.12em;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 
 /* Photos are shown as they are — real colour. The wrapper keeps its old class name
-   (.duotone) so components don't change; the only treatment is a gentle contrast lift,
-   and a slight brightening on the "soft" hover layer. */
+   (.duotone) so components don't change; the only treatment is a gentle contrast lift. */
 .duotone {
   position: relative;
   isolation: isolate;
@@ -68,31 +53,11 @@
 .duotone > video {
   filter: saturate(1.05) contrast(1.03);
 }
-.duotone-soft > img,
-.duotone-soft > video {
-  filter: saturate(1.15) contrast(1.02) brightness(1.06);
-}
 
 /* Progress ring on step pills (driven by --p, 0..100). */
 .progress-ring circle {
   stroke-dasharray: 100;
   stroke-dashoffset: calc(100 - var(--p, 0));
-}
-
-@keyframes nudge {
-  0%, 70%, 100% { transform: translateX(0); }
-  80% { transform: translateX(4px); }
-  90% { transform: translateX(0); }
-}
-.animate-nudge {
-  animation: nudge 2.6s ease-in-out 1.2s 3;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cta-glow,
-  .animate-nudge {
-    animation: none;
-  }
 }
 
 /* Soft halo pulse around the hoarding QR codes. */

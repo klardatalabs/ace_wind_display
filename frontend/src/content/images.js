@@ -11,6 +11,5 @@ export const IMAGES = {
   dusk: { src: "/images/wind-farm-dusk.jpg", alt: "A row of wind turbines along a ridge in the evening light" },
   renderHero: { src: "/images/renders/turbine-hero.jpg", alt: "3D render of the Weston Wind turbine" },
   renderInside: { src: "/images/renders/turbine-inside.jpg", alt: "3D cutaway render showing inside the turbine" },
-  renderNacelle: { src: "/images/renders/turbine-nacelle.jpg", alt: "3D close-up of the turbine's nacelle and hub" },
-  renderBase: { src: "/images/renders/turbine-base.jpg", alt: "3D view up the turbine tower from its base" },
+  liveVisualisation: { src: "/images/live-visualisation.jpg", alt: "The turbine in the live 3D view of its real surroundings", credit: "Imagery © Google" },
 };
