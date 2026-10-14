@@ -24,3 +24,6 @@ Thumbs.db
 
 # Books and documents for the knowledge base (ingested into Postgres, never committed)
 ingestion/
+
+# Browser automation scratch files
+.playwright-mcp/

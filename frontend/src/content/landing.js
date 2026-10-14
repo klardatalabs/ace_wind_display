@@ -47,9 +47,9 @@ export const SCREEN_CARDS = [
   {
     key: "site",
     title: "Live visualisation",
-    to: "/site",
+    to: "/screen/live",
     icon: "cube",
-    blurb: "The turbine at its real location in Lawrence Weston, with the surrounding buildings and landscape.",
+    blurb: "A full-screen 3D explorer. Move around ACE, select its parts, and explore inside the tower and machine room.",
     image: "liveVisualisation",
   },
 ];

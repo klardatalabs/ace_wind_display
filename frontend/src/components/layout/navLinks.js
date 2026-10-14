@@ -8,5 +8,5 @@ export const SCREEN_LINKS = [
   { label: "Students screen", to: "/screen/students" },
   { label: "Community screen", to: "/screen/community" },
   { label: "College screen", to: "/screen/college" },
-  { label: "Live visualisation", to: "/site" },
+  { label: "Live visualisation", to: "/screen/live" },
 ];
