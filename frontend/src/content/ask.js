@@ -1,4 +1,4 @@
-// Phone chat copy per screen: greeting, suggested questions and big-screen remote buttons.
+// Phone chat copy per screen: greeting and suggested questions.
 
 export const ASK = {
   students: {
@@ -8,8 +8,6 @@ export const ASK = {
   },
   community: {
     title: "Ask Ace",
-    // No big-screen remote: this link is public, so anyone anywhere could move the screen.
-    remote: false,
     greeting: "Hello! I'm Ace, Lawrence Weston's community wind turbine. Ask me how much power I'm making, where the money goes, or anything else about me.",
     suggestions: ["How many homes are you powering right now?", "Who owns this turbine?", "Where does the money go?", "How much carbon did you save today?", "What was your best day ever?"],
   },
@@ -25,13 +23,3 @@ ASK.story = {
   greeting: "Follow the energy from the blades to the shared grid. Ask about any part of the journey.",
   suggestions: ["Why is there no gearbox?", "What does the converter at the tower base do?", "How many homes' worth of power are you making?"],
 };
-
-export const REMOTE_ACTIONS = [
-  { action: "walk_start", label: "Walk inside", icon: "walk" },
-  { action: "look_inside", label: "Look inside", icon: "eye" },
-  { action: "tower_inside", label: "Inside the tower", icon: "layers" },
-  { action: "spin_blades", label: "Spin the blades", icon: "fan" },
-  { action: "fly_to_nacelle", label: "Fly to the top", icon: "arrowRight" },
-  { action: "overview", label: "Zoom out", icon: "globe" },
-  { action: "close_inside", label: "Close it up", icon: "cube" },
-];

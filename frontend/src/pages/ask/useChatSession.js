@@ -157,18 +157,5 @@ export function useChatSession(screen) {
     setStatus("ready");
   }, [mint]);
 
-  /** Ask the big screen this chat belongs to to animate. */
-  const remote = useCallback(
-    async (action, value) => {
-      try {
-        const t = token.current || (await mint());
-        return await api.screenCommand(t, action, value);
-      } catch (err) {
-        return { ok: false, reason: err.data?.reason || err.message };
-      }
-    },
-    [mint]
-  );
-
-  return { messages, status, send, stop, reset, remote };
+  return { messages, status, send, stop, reset };
 }
