@@ -9,7 +9,7 @@ import {
 import { E115_REFERENCE_CURVE } from "../../shared/physics.js";
 import { SCREENS, SCREEN_ACTIONS } from "../../shared/screens.js";
 import { DATASETS } from "../../shared/datasets.js";
-import { LIVE_SOURCE, ZENODO_SOURCE, LIVE_RELEASE_REF, JOBS } from "./constants.js";
+import { LIVE_SOURCE, ZENODO_SOURCE, LIVE_RELEASE_REF, JOBS, AGENT_STEP_KINDS } from "./constants.js";
 
 /** @param {import("pg").PoolClient} db */
 export async function seed(db) {
@@ -58,6 +58,7 @@ export async function seed(db) {
   await upsertPairs(db, "app.screen_action", "action_id", "description", Object.entries(SCREEN_ACTIONS));
   await db.query("INSERT INTO app.chat_role (role_id) VALUES ('user'), ('assistant') ON CONFLICT DO NOTHING");
   await upsertPairs(db, "app.job", "job_id", "description", Object.entries(JOBS));
+  await upsertPairs(db, "app.agent_step_kind", "kind_id", "label", Object.entries(AGENT_STEP_KINDS));
 
   for (const d of DATASETS) {
     await db.query(

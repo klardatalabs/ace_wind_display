@@ -1,5 +1,5 @@
--- Screens and visitor chats. A chat message's sources, photos, citations and screen actions
--- are separate facts, so each lives in its own table keyed by (message, position).
+-- Screens and visitor chats. A chat message's agent steps, photos and screen actions are
+-- separate facts, so each lives in its own table keyed by (message, position).
 
 CREATE TABLE app.screen (
   screen_id  text PRIMARY KEY CHECK (screen_id ~ '^[a-z0-9-]+$'),
@@ -32,20 +32,24 @@ CREATE TABLE app.chat_message (
   PRIMARY KEY (session_id, seq)
 );
 
--- Web pages cited in answers (one row per URL).
-CREATE TABLE app.web_page (
-  page_id  bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  url      text NOT NULL UNIQUE CHECK (url ~ '^https?://'),
-  title    text NOT NULL
+-- The agent steps behind an answer (reading the books, searching the web, finding photos,
+-- checking live data...). Steps in the same round ran in parallel; each round waited for
+-- the one before. This is what the phone draws as the answer's activity graph.
+CREATE TABLE app.agent_step_kind (
+  kind_id  text PRIMARY KEY CHECK (kind_id ~ '^[a-z_]+$'),
+  label    text NOT NULL
 );
 
-CREATE TABLE app.chat_message_web_source (
-  session_id  uuid NOT NULL,
-  seq         integer NOT NULL,
-  position    smallint NOT NULL CHECK (position >= 1),
-  page_id     bigint NOT NULL REFERENCES app.web_page,
+CREATE TABLE app.chat_message_step (
+  session_id   uuid NOT NULL,
+  seq          integer NOT NULL,
+  position     smallint NOT NULL CHECK (position >= 1),
+  round        smallint NOT NULL CHECK (round >= 1),
+  kind_id      text NOT NULL REFERENCES app.agent_step_kind,
+  started_at   timestamptz NOT NULL,
+  finished_at  timestamptz NOT NULL CHECK (finished_at >= started_at),
+  succeeded    boolean NOT NULL,
   PRIMARY KEY (session_id, seq, position),
-  UNIQUE (session_id, seq, page_id),
   FOREIGN KEY (session_id, seq) REFERENCES app.chat_message ON DELETE CASCADE
 );
 

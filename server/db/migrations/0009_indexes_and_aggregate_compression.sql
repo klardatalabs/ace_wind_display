@@ -10,9 +10,7 @@ CREATE INDEX status_event_asset_flags_idx ON ts.status_event (asset_id, observed
   WHERE fault_message OR warning_message OR service_mode;
 
 -- Foreign keys whose parent rows are deleted or joined on (cascades stay fast).
-CREATE INDEX chat_message_citation_chunk_idx ON app.chat_message_citation (chunk_id);
 CREATE INDEX chat_message_photo_photo_idx ON app.chat_message_photo (photo_id);
-CREATE INDEX chat_message_web_source_page_idx ON app.chat_message_web_source (page_id);
 CREATE INDEX chunk_embedding_model_idx ON kb.chunk_embedding (model_id);
 CREATE INDEX dataset_request_dataset_idx ON app.dataset_request (dataset_id);
 CREATE INDEX photo_photographer_idx ON app.photo (photographer_url);

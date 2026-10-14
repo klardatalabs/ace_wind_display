@@ -40,14 +40,3 @@ CREATE TABLE kb.chunk_embedding (
   embedding  vector NOT NULL,
   PRIMARY KEY (chunk_id, model_id)
 );
-
--- Knowledge-base passages an answer was grounded in.
-CREATE TABLE app.chat_message_citation (
-  session_id  uuid NOT NULL,
-  seq         integer NOT NULL,
-  position    smallint NOT NULL CHECK (position >= 1),
-  chunk_id    bigint NOT NULL REFERENCES kb.chunk ON DELETE CASCADE,
-  PRIMARY KEY (session_id, seq, position),
-  UNIQUE (session_id, seq, chunk_id),
-  FOREIGN KEY (session_id, seq) REFERENCES app.chat_message ON DELETE CASCADE
-);
