@@ -12,12 +12,14 @@ import { logger } from "../lib/logger.js";
 const log = logger("migrate");
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "migrations");
 const LOCK_KEY = 8_770_100;
+const CRLF = /\r\n/g;
 
 export async function listMigrations() {
   const files = (await fs.readdir(DIR)).filter((f) => /^\d{4}_[a-z0-9_]+\.sql$/.test(f)).sort();
   return Promise.all(
     files.map(async (file) => {
-      const sql = await fs.readFile(path.join(DIR, file), "utf8");
+      // Normalise line endings so a Windows checkout and a Linux container agree on checksums.
+      const sql = (await fs.readFile(path.join(DIR, file), "utf8")).replace(CRLF, "\n");
       return {
         version: file.slice(0, 4),
         name: file,
