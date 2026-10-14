@@ -62,9 +62,10 @@ export async function seed(db) {
 
   for (const d of DATASETS) {
     await db.query(
-      `INSERT INTO app.dataset (dataset_id, label, file_name, format) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (dataset_id) DO UPDATE SET label = EXCLUDED.label, file_name = EXCLUDED.file_name, format = EXCLUDED.format`,
-      [d.id, d.label, d.fileName, d.format]
+      `INSERT INTO app.dataset (dataset_id, label, description, max_range_days) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (dataset_id) DO UPDATE SET label = EXCLUDED.label, description = EXCLUDED.description,
+         max_range_days = EXCLUDED.max_range_days`,
+      [d.id, d.label, d.description, d.maxRangeDays]
     );
   }
 }

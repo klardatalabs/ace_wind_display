@@ -58,13 +58,15 @@ test("dataset requests store only a token hash and expire", { skip }, async () =
   const email = `researcher-${Date.now()}@example.org`;
   const requestId = await datasets.createRequest({
     email, datasetId: "daily", fullName: "R. Searcher", organisation: "Uni", purpose: "Study",
+    dateFrom: "2026-08-01", dateTo: "2026-08-31",
     tokenSha256: sha(token), expiresAt: new Date(Date.now() + 3_600_000),
   });
   try {
     assert.equal(await datasets.recentRequestCount(email, 24), 1);
     const found = await datasets.findActiveRequest(sha(token));
     assert.equal(found.requestId, requestId);
-    assert.equal(found.fileName, "ace-wind-daily-latest.parquet");
+    assert.equal(found.datasetId, "daily");
+    assert.deepEqual([found.dateFrom, found.dateTo], ["2026-08-01", "2026-08-31"]);
     assert.equal(await datasets.findActiveRequest(sha("wrong token")), null);
     await datasets.recordDownload(requestId);
     await pool.query("UPDATE app.dataset_request SET requested_at = now() - INTERVAL '2 hours', expires_at = now() - INTERVAL '1 minute' WHERE request_id = $1", [requestId]);

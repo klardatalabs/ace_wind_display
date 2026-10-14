@@ -1,10 +1,12 @@
--- Researcher dataset requests (the link is only ever sent by email) and background job runs.
+-- Researcher dataset requests and background job runs. A request names a dataset and a
+-- range of UK dates; its link (only ever sent by email) streams exactly that range as CSV
+-- straight from the time-series tables.
 
 CREATE TABLE app.dataset (
-  dataset_id  text PRIMARY KEY CHECK (dataset_id ~ '^[a-z0-9_]+$'),
-  label       text NOT NULL,
-  file_name   text NOT NULL UNIQUE,
-  format      text NOT NULL
+  dataset_id      text PRIMARY KEY CHECK (dataset_id ~ '^[a-z0-9_]+$'),
+  label           text NOT NULL,
+  description     text NOT NULL,
+  max_range_days  integer NOT NULL CHECK (max_range_days > 0)
 );
 
 CREATE TABLE app.requester (
@@ -20,6 +22,8 @@ CREATE TABLE app.dataset_request (
   full_name      text CHECK (length(full_name) <= 120),
   organisation   text CHECK (length(organisation) <= 160),
   purpose        text CHECK (length(purpose) <= 1000),
+  date_from      date NOT NULL,
+  date_to        date NOT NULL CHECK (date_to >= date_from),
   token_sha256   bytea NOT NULL UNIQUE CHECK (length(token_sha256) = 32),
   requested_at   timestamptz NOT NULL DEFAULT now(),
   expires_at     timestamptz NOT NULL,

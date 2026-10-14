@@ -44,7 +44,10 @@ export const config = {
     livePollMs: env.int("ACE_LIVE_POLL_MS", 1_000),
     statusPollMs: env.int("ACE_STATUS_POLL_MS", 5_000),
     historySyncMs: env.int("HISTORY_SYNC_MS", 10 * 60_000),
-    historyStart: env.string("HISTORY_START", "2026-07-21T10:40:00Z"),
+    // Keep this many years of history (never earlier than commissioning). HISTORY_START, when
+    // set, overrides it with an exact start.
+    historyYears: env.int("HISTORY_YEARS", 4),
+    historyStart: env.string("HISTORY_START"),
     // Re-read this much recent history on every sync, so revised values are corrected.
     historyLookbackMs: env.int("HISTORY_LOOKBACK_HOURS", 24) * 3_600_000,
     zenodoCheckMs: env.int("ZENODO_CHECK_HOURS", 24) * 3_600_000,
@@ -69,13 +72,17 @@ export const config = {
     idleTimeoutMs: env.int("LLM_IDLE_TIMEOUT_MS", 20_000),
   },
 
-  // Embeddings for the knowledge base; defaults to the chat provider's endpoint and key.
+  // Embeddings for the knowledge base: any OpenAI-compatible /v1/embeddings endpoint. The
+  // default deployment runs a local model (text-embeddings-inference) that needs no key.
   embeddings: {
-    baseUrl: env.string("EMBEDDING_BASE_URL") || env.string("LLM_BASE_URL"),
-    apiKey: env.string("EMBEDDING_API_KEY") || env.string("LLM_API_KEY"),
+    baseUrl: env.string("EMBEDDING_BASE_URL"),
+    apiKey: env.string("EMBEDDING_API_KEY", "not-needed-for-local-models"),
     model: env.string("EMBEDDING_MODEL"),
-    dimensions: env.int("EMBEDDING_DIMENSIONS", 1536),
-    batchSize: env.int("EMBEDDING_BATCH_SIZE", 64),
+    // 0 = the model's native size. Only providers that support it (e.g. OpenAI) accept a value.
+    dimensions: env.int("EMBEDDING_DIMENSIONS", 0),
+    batchSize: env.int("EMBEDDING_BATCH_SIZE", 32),
+    // Some retrieval models expect queries (not passages) to start with an instruction.
+    queryPrefix: env.string("EMBEDDING_QUERY_PREFIX"),
   },
 
   chat: {
@@ -110,7 +117,7 @@ export const config = {
 
 const llmParts = [config.llm.baseUrl, config.llm.apiKey, config.llm.model];
 export const llmEnabled = llmParts.every(Boolean);
-export const embeddingsEnabled = Boolean(config.embeddings.baseUrl && config.embeddings.apiKey && config.embeddings.model);
+export const embeddingsEnabled = Boolean(config.embeddings.baseUrl && config.embeddings.model);
 
 /** Throws on settings that would make the process unsafe or broken. */
 export function validateConfig(c = config) {
@@ -119,7 +126,7 @@ export function validateConfig(c = config) {
     if (!value || value.length < 32) problems.push(`${name} must be set to at least 32 random characters`);
   };
   if (llmParts.some(Boolean) && !llmEnabled) problems.push("LLM_BASE_URL, LLM_API_KEY and LLM_MODEL must be set together");
-  if (c.embeddings.dimensions < 1 || c.embeddings.dimensions > 4000) problems.push("EMBEDDING_DIMENSIONS must be between 1 and 4000");
+  if (c.embeddings.dimensions < 0 || c.embeddings.dimensions > 4000) problems.push("EMBEDDING_DIMENSIONS must be between 0 (native) and 4000");
   if (c.production) {
     secret("CHAT_SESSION_SECRET", c.chat.sessionSecret);
     secret("DATASET_TOKEN_SECRET", c.datasets.tokenSecret);

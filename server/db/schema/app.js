@@ -1,7 +1,7 @@
 // app schema: screens, visitor chats (with each answer's agent steps, photos and screen
 // actions), dataset requests and background job runs.
 
-import { pgSchema, text, integer, smallint, bigint, boolean, uuid, primaryKey, foreignKey } from "drizzle-orm/pg-core";
+import { pgSchema, text, integer, smallint, bigint, boolean, uuid, date, primaryKey, foreignKey } from "drizzle-orm/pg-core";
 import { bytea, timestamptz } from "./columns.js";
 
 export const app = pgSchema("app");
@@ -95,8 +95,8 @@ export const chatMessageScreenAction = messageChild("chat_message_screen_action"
 export const dataset = app.table("dataset", {
   datasetId: text("dataset_id").primaryKey(),
   label: text("label").notNull(),
-  fileName: text("file_name").notNull(),
-  format: text("format").notNull(),
+  description: text("description").notNull(),
+  maxRangeDays: integer("max_range_days").notNull(),
 });
 
 export const requester = app.table("requester", {
@@ -111,6 +111,8 @@ export const datasetRequest = app.table("dataset_request", {
   fullName: text("full_name"),
   organisation: text("organisation"),
   purpose: text("purpose"),
+  dateFrom: date("date_from").notNull(),
+  dateTo: date("date_to").notNull(),
   tokenSha256: bytea("token_sha256").notNull(),
   requestedAt: timestamptz("requested_at").notNull().defaultNow(),
   expiresAt: timestamptz("expires_at").notNull(),
