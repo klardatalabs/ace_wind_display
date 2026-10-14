@@ -2,10 +2,10 @@
 // writes to the database. Run one or more copies; only the leader works, the others wait to
 // take over (see leadership.js).
 
-import { config, validateConfig } from "../config/index.js";
+import { config } from "../config/index.js";
 import { connectRedis, closeRedis } from "../infra/redis.js";
 import { closePostgres } from "../infra/postgres.js";
-import { installSignalHandlers, onShutdown } from "../lib/shutdown.js";
+import { onShutdown } from "../lib/shutdown.js";
 import { logger } from "../lib/logger.js";
 import { startLeadership } from "./leadership.js";
 import { every } from "./scheduler.js";
@@ -45,11 +45,11 @@ async function stopAllJobs() {
   await flushSamples().catch((err) => log.warn("final sample flush failed", { err }));
 }
 
-validateConfig();
-installSignalHandlers();
-await connectRedis();
-const leadership = startLeadership({ onElected: startJobs, onDemoted: stopAllJobs });
-onShutdown("postgres", closePostgres);
-onShutdown("redis", closeRedis);
-onShutdown("leadership", () => leadership.stop());
-log.info("collector started; waiting for leadership", { instance: config.instanceId });
+export async function startCollector() {
+  await connectRedis();
+  const leadership = startLeadership({ onElected: startJobs, onDemoted: stopAllJobs });
+  onShutdown("postgres", closePostgres);
+  onShutdown("redis", closeRedis);
+  onShutdown("leadership", () => leadership.stop());
+  log.info("collector started; waiting for leadership", { instance: config.instanceId });
+}

@@ -1,92 +1,107 @@
-// Ace's reasoning loop: stream the model, run any tools it asks for, feed the results
-// back, repeat until it answers. Falls back to templated answers without an LLM.
+// Ace's reasoning loop. Each round the model may ask for several tools at once (reading the
+// books, searching the web, finding photos...); those run in parallel, and each becomes a
+// step in the answer's activity graph, sent to the phone as it starts and finishes. Rounds
+// repeat until the model answers (at most MAX_ROUNDS). Without a language model the
+// templated fallback answers instead, using the same tools.
 
-import { resolveProvider } from "./llm/provider.js";
-import { streamCompletion } from "./llm/streamCompletion.js";
-import { toolDefinitions, toolStatusText, runTool } from "./tools/index.js";
+import { streamChat, llmEnabled } from "../integrations/llm.js";
+import { toolDefinitions, toolByName } from "./tools/index.js";
 import { systemPrompt } from "./personas.js";
-import { respondWithoutLlm } from "./fallbackResponder.js";
-import { config } from "../config/env.js";
+import { respondWithoutLlm } from "./fallback.js";
+import { config } from "../config/index.js";
+import { AGENT_STEP_KINDS } from "../db/constants.js";
+import { logger } from "../lib/logger.js";
 
-const MAX_TOOL_ROUNDS = 4;
+const log = logger("chat.agent");
+const MAX_ROUNDS = 4;
+const TOOL_RESULT_CHARS = 8_000;
+
+/** Runs one tool call as a graph step. Never throws: failures come back as data. */
+export async function runStep({ name, args, round, id }, ctx) {
+  const tool = toolByName(name);
+  const kind = tool?.kind ?? null;
+  const startedAt = new Date();
+  const detail = typeof args?.query === "string" ? args.query.slice(0, 120) : args?.action ?? args?.period ?? null;
+  ctx.emit("step", { id, round, kind, label: AGENT_STEP_KINDS[kind] ?? "Thinking", detail, status: "running" });
+  let result;
+  try {
+    result = tool ? await tool.run(args ?? {}, ctx) : { error: `Unknown tool ${name}` };
+  } catch (err) {
+    log.warn("tool failed", { tool: name, err });
+    result = { error: "This lookup failed; answer without it and say so if it matters." };
+  }
+  const succeeded = !result?.error && result?.ok !== false;
+  const finishedAt = new Date();
+  ctx.emit("step", { id, round, kind, label: AGENT_STEP_KINDS[kind] ?? "Thinking", detail, status: succeeded ? "done" : "failed", ms: finishedAt - startedAt });
+  if (kind) ctx.steps.push({ round, kind, startedAt, finishedAt, succeeded });
+  return result;
+}
 
 /**
- * @param {object} p
- * @param {string} p.prompt
- * @param {Array<{role: string, content: string}>} p.history  this session's earlier turns only
- * @param {string} p.screen
- * @param {(t: string) => void} p.onText
- * @param {(s: string) => void} [p.onStatus]
- * @param {(s: object[]) => void} [p.onSources]
- * @param {(a: string) => void} [p.onAction]
- * @param {(photos: object[]) => void} [p.onPhotos]
- * @param {AbortSignal} [p.signal]
- * @returns {Promise<{ text: string, sources: object[] }>}
+ * @param {{ question: string, history: Array<{ role: string, content: string }>, screen: string,
+ *   signal?: AbortSignal, emit: (event: string, data: object) => void }} p
+ * @returns {Promise<{ content: string, steps: object[], photos: object[], actions: string[] }>}
  */
-export async function runAgent({ prompt, history, screen, onText, onStatus, onSources, onAction, onPhotos, signal }) {
-  const sources = [];
-  const photos = [];
+export async function runAgent({ question, history, screen, signal, emit }) {
   const ctx = {
     screen,
-    signal,
-    onText,
-    onStatus,
-    onAction,
-    onPhotos: (p) => {
-      photos.push(...p);
-      onPhotos?.(p);
+    emit,
+    steps: [],
+    photos: [],
+    actions: [],
+    addPhotos(photos) {
+      ctx.photos.push(...photos);
+      emit("photos", { photos: photos.map(({ downloadLocation, ...safe }) => safe) });
     },
-    onSources: (s) => {
-      sources.push(...s);
-      onSources?.(s);
+    addAction(action) {
+      ctx.actions.push(action);
+      emit("action", { action });
     },
   };
+  const result = (content) => ({ content, steps: ctx.steps, photos: ctx.photos, actions: ctx.actions });
 
-  const provider = resolveProvider();
-  if (!provider) return { text: await respondWithoutLlm(prompt, ctx), sources, photos };
+  if (!llmEnabled) return result(await respondWithoutLlm(question, ctx, signal));
 
   const messages = [
     { role: "system", content: systemPrompt(screen) },
     ...history.slice(-config.chat.maxContextMessages).map(({ role, content }) => ({ role, content })),
-    { role: "user", content: prompt },
+    { role: "user", content: question },
   ];
-
   let answer = "";
   try {
-    for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      const tools = round < MAX_TOOL_ROUNDS ? toolDefinitions() : undefined;
-      const { text, toolCalls } = await streamCompletion(provider, {
+    for (let round = 1; round <= MAX_ROUNDS; round++) {
+      const { text, toolCalls } = await streamChat({
         messages,
-        tools,
+        tools: round < MAX_ROUNDS ? toolDefinitions() : undefined,
         signal,
         onText: (t) => {
           answer += t;
-          onText(t);
+          emit("token", { t });
         },
       });
       if (!toolCalls.length) break;
-
       messages.push({
         role: "assistant",
         content: text || null,
         tool_calls: toolCalls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.arguments || "{}" } })),
       });
-      for (const call of toolCalls) {
-        onStatus?.(toolStatusText(call.name));
-        let args = {};
-        try {
-          args = JSON.parse(call.arguments || "{}");
-        } catch {
-          // model produced invalid JSON; run with no args
-        }
-        const result = await runTool(call.name, args, ctx);
-        messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result).slice(0, 6000) });
-      }
+      const outcomes = await Promise.all(
+        toolCalls.map((call) => {
+          let args = {};
+          try {
+            args = JSON.parse(call.arguments || "{}");
+          } catch {
+            // invalid JSON from the model: run the tool without arguments
+          }
+          return runStep({ name: call.name, args, round, id: call.id }, ctx);
+        })
+      );
+      toolCalls.forEach((call, i) => messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(outcomes[i]).slice(0, TOOL_RESULT_CHARS) }));
     }
   } catch (err) {
-    if (signal?.aborted) return { text: answer, sources, photos };
-    console.warn("[chat] LLM failed, using fallback:", err.message);
-    if (!answer) return { text: await respondWithoutLlm(prompt, ctx), sources, photos };
+    if (signal?.aborted) return result(answer);
+    log.warn("language model failed; using the fallback", { err });
+    if (!answer) return result(await respondWithoutLlm(question, ctx, signal));
   }
-  return { text: answer, sources, photos };
+  return result(answer);
 }

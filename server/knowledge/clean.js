@@ -4,7 +4,10 @@
 
 // A heading like "3.4.4 Airfoil Behavior" or "2.10 Turbulence in Wakes and Wind Farms".
 const NUMBERED_HEADING = /^(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+([A-Z][^.!?]{2,90})$/;
-const BACK_MATTER = /^(references|bibliography|index|further reading|contents|list of symbols|acknowledg(e)?ments)$/i;
+const BACK_MATTER = /^(references|bibliography|index|further reading|contents|list of symbols|acknowledg(e)?ments|problems|exercises)$/i;
+
+/** End-of-chapter exercises ("2.10 A wind turbine with a rotor diameter of 55 m...") are not headings. */
+const isHeadingText = (text) => !/\d/.test(text) && text.split(/\s+/).length <= 10;
 
 // Ordinary prose: Latin and Greek letters, digits, whitespace, punctuation and common symbols.
 const ORDINARY = /[\p{Script=Latin}\p{Script=Greek}\d\s.,;:!?'"()\[\]{}%/+\-=*×·°–—’‘“”&<>^_~$#@|]/gu;
@@ -69,7 +72,7 @@ export function cleanPages(pages) {
         continue;
       }
       const numbered = line.match(NUMBERED_HEADING);
-      if (numbered && line.length <= 100) {
+      if (numbered && line.length <= 100 && isHeadingText(numbered[2])) {
         inBackMatter = false;
         kept.push({ text: line, heading: `${numbered[1]} ${numbered[2].trim()}` });
         continue;

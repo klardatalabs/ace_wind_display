@@ -10,6 +10,9 @@ const log = logger("postgres");
 // Return NUMERIC and BIGINT as JavaScript numbers: every value here fits comfortably.
 pg.types.setTypeParser(pg.types.builtins.NUMERIC, (v) => (v === null ? null : Number(v)));
 pg.types.setTypeParser(pg.types.builtins.INT8, (v) => (v === null ? null : Number(v)));
+// Calendar dates stay "YYYY-MM-DD" strings: turning them into Date objects would shift them
+// by the server's own time zone.
+pg.types.setTypeParser(pg.types.builtins.DATE, (v) => v);
 
 export const pool = new pg.Pool({
   host: config.postgres.host,
@@ -54,4 +57,6 @@ export async function postgresHealthy() {
   }
 }
 
-export const closePostgres = () => pool.end();
+let closing = null;
+/** Closes the pool (safe to call more than once). */
+export const closePostgres = () => (closing ??= pool.end());

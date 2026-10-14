@@ -37,15 +37,23 @@ export const redis = commands.client;
 export const subscriber = subscriptions.client;
 export const redisHealthy = () => commands.isHealthy();
 
-/** Connects both clients. Resolves even if Redis is down: the app degrades, it doesn't stop. */
-export async function connectRedis() {
-  await Promise.all(
+let connecting = null;
+let closing = null;
+
+/**
+ * Connects both clients (safe to call more than once). Resolves even if Redis is down: the
+ * app degrades, it doesn't stop.
+ */
+export function connectRedis() {
+  connecting ??= Promise.all(
     [redis, subscriber].map((c) => c.connect().catch((err) => log.warn("not reachable at startup; will keep retrying", { err })))
   );
+  return connecting;
 }
 
-export async function closeRedis() {
-  await Promise.all([redis, subscriber].map((c) => c.quit().catch(() => c.disconnect())));
+export function closeRedis() {
+  closing ??= Promise.all([redis, subscriber].map((c) => c.quit().catch(() => c.disconnect())));
+  return closing;
 }
 
 /** Prefixes a pub/sub channel name (ioredis only prefixes keys). */

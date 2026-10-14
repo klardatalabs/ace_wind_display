@@ -61,15 +61,18 @@ export const config = {
     staleAfterMs: env.int("WEATHER_STALE_MINUTES", 45) * 60_000,
   },
 
-  // Any OpenAI-compatible chat endpoint (OpenAI, Anthropic, Groq, a local server...).
+  // Any OpenAI-compatible chat endpoint (OpenAI, Groq, a local server...), through the OpenAI
+  // SDK. With only ANTHROPIC_API_KEY set, Claude is used through Anthropic's
+  // OpenAI-compatible endpoint.
   llm: {
-    baseUrl: env.string("LLM_BASE_URL"),
-    apiKey: env.string("LLM_API_KEY"),
-    model: env.string("LLM_MODEL"),
-    temperature: env.number("LLM_TEMPERATURE", 0.4),
-    maxTokens: env.int("LLM_MAX_TOKENS", 700),
+    baseUrl: env.string("LLM_BASE_URL") || (env.string("ANTHROPIC_API_KEY") ? "https://api.anthropic.com/v1/" : ""),
+    apiKey: env.string("LLM_API_KEY") || env.string("ANTHROPIC_API_KEY"),
+    model: env.string("LLM_MODEL") || (env.string("ANTHROPIC_API_KEY") ? "claude-haiku-5-5" : ""),
+    // Only sent when set: current Claude models reject non-default sampling parameters.
+    temperature: env.string("LLM_TEMPERATURE") ? env.number("LLM_TEMPERATURE") : undefined,
+    maxTokens: env.int("LLM_MAX_TOKENS", 1_500),
     // Abort when the provider sends nothing for this long (before or during the stream).
-    idleTimeoutMs: env.int("LLM_IDLE_TIMEOUT_MS", 20_000),
+    idleTimeoutMs: env.int("LLM_IDLE_TIMEOUT_MS", 45_000),
   },
 
   // Embeddings for the knowledge base: any OpenAI-compatible /v1/embeddings endpoint. The
@@ -116,6 +119,7 @@ export const config = {
 };
 
 const llmParts = [config.llm.baseUrl, config.llm.apiKey, config.llm.model];
+// Partial LLM_* settings are a mistake worth stopping for; ANTHROPIC_API_KEY alone fills all three.
 export const llmEnabled = llmParts.every(Boolean);
 export const embeddingsEnabled = Boolean(config.embeddings.baseUrl && config.embeddings.model);
 

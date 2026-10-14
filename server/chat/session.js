@@ -1,45 +1,39 @@
-// Anonymous, per-tab chat sessions.
-//
-// The server (never the client) mints each session id: 128 random bits plus an
-// HMAC signature. The phone keeps the token in sessionStorage, so it lives only
-// as long as that browser tab. A client cannot pick, guess or forge another
-// visitor's id, which is what keeps two people's conversations apart.
+// Anonymous, per-tab chat sessions. The server mints the session id (a random UUID) and
+// signs "<id>.<screen>" with HMAC-SHA256; the phone keeps the token in sessionStorage. A
+// forged or altered token is rejected without touching the database, and nobody can pick or
+// guess another visitor's session.
 
 import crypto from "node:crypto";
-import { config } from "../config/env.js";
+import { config } from "../config/index.js";
+import { createSession as storeSession } from "../db/repositories/chats.js";
+import { HttpError } from "../lib/errors.js";
+import { SCREEN_IDS } from "../../shared/screens.js";
 
-export const SCREENS = ["students", "community", "college", "story"];
+const sign = (payload) => crypto.createHmac("sha256", config.chat.sessionSecret).update(payload).digest("base64url");
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-function sign(payload) {
-  return crypto.createHmac("sha256", config.chat.sessionSecret).update(payload).digest("base64url");
+export async function createSession(requestedScreen) {
+  const screen = SCREEN_IDS.includes(requestedScreen) ? requestedScreen : "community";
+  const sessionId = crypto.randomUUID();
+  await storeSession(sessionId, screen);
+  const payload = `${sessionId}.${screen}`;
+  return { token: `${payload}.${sign(payload)}`, screen };
 }
 
-export function createSession(screen) {
-  const sid = crypto.randomBytes(16).toString("base64url");
-  const safeScreen = SCREENS.includes(screen) ? screen : "community";
-  const payload = `${sid}.${safeScreen}`;
-  return { sid, screen: safeScreen, token: `${payload}.${sign(payload)}` };
-}
-
-/** @returns {{ sid: string, screen: string } | null} */
+/** @returns {{ sessionId: string, screen: string } | null} */
 export function verifyToken(token) {
   if (typeof token !== "string" || token.length > 200) return null;
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  const [sid, screen, signature] = parts;
-  const expected = sign(`${sid}.${screen}`);
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-  if (!SCREENS.includes(screen)) return null;
-  return { sid, screen };
+  const [sessionId, screen, signature, extra] = token.split(".");
+  if (extra !== undefined || !UUID.test(sessionId ?? "") || !SCREEN_IDS.includes(screen) || !signature) return null;
+  const expected = Buffer.from(sign(`${sessionId}.${screen}`));
+  const given = Buffer.from(signature);
+  return given.length === expected.length && crypto.timingSafeEqual(given, expected) ? { sessionId, screen } : null;
 }
 
 /** Express middleware: requires `Authorization: Bearer <token>`. */
-export function requireChatSession(req, res, next) {
-  const header = req.get("authorization") || "";
-  const session = verifyToken(header.replace(/^Bearer\s+/i, ""));
-  if (!session) return res.status(401).json({ error: "session_invalid" });
+export function requireChatSession(req, _res, next) {
+  const session = verifyToken((req.get("authorization") ?? "").replace(/^Bearer\s+/i, ""));
+  if (!session) throw new HttpError(401, "Your chat session has expired. Please reload the page.", { code: "session_invalid" });
   req.chatSession = session;
   next();
 }
