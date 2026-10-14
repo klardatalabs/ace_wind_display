@@ -16,7 +16,9 @@
     "history:normalise": "node scripts/normalise_sqlite.mjs",
     "history:migrate": "node scripts/history-migrate.mjs",
     "history:sync": "node scripts/history-sync.mjs",
-    "history:zenodo": "node scripts/history-zenodo.mjs"
+    "history:zenodo": "node scripts/history-zenodo.mjs",
+    "db:migrate": "node server/cli/migrate.js",
+    "knowledge": "node server/cli/knowledge.js"
   },
   "dependencies": {
     "drizzle-orm": "0.45.3",
