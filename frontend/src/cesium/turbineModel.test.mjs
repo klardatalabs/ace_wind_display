@@ -4,6 +4,11 @@ import * as Cesium from "cesium";
 import { SITE_COORDS } from "./siteConfig.js";
 import { turbineModelMatrix } from "./turbineModel.js";
 
+test("default site is the mapped ACE foundation, not the nearby land", () => {
+  assert.equal(SITE_COORDS.lat, 51.5378881);
+  assert.equal(SITE_COORDS.lon, -2.6740022);
+});
+
 test("turbine origin round-trips to the exact site coordinates and supplied ellipsoid height", () => {
   const matrix = turbineModelMatrix({ turbineHeadingDeg: 37, turbineScale: 1, turbineHeightOffsetM: 2.5 }, 18.25);
   const origin = Cesium.Matrix4.getTranslation(matrix, new Cesium.Cartesian3());

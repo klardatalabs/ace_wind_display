@@ -27,6 +27,15 @@ is stopped and behind the `history-test` profile. Legacy stores remain for rollb
 
 ## Verified data and checks
 
+On 14 October, the missing homepage rotor and Cesium fixes from `codex/story-rail`
+were brought into `history-wip` and deployed. Docker now passes the configured
+map coordinates into the frontend build. The server uses the mapped ACE foundation
+at `51.5378881, -2.6740022`, replacing the incorrect fallback location. Browser checks
+confirmed that scrolling keeps the homepage rotor attached to its hub and the default
+site view shows one turbine at ACE. Polygon cutouts expose flat satellite terrain in
+small patches; devices without polygon clipping support use satellite terrain instead.
+The app alone was restarted; database, backup and unrelated services were not restarted.
+
 Initial ACE import: 11,962 complete readings, 21 July 2026 10:40 through
 12 October 2026 12:10 UTC, with no missing buckets. Collection continues.
 All three supplied Zenodo files matched the checksums published for release

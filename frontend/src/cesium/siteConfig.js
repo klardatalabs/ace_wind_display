@@ -1,8 +1,9 @@
 const env = import.meta.env ?? {};
 
 export const SITE_COORDS = {
-  lat: Number(env.VITE_SITE_LAT ?? 51.5388355),
-  lon: Number(env.VITE_SITE_LON ?? -2.6717359),
+  // ACE's mapped foundation: OpenStreetMap node 14249020525.
+  lat: Number(env.VITE_SITE_LAT || 51.5378881),
+  lon: Number(env.VITE_SITE_LON || -2.6740022),
 };
 
 export const TURBINE_MODEL_URL = "/models/ace-turbine.glb";

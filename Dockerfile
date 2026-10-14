@@ -6,6 +6,8 @@ COPY frontend ./frontend
 COPY shared ./shared
 ARG VITE_CESIUM_ION_TOKEN
 ARG VITE_GOOGLE_MAP_TILES_API_KEY
+ARG VITE_SITE_LAT
+ARG VITE_SITE_LON
 RUN npm --prefix frontend run build
 
 FROM node:24.18.1-bookworm-slim AS dependencies
