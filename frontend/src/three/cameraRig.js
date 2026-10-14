@@ -174,9 +174,16 @@ export class CameraRig {
       this.camera.lookAt(this.target);
       return;
     }
-    const sway = inside ? 0.02 : 0.05 * this.swayAmount;
+    const sway = inside ? 0.01 : 0.02 * this.swayAmount;
+    // The camera keeps the turbine facing it by following the nacelle, but the live wind
+    // direction is noisy: shifts under ~10° are ignored and bigger ones are followed slowly,
+    // so the whole view never swings back and forth with the data.
+    const nacelle = this.getYaw();
+    if (this.viewYaw === undefined) this.viewYaw = nacelle;
+    const off = Math.atan2(Math.sin(nacelle - this.viewYaw), Math.cos(nacelle - this.viewYaw));
+    if (Math.abs(off) > 0.17) this.viewYaw += off * Math.min(1, dt * 0.12);
     // Walking keeps the eye on the clear aisle; drag changes the look direction.
-    const yaw = this.getYaw() + (this.walk ? 0 : Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04);
+    const yaw = this.viewYaw + (this.walk ? 0 : Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04);
 
     if (this.walk) {
       // first person: follow the path, with a slow drift back to centre after looking around
@@ -185,7 +192,7 @@ export class CameraRig {
         this.walk.lookPitch *= 1 - Math.min(1, dt * 0.8);
       }
       walkAt(this.walk.s, this._eye, this._look);
-      const bob = Math.sin(this.walk.s * 420) * 0.025; // rung by rung
+      const bob = Math.sin(this.walk.s * 420) * 0.008; // rung by rung, barely felt
       this._eye.y += bob;
       this._look.sub(this._eye);
       this._look.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.walk.lookYaw);
@@ -211,7 +218,7 @@ export class CameraRig {
     this._world.y = Math.max(this._world.y, inside ? this._world.y : 1.5);
 
     this._world.applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
-    this._world.y += Math.sin(this.time * 0.17) * (inside ? 0.05 : 0.8) + this.parallax.y * (inside ? 0.1 : 3);
+    this._world.y += Math.sin(this.time * 0.17) * (inside ? 0.03 : 0.3) + this.parallax.y * (inside ? 0.1 : 3);
     this._worldTarget.copy(this.target).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
     this.camera.position.copy(this._world);
     this.camera.lookAt(this._worldTarget);

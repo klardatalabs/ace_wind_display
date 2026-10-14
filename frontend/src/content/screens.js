@@ -6,7 +6,8 @@
 // blade tip, the nacelle, the homes) instead of sitting in cards. `d` is the live data from
 // pages/screens/useScreenData.js.
 
-import { formatInt, formatEnergy, compassPoint } from "../lib/format.js";
+import { formatInt, compassPoint } from "../lib/format.js";
+import { STORY_CHAPTERS } from "@shared/stories.js";
 
 const mph = (ms) => ms * 2.23694;
 
@@ -42,7 +43,28 @@ export const WALK_CAPTIONS = {
   machine: { title: "The machine room", text: "You are 90 m up, inside the nacelle. The ring generator is right in front of you." },
 };
 
-const day = { lapse: [5, 22, 18] };
+// The five chapters every hoarding screen plays, in the same order with the same camera
+// moves; each screen speaks them in its own voice (`copy` below):
+//   hello   who the turbine is, in the 3D place
+//   now     the live, real-world view (the same Google 3D scene as the live visualisation)
+//   walk    "Go inside": the shared tour from the door up the tower to the machine room
+//   day     a day here in twenty seconds, each hour told from what the turbine really did
+//   ask     the invitation to scan the QR code and chat
+const CHAPTERS = {
+  hello: { id: "hello", label: "Hello", seconds: 12 },
+  now: { id: "now", label: "Right now", seconds: 16, stage: { action: "hero" }, live: true },
+  walk: { id: "walk", label: "Go inside", seconds: 50, stage: { action: "walk_start", value: 44 }, walk: true },
+  day: { id: "day", label: "A day here", seconds: 24, stage: { action: "overview", lapse: [5, 22, 21] }, day: true },
+  ask: { id: "ask", label: "Ask me", seconds: 14, stage: { action: "hero" }, ask: true },
+};
+
+/**
+ * One screen's story: the shared chapters with this screen's tags, extras and words.
+ * `copy` holds hand-written variants; the screen shows the next one each time round, mixed
+ * with fresh ones from the server when it has them. "now" has separate words for when the
+ * turbine is working and when it's becalmed.
+ */
+const story = (per) => STORY_CHAPTERS.map((id) => ({ ...CHAPTERS[id], ...per[id], stage: { ...CHAPTERS[id].stage, ...per[id]?.stage } }));
 
 export const SCREENS = {
   students: {
@@ -51,78 +73,45 @@ export const SCREENS = {
     theme: "realistic",
     askLabel: "Ask Ace anything!",
     askHint: "Point your phone camera here",
-    chapters: [
-      {
-        id: "hello",
-        label: "Hello",
-        seconds: 14,
+    chapters: story({
+      hello: {
         stage: { action: "hero", annotations: ["height", "bigben"] },
         tags: ["height", "bigben"],
-        eyebrow: "Hi there!",
-        line: () => "I'm Ace, the wind turbine on your doorstep.",
-        sub: () => "I'm taller than Big Ben, and I belong to the people of Lawrence Weston.",
+        copy: [
+          { eyebrow: "Hi there!", line: "I'm Ace, the giant on your doorstep.", sub: "I'm taller than Big Ben, and I belong to the people of Lawrence Weston." },
+          { eyebrow: "Look up!", line: "Taller than Big Ben. Powered by wind.", sub: "From the ground to the tip of my blade is {tipHeight}. That's about 34 double-decker buses stacked up!" },
+          { eyebrow: "Meet Ace", line: "A wind turbine that belongs to a whole town.", sub: "People here built me together, and what I earn helps the neighbourhood." },
+        ],
       },
-      {
-        id: "blades",
-        label: "Blades",
-        seconds: 13,
-        stage: { action: "spin_blades" },
-        tags: ["tip", "rpm"],
-        eyebrow: "Zoom!",
-        line: (d) => (d.tipMph > 1 ? `The tips of my blades are moving at ${formatInt(d.tipMph)} mph.` : "My blades are resting. No wind, no spin."),
-        sub: () => "Each blade is about 56 m long, longer than two blue whales end to end.",
+      now: {
+        copy: {
+          working: [
+            { eyebrow: "Zoom!", line: "My blade tips are flying round at {tip}.", sub: "Each blade is {bladeLength} long, longer than two blue whales nose to tail." },
+            { eyebrow: "Feel that wind?", line: "A {wind} wind is spinning me right now.", sub: "It's blowing from the {windFrom}. Watch the streaks: that's the air pushing my blades round." },
+            { eyebrow: "Power up!", line: "I'm making {power} of electricity right now.", sub: "That's enough for {homes} homes. Every turn of my blades counts." },
+          ],
+          calm: [
+            { eyebrow: "Shhh…", line: "No wind right now, so I'm having a rest.", sub: "I need a breeze of about six miles an hour to start turning. I'll be ready when it comes." },
+            { eyebrow: "Waiting for wind", line: "Even giants have to wait sometimes.", sub: "My blades turn to face the wind as soon as it picks up." },
+            { eyebrow: "Quiet day", line: "The air is still, so my blades are still.", sub: "Wind comes and goes. That's why lots of turbines share the job across the country." },
+          ],
+        },
       },
-      {
-        id: "climb",
-        label: "Climb in!",
-        seconds: 50,
-        stage: { action: "walk_start", value: 44 },
-        walk: true,
-        eyebrow: "Let's go inside",
-        line: () => "Come on, I'll take you up to the top.",
-        sub: () => "It's like climbing thirty floors. Engineers do it with a harness and a lift.",
+      walk: {
+        copy: [
+          { eyebrow: "Let's go inside", line: "Come on, I'll take you up to the top.", sub: "It's like climbing thirty floors. Engineers do it with a harness and a lift." },
+          { eyebrow: "Adventure time", line: "Want to see what's inside me?", sub: "Through the door, up the ladders, all the way to my machine room, {hubHeight} up." },
+          { eyebrow: "Climb with me", line: "There's a secret room at the top of my tower.", sub: "Hard hats on! We're going all the way up to where the magic happens." },
+        ],
       },
-      {
-        id: "machine",
-        label: "Magnets",
-        seconds: 15,
-        stage: { action: "look_inside" },
-        eyebrow: "No gearbox!",
-        line: () => "My blades turn a giant ring of magnets.",
-        sub: () => "Magnets sweeping past copper coils push electricity along the wires.",
-        tags: ["yaw", "power"],
+      ask: {
+        copy: [
+          { eyebrow: "Your turn!", line: "Got a question? Ask me anything!", sub: "Scan the code with a phone. I'll answer, and I might show you pictures too." },
+          { eyebrow: "Ask Ace", line: "What do you want to know about me?", sub: "How fast? How tall? What happens in a storm? Scan the code and ask." },
+          { eyebrow: "Chat with me", line: "I know my science from real books.", sub: "Scan the code to ask. Nothing you type shows up on this screen." },
+        ],
       },
-      {
-        id: "homes",
-        label: "Homes",
-        seconds: 15,
-        stage: { action: "close_inside", annotations: [] },
-        tags: ["homes", "today"],
-        viz: "homes",
-        eyebrow: "Power to the people",
-        line: (d) => (d.homes > 0 ? `Right now I'm powering ${formatInt(d.homes)} homes.` : "I'm saving up for the next gust."),
-        sub: (d) => `So far today I've made enough electricity to boil ${formatInt(d.cupsOfTea)} cups of tea.`,
-      },
-      {
-        id: "day",
-        label: "A day here",
-        seconds: 20,
-        stage: { action: "overview", ...day },
-        eyebrow: "One day, quickly",
-        line: () => "The sun comes up, the town wakes up, and I keep turning.",
-        sub: () => "This is Lawrence Weston. The sky you see is the real sky over Bristol.",
-      },
-      {
-        id: "ask",
-        label: "Ask me",
-        seconds: 13,
-        stage: { action: "hero" },
-        eyebrow: "Your turn",
-        line: () => "Scan the code and ask me anything.",
-        sub: () => "Tap anything you can see on this screen and I'll tell you about it.",
-        tags: ["power"],
-      },
-    ],
+    }),
   },
 
   community: {
@@ -133,172 +122,96 @@ export const SCREENS = {
     askHint: "Scan with your phone camera. No app, no login.",
     // The real Lawrence Weston scan around the turbine, in place of the generated scenery.
     scan: true,
-    chapters: [
-      {
-        id: "ours",
-        label: "Ours",
-        seconds: 15,
-        stage: { action: "overview" },
+    chapters: story({
+      hello: {
+        stage: { action: "aerial" },
         tags: ["homes"],
         viz: "homes",
-        eyebrow: "Lawrence Weston",
-        line: () => "Our turbine. Our power.",
-        sub: () => "Set up by residents through Ambition Community Energy. What it earns goes back into the neighbourhood.",
+        copy: [
+          { eyebrow: "Lawrence Weston", line: "Our turbine. Our power.", sub: "Set up by residents through Ambition Community Energy. What it earns goes back into the neighbourhood." },
+          { eyebrow: "Built by neighbours", line: "The tallest thing in Bristol belongs to us.", sub: "Residents dreamed it, fought for it and own it. At {tipHeight} it's one of England's tallest onshore turbines." },
+          { eyebrow: "Our place", line: "This is Lawrence Weston, as the turbine sees it.", sub: "A real scan of our streets, with the turbine standing over them." },
+        ],
       },
-      {
-        id: "now",
-        label: "Now",
-        seconds: 14,
-        stage: { action: "hero", wind: true },
-        tags: ["wind", "power", "rpm"],
-        eyebrow: "Right now",
-        line: (d) => (d.powerKw > 0 ? `Making ${d.power.value} ${d.power.unit} of clean electricity.` : "Resting until the wind picks up."),
-        sub: (d) => `Wind ${d.windSpeed.toFixed(1)} m/s from the ${compassPoint(d.windDir)}. The rotor is turning at ${d.rotorRpm.toFixed(1)} rpm.`,
+      now: {
+        copy: {
+          working: [
+            { eyebrow: "Right now", line: "Making {power} of clean electricity.", sub: "A {wind} wind from the {windFrom}. Enough power for {homes} homes, right now." },
+            { eyebrow: "Live", line: "Enough for {homes} homes, this very minute.", sub: "That's {share} of full power, from wind blowing in off the Severn." },
+            { eyebrow: "On the job", line: "The wind is working for Lawrence Weston.", sub: "Making {power} right now, with the rotor turning at {rpm}." },
+          ],
+          calm: [
+            { eyebrow: "Right now", line: "Resting until the wind picks up.", sub: "Still air today. The turbine turns itself into the wind as soon as there's enough to use." },
+            { eyebrow: "A quiet spell", line: "No wind, no power. It'll be back.", sub: "Across the year the wind here does the work. Calm days are part of the deal." },
+            { eyebrow: "Waiting", line: "The blades are still, but the job isn't over.", sub: "So far it has made {lifetime} for the area since spring 2023." },
+          ],
+        },
       },
-      {
-        id: "today",
-        label: "Today",
-        seconds: 14,
-        stage: { action: "blades" },
-        tags: ["today"],
-        eyebrow: "So far today",
-        line: (d) => `${d.today.value} ${d.today.unit} generated since midnight.`,
-        sub: (d) => `About ${formatInt(d.co2Kg)} kg of CO₂ kept out of the air. A tree takes a year to soak up ${(d.co2Kg / Math.max(1, d.trees)).toFixed(0)} kg.`,
+      walk: {
+        copy: [
+          { eyebrow: "Step inside", line: "What's up there, high above the estate?", sub: "A ladder, a few platforms, and a machine room the size of a small flat." },
+          { eyebrow: "Behind the door", line: "Few people ever see inside. Come and look.", sub: "Up through the tower to the machine room, {hubHeight} above our streets." },
+          { eyebrow: "The climb", line: "Engineers make this climb to keep it turning.", sub: "There's a service lift, but the ladder is always there too." },
+        ],
       },
-      {
-        id: "climb",
-        label: "Inside",
-        seconds: 50,
-        stage: { action: "walk_start", value: 44 },
-        walk: true,
-        eyebrow: "Step inside",
-        line: () => "What's up there, 90 m above the estate?",
-        sub: () => "A ladder, a few platforms, and a machine room the size of a small flat.",
+      ask: {
+        copy: [
+          { eyebrow: "Got a question?", line: "Scan to chat with the turbine.", sub: "Your chat stays on your phone. Nothing you type appears on this screen." },
+          { eyebrow: "Ask the turbine", line: "Where does the money go? Ask it.", sub: "It knows the live figures, the history and the story of the project." },
+          { eyebrow: "Your turbine, your questions", line: "Curious what it made this week?", sub: "Scan the code and ask. No app, no login." },
+        ],
       },
-      {
-        id: "week",
-        label: "This week",
-        seconds: 15,
-        stage: { action: "close_inside", annotations: [] },
-        tags: ["homes", "today"],
-        viz: "homes",
-        eyebrow: "The last 7 days",
-        line: (d) => (d.weekKwh > 0 ? `${formatEnergy(d.weekKwh).value} ${formatEnergy(d.weekKwh).unit} this week.` : "Every kilowatt-hour counts."),
-        sub: (d) => (d.weekKwh > 0 ? `Enough for ${formatInt(d.weekKwh / 7 / 8.4)} homes' daily electricity, every day this week.` : "Weekly figures appear once the history has synced."),
-      },
-      {
-        id: "lifetime",
-        label: "Since 2023",
-        seconds: 14,
-        stage: { action: "aerial" },
-        tags: ["lifetime"],
-        eyebrow: "Since spring 2023",
-        line: (d) => `${d.lifetime.value} ${d.lifetime.unit} of local, clean power.`,
-        sub: () => "Every unit made here is one that didn't have to come from gas.",
-      },
-      {
-        id: "day",
-        label: "A day here",
-        seconds: 20,
-        stage: { action: "overview", ...day },
-        eyebrow: "A day at Lawrence Weston",
-        line: () => "From first light to the lights coming on.",
-        sub: () => "This is the sky over Bristol, as it is today.",
-      },
-      {
-        id: "ask",
-        label: "Ask",
-        seconds: 13,
-        stage: { action: "hero" },
-        tags: ["power"],
-        eyebrow: "Got a question?",
-        line: () => "Scan to chat with the turbine.",
-        sub: () => "Your chat stays on your phone. Nothing you type appears on this screen.",
-      },
-    ],
+    }),
   },
 
   college: {
     key: "college",
     name: "College",
-    theme: "realistic",
+    // An X-ray look: the drawing office's cyan lines on navy, so the structure shows through.
+    theme: "blueprint",
     askLabel: "Query Ace",
     askHint: "Scan to ask about the data, the physics or the engineering",
-    chapters: [
-      {
-        id: "spec",
-        label: "Spec",
-        seconds: 15,
+    chapters: story({
+      hello: {
         stage: { action: "overview", annotations: ["height", "rotor"] },
         tags: ["height", "rotor"],
         panel: "spec",
-        eyebrow: "Enercon E-115 EP3",
-        line: () => "4.2 MW, gearless, direct drive.",
-        sub: () => "Hub ≈ 92 m, tip 150 m. Cut-in 2.5 m/s, rated 12.5 m/s, storm control above 28 m/s.",
+        copy: [
+          { eyebrow: "Enercon E-115 EP3", line: "Gearless, direct drive, {rated}.", sub: "Hub at {hubHeight}, tip at {tipHeight}. Cut-in 2.5 m/s, rated 12.5 m/s, storm control above 28 m/s." },
+          { eyebrow: "The machine", line: "One rotor, one ring generator, no gearbox.", sub: "Fewer moving parts means less to wear out: the rotor drives the generator directly." },
+          { eyebrow: "Structure", line: "A {tipHeight} machine on a concrete-and-steel tower.", sub: "Concrete segments below, steel above. Every metre of height reaches steadier, faster wind." },
+        ],
       },
-      {
-        id: "curve",
-        label: "Power curve",
-        seconds: 17,
-        stage: { action: "blades", wind: true },
-        tags: ["wind", "curve"],
+      now: {
         panel: "curve",
-        eyebrow: "P ∝ v³ until rated",
-        line: (d) => `At ${d.windSpeed.toFixed(1)} m/s it is making ${formatInt(d.powerKw)} kW.`,
-        sub: (d) => `The reference curve gives ${formatInt(d.theoreticalKw)} kW at this wind. Capacity utilisation now: ${d.utilisation.toFixed(0)}%.`,
+        copy: {
+          working: [
+            { eyebrow: "Power ∝ v³", line: "At {wind} it's producing {power}.", sub: "Wind power rises with the cube of speed, until the controller caps output at {rated}." },
+            { eyebrow: "Live telemetry", line: "Running at {share} of rated power.", sub: "Rotor at {rpm}, tips at {tip}. Pitch and speed control keep the blades near their best angle." },
+            { eyebrow: "Tip-speed ratio", line: "Blade tips at {tip}, far faster than the wind.", sub: "Variable speed holds the tip-speed ratio near its optimum, so the rotor extracts as much as it can." },
+          ],
+          calm: [
+            { eyebrow: "Below cut-in", line: "Not enough wind to make useful power.", sub: "Under about two and a half metres per second, losses outweigh output, so the rotor idles." },
+            { eyebrow: "Idling", line: "The rotor waits for the cut-in speed.", sub: "Yaw drives keep the nacelle facing the wind so it can start the moment it's worth it." },
+            { eyebrow: "Variability", line: "Calm air is why the grid needs a mix.", sub: "Wind output varies hour to hour; storage, interconnectors and other generation fill the gaps." },
+          ],
+        },
       },
-      {
-        id: "rotor",
-        label: "Rotor",
-        seconds: 14,
-        stage: { action: "face", annotations: ["rotor"] },
-        tags: ["tsr", "rpm"],
-        eyebrow: "Tip-speed ratio",
-        line: (d) => `λ = ${d.tsr.toFixed(1)} at ${d.rotorRpm.toFixed(1)} rpm.`,
-        sub: (d) => `Tip speed ${d.tipMs.toFixed(0)} m/s. Variable speed keeps λ near its optimum so the blades extract as much as they can.`,
+      walk: {
+        copy: [
+          { eyebrow: "Tower and access", line: "Ladder, service lift, cable loop.", sub: "Power cables hang in a loop so the nacelle can yaw. Converters and the transformer sit at the base." },
+          { eyebrow: "Field trip", line: "Follow a technician's route to the nacelle.", sub: "Fall-arrest on the ladder, rest platforms on the way, and a hatch into the machine room." },
+          { eyebrow: "Inside the tower", line: "The tower is also a cable duct and a lift shaft.", sub: "It carries the full power down to the converter cabinets, {hubHeight} below the hub." },
+        ],
       },
-      {
-        id: "generator",
-        label: "Generator",
-        seconds: 17,
-        stage: { action: "look_inside" },
-        tags: ["yaw", "power"],
-        eyebrow: "Section cutaway",
-        line: () => "An annular ring generator, with no gearbox.",
-        sub: () => "Rotor and stator ring at blade speed. A full-power converter decouples the generator from the 50 Hz grid; yaw drives follow the wind.",
+      ask: {
+        copy: [
+          { eyebrow: "Live tools + textbooks", line: "Query Ace about the physics or the data.", sub: "It reads the live telemetry, wind-energy textbooks and the web, and cites what it used." },
+          { eyebrow: "Open data", line: "Ask for this week's capacity factor.", sub: "Answers come from the live feed, the SCADA history or the textbooks, never a guess." },
+          { eyebrow: "Go deeper", line: "Why is there no gearbox? Ask.", sub: "Scan the code for answers grounded in the engineering." },
+        ],
       },
-      {
-        id: "climb",
-        label: "Tower",
-        seconds: 50,
-        stage: { action: "walk_start", value: 44 },
-        walk: true,
-        eyebrow: "Tower and access",
-        line: () => "Ladder, service lift, cable loop.",
-        sub: () => "Power cables hang in a loop so the nacelle can yaw. Converters and the transformer sit at the base.",
-      },
-      {
-        id: "records",
-        label: "Records",
-        seconds: 15,
-        stage: { action: "close_inside", annotations: [] },
-        tags: ["lifetime"],
-        panel: "daily",
-        eyebrow: "From the open dataset",
-        line: (d) => (d.capacityFactor > 0 ? `Lifetime capacity factor ≈ ${d.capacityFactor.toFixed(1)}%.` : "Open data, CC-BY-4.0."),
-        sub: () => "Every 10-minute SCADA interval is published on Zenodo. Grab the Parquet files from the Developers page.",
-      },
-      {
-        id: "ask",
-        label: "Query",
-        seconds: 13,
-        stage: { action: "hero" },
-        tags: ["power"],
-        eyebrow: "Live tools + web search",
-        line: () => "Ask Ace about the physics or the data.",
-        sub: () => "It reads the live telemetry, searches the web for facts, and can drive this screen.",
-      },
-    ],
+    }),
   },
 };
 

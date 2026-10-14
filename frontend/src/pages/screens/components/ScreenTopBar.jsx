@@ -14,7 +14,7 @@ function Clock({ className }) {
 
 export default function ScreenTopBar({ skin, screenName, mood, statusStale=false, screenKey }) {
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-6 p-[2.2vmin]">
+    <header data-keepout className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-6 p-[2.2vmin]">
       <div className="flex items-center gap-[1.2vmin]">
         <TurbineMark className="size-[clamp(36px,4.6vmin,96px)]" />
         <div className="leading-tight">

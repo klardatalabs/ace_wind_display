@@ -7,6 +7,7 @@ scan melts into the generated landscape around it, and drops everything beyond.
     python scripts/trim-scan.py [source] [output]
 
 Defaults: assets/source/lawrence-weston-site.splat -> frontend/public/scenes/lawrence-weston-site.splat
+(then run scripts/splat-to-spz.mjs to pack it as .spz for the site)
 The .splat layout is 32 bytes a splat: position (3 x f32), scale (3 x f32), RGBA (4 x u8),
 rotation (4 x u8). Radii are measured in world metres, so the transform must match
 frontend/src/three/splat.js.

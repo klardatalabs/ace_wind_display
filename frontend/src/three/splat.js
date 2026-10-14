@@ -1,13 +1,14 @@
 // The Lawrence Weston gaussian-splat scan, shown around the turbine on the community screen.
 // Spark is imported on demand, so the other screens never download it.
 //
-// lawrence-weston-site.splat is the real scan with its own blurry copy of this turbine cut
+// lawrence-weston-site.spz is the real scan with its own blurry copy of this turbine cut
 // out, trimmed by scripts/trim-scan.py to the sharp 900 m around the turbine (its outer
-// ring fades out so it melts into the generated landscape). The scan is y-down and in
-// arbitrary units, so it is flipped, scaled so its hub height matches the model (92 m),
-// and moved so the turbine's spot is the origin. trim-scan.py uses the same numbers.
+// ring fades out so it melts into the generated landscape) and packed by splat-to-spz.mjs.
+// The scan is y-down and in arbitrary units, so it is flipped, scaled so its hub height
+// matches the model (92 m), and moved so the turbine's spot is the origin. trim-scan.py
+// uses the same numbers.
 
-export const SPLAT_URL = "/scenes/lawrence-weston-site.splat";
+export const SPLAT_URL = "/scenes/lawrence-weston-site.spz";
 const SCALE = 1.2432;
 const POSITION = [-39.038, -0.497, -618.265];
 

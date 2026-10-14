@@ -10,7 +10,7 @@ import { splitShell } from "./splitShell.js";
 import { buildInteriors, buildWalkHatch } from "./interiors.js";
 import { LookInside } from "./lookInside.js";
 import { CameraRig, SHOTS } from "./cameraRig.js";
-import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS } from "./themes.js";
+import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS, BLUEPRINT } from "./themes.js";
 import { createSky } from "./sky.js";
 import { buildWorld } from "./world/index.js";
 import { loadSiteSplat } from "./splat.js";
@@ -229,18 +229,31 @@ export class TurbineScene {
       if (this.disposed) return splat.dispose?.();
       this.splat = splat;
       this.spark = spark;
-      // The scan has the neighbouring turbine in it already.
-      if (this.neighbour) this.neighbour.visible = false;
-      gsap.to(splat, {
-        opacity: 1,
-        duration: 3,
-        ease: "power1.inOut",
-        // The generated scenery under it steps aside once the scan mostly covers it.
-        onUpdate: () => this.world.setScan?.(splat.opacity > 0.6),
-      });
+      // Fades in from here on; #updateScan decides how much of it to show each frame.
     } catch (err) {
       // No scan is fine: the generated landscape stays.
       console.warn("[3d] the Lawrence Weston scan didn't load", err);
+    }
+  }
+
+  /**
+   * The real scan stays round the turbine on every shot (softer close to the ground, but
+   * real), and steps aside only while the turbine is opened up to look inside. Whichever is
+   * showing, the generated scenery or the scan, the other steps aside.
+   */
+  #updateScan(dt) {
+    const splat = this.splat;
+    if (!splat) return;
+    const want = this.theme === "realistic" && (this.lookInside?.u ?? 0) < 0.2 ? 1 : 0;
+    splat.opacity += (want - splat.opacity) * (1 - Math.exp(-dt * 1.6));
+    if (Math.abs(want - splat.opacity) < 0.005) splat.opacity = want;
+    splat.visible = splat.opacity > 0.01;
+    const scan = splat.opacity > 0.6;
+    if (scan !== this.scanShown) {
+      this.scanShown = scan;
+      this.world.setScan?.(scan);
+      // The scan has the neighbouring turbine in it already.
+      if (this.neighbour) this.neighbour.visible = !scan;
     }
   }
 
@@ -381,6 +394,7 @@ export class TurbineScene {
       if (theme === "blueprint" && plain) addEdges(mesh);
     }
 
+    this.setXray?.(theme === "blueprint");
     this.lookInside?.setTheme(theme);
     this.lookInside?.rebind();
     this.walkHatch?.(Boolean(this.rig.walk));
@@ -717,10 +731,35 @@ export class TurbineScene {
     this.tagEls = map;
   }
 
+  /**
+   * Card sizes and the screen areas cards must not cover (captions, panels, the QR...:
+   * anything marked data-keepout), in canvas pixels. Layout reads are slow, so this runs
+   * every few frames, before any of the frame's writes.
+   */
+  #measureTagLayout() {
+    const origin = this.canvas.getBoundingClientRect();
+    this.tagSizes = new Map();
+    for (const [id, el] of this.tagEls) {
+      const card = el.firstElementChild?.firstElementChild;
+      if (card) this.tagSizes.set(id, { w: card.offsetWidth, h: card.offsetHeight });
+    }
+    this.keepouts = [...document.querySelectorAll("[data-keepout]")]
+      .map((node) => node.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.height > 0)
+      .map((r) => ({ x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height }));
+  }
+
   #updateTags() {
     if (!this.tagEls.size || !this.size) return;
+    this.tagFrame = (this.tagFrame ?? 0) + 1;
+    if (this.tagFrame % 10 === 1 || !this.tagSizes) this.#measureTagLayout();
     const v = new THREE.Vector3();
     const shown = new Set();
+    // Cards hang above their anchor point. One that would cover the story's text or another
+    // card (earlier tags win) fades out until there's room, with a little slack so it
+    // doesn't flicker at the edge.
+    const placed = [];
+    const overlaps = (a, b, pad) => a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad;
     for (const def of this.tagDefs) {
       const el = this.tagEls.get(def.id);
       const obj = this.anchors[def.anchor];
@@ -729,9 +768,18 @@ export class TurbineScene {
       obj.getWorldPosition(v);
       const dist = v.distanceTo(this.camera.position);
       v.project(this.camera);
-      const visible = v.z < 1 && Math.abs(v.x) < 1.02 && Math.abs(v.y) < 1.02 && dist > 3 && !this.rig.walk;
+      let visible = v.z < 1 && Math.abs(v.x) < 1.02 && Math.abs(v.y) < 1.02 && dist > 3 && !this.rig.walk;
+      const x = (v.x * 0.5 + 0.5) * this.size.w;
+      const y = (-v.y * 0.5 + 0.5) * this.size.h;
+      const size = this.tagSizes.get(def.id);
+      if (visible && size) {
+        const box = { x: x - size.w / 2, y: y - size.h, w: size.w, h: size.h };
+        const pad = el.dataset.on === "1" ? 0 : 16;
+        if ([...this.keepouts, ...placed].some((r) => overlaps(box, r, pad))) visible = false;
+        else placed.push(box);
+      }
       el.dataset.on = visible ? "1" : "0";
-      if (visible) el.style.transform = `translate3d(${((v.x * 0.5 + 0.5) * this.size.w).toFixed(1)}px, ${((-v.y * 0.5 + 0.5) * this.size.h).toFixed(1)}px, 0)`;
+      if (visible) el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
     }
     // the marker for the tapped thing
     const marker = this.tagEls.get("__pick");
@@ -793,8 +841,42 @@ export class TurbineScene {
 
   // ---------------------------------------------------------------- frame
 
+  /** Skip drawing while something else covers the whole screen (the live real-world view). */
+  /**
+   * The blueprint look as an X-ray: no landscape or sky, just the line-drawn turbine on an
+   * engineering grid over deep navy, so its structure is the only thing to look at.
+   */
+  setXray(on) {
+    this.xray = on;
+    this.world.group.visible = !on;
+    this.sky.visible = !on;
+    if (on && !this.xrayGrid) {
+      const grid = new THREE.Group();
+      grid.name = "XrayGrid";
+      const major = new THREE.GridHelper(2400, 48, BLUEPRINT.lineDim, BLUEPRINT.lineDim);
+      const minor = new THREE.GridHelper(2400, 240, BLUEPRINT.solid, BLUEPRINT.solid);
+      for (const [g, opacity] of [[major, 0.55], [minor, 0.35]]) {
+        g.material.transparent = true;
+        g.material.opacity = opacity;
+        g.material.depthWrite = false;
+        grid.add(g);
+      }
+      minor.position.y = -0.05;
+      this.xrayGrid = grid;
+      this.scene.add(grid);
+    }
+    if (this.xrayGrid) this.xrayGrid.visible = on;
+    this.scene.background = on ? new THREE.Color(BLUEPRINT.paper) : null;
+    this.envDirty = true;
+  }
+
+  setPaused(paused) {
+    this.paused = paused;
+  }
+
   #tick() {
     this.timer.update();
+    if (this.paused) return;
     // Real elapsed time drives the rotor, so on a slow device it still turns at the true
     // rpm (it just looks choppier); camera motion uses a clamped step to avoid lurches.
     const realDt = Math.min(this.timer.getDelta(), 1);
@@ -826,12 +908,18 @@ export class TurbineScene {
       blinkAviationLight(this.aviationLights, t, this.theme);
       this.lookInside?.updatePlanes();
       if (this.rig.walk) this.walkHatch?.(true, this.rig.walk.s > 0.93);
-      if (this.splat) this.splat.visible = this.theme === "realistic";
+      this.#updateScan(realDt);
     }
 
     this.envClock += dt;
     if (this.envDirty || this.timeOverride || this.serverHour || this.envClock > 0.5) {
       this.#applyEnvironment(t);
+      // X-ray: the grid fades into the navy instead of the day's haze.
+      if (this.xray && this.scene.fog) {
+        this.scene.fog.color.set(BLUEPRINT.paper);
+        this.scene.fog.near = 300;
+        this.scene.fog.far = 1600;
+      }
       this.envDirty = false;
       this.envClock = 0;
     }
@@ -869,7 +957,6 @@ export class TurbineScene {
     this.resizeObserver?.disconnect();
     this.unbindPointer?.();
     gsap.killTweensOf(this);
-    if (this.splat) gsap.killTweensOf(this.splat);
     this.splat?.dispose?.();
     this.spark?.dispose?.();
     if (this.lookInside) gsap.killTweensOf(this.lookInside);

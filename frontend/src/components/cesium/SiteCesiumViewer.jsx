@@ -41,7 +41,9 @@ function turbineFootprint(lon, lat, radiusM = 62) {
   return new Cesium.ClippingPolygon({ positions: points });
 }
 
-export default function SiteCesiumViewer({ className = "", screenMode = false, controllerRef, onPick, onReady, active = true }) {
+// `hoarding`: an unattended big screen. No buttons, markers or panels (the screen has its
+// own), just the real place, the turbine and a slow orbit.
+export default function SiteCesiumViewer({ className = "", screenMode = false, hoarding = false, controllerRef, onPick, onReady, active = true }) {
   const rootRef = useRef(null);
   const cameraRef = useRef(null);
   const selectionRef = useRef(null);
@@ -175,6 +177,7 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
         stopEnvironment = applySiteEnvironment(viewer, tileset);
         camera = createSiteCamera(viewer, groundHeight, model);
         cameraRef.current = camera;
+        if (hoarding) camera.orbit(true);
         selection = createSiteSelection(viewer, model, { marker: () => markerRef.current, onSelect: selectTurbine });
         selectionRef.current = selection;
         if (controllerRef) controllerRef.current = {
@@ -219,13 +222,13 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
       if (viewer && !viewer.isDestroyed()) viewer.destroy();
       if (whiteShader && !whiteShader.isDestroyed()) whiteShader.destroy();
     };
-  }, [attempt, config, selectTurbine, screenMode, controllerRef]);
+  }, [attempt, config, selectTurbine, screenMode, hoarding, controllerRef]);
 
   return (
     <div className={`site-viewer relative overflow-hidden bg-moss-950 ${selected ? "has-selection" : ""} ${className}`} data-lenis-prevent>
       <div className="site-scene">
         <div ref={rootRef} className="absolute inset-0" aria-label="Interactive 3D location of the ACE wind turbine" />
-        {status === "ready" && !screenMode && (
+        {status === "ready" && !screenMode && !hoarding && (
           <>
             <ConditionsLine conditions={conditions} className="site-conditions" />
             <button ref={markerRef} type="button" className="site-turbine-marker" hidden={selected}
