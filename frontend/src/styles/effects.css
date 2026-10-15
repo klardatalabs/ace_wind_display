@@ -359,21 +359,6 @@
 @media (prefers-reduced-motion: reduce) { .ask-curve, .ask-dot { animation: none; } }
 
 /* Community journey ending (pages/screens/components/EveningAtHome.jsx). */
-@keyframes home-glow { 0%, 20% { opacity: 0; } 35% { opacity: 0.75; } 45% { opacity: 0.35; } 60%, 100% { opacity: 0.7; } }
-.home-glow { animation: home-glow 2.4s ease-out 0.4s both; }
-@keyframes home-window { 0% { fill: #1e293b; } 60% { fill: #1e293b; } 70% { fill: #fde68a; } 78% { fill: #92400e; } 100% { fill: #fde68a; } }
-.home-window { animation: home-window 0.8s steps(1, end) both; }
-@keyframes home-star { from { opacity: 0; } to { opacity: 0.9; } }
-.home-star { animation: home-star 1.2s ease-out both; }
-/* The electric car: drives in, eases to a stop, the cable goes in, power pulses along it. */
-@keyframes ev-car { from { transform: translateX(-240px); } to { transform: none; } }
-.ev-car { animation: ev-car 2.2s cubic-bezier(0.22, 0.9, 0.3, 1) 2.2s both; }
-@keyframes ev-cable { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-.ev-cable { stroke-dasharray: 1; animation: ev-cable 0.6s ease-out 4.5s both; }
-@keyframes ev-flow { from { stroke-dashoffset: 0; opacity: 1; } to { stroke-dashoffset: -16; opacity: 1; } }
-.ev-flow { opacity: 0; animation: ev-flow 0.5s linear 5.1s infinite; }
-@keyframes ev-bolt { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
-.ev-bolt { opacity: 0; animation: ev-bolt 1.2s ease-in-out 5.1s infinite; }
 @keyframes home-money { from { opacity: 0; transform: translateY(1.6vmin); } to { opacity: 1; transform: none; } }
 .home-money { animation: home-money 0.7s ease-out both; }
 @keyframes home-coin {
@@ -395,8 +380,7 @@
 .grid-in { animation: grid-in 0.5s ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-glow, .home-window, .home-star, .ev-car, .ev-cable, .home-money, .home-coin, .grid-flow, .grid-seg, .grid-in { animation: none; }
-  .ev-flow, .ev-bolt { animation: none; opacity: 1; }
+  .home-money, .home-coin, .grid-flow, .grid-seg, .grid-in { animation: none; }
 }
 
 /* Community: the homes grid lights up house by house (HomesGrid.jsx). */

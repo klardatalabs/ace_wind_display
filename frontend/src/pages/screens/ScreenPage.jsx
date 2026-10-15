@@ -186,12 +186,12 @@ function Hoarding({ screen }) {
   const chapter = tourBeat
     ? { ...story.chapter, ...tourChapter(tourBeat.beat, tourBeat.i) }
     : xrayId
-      ? { ...story.chapter, ...tourChapter(XRAY_COPY[xrayId], `xray-${xrayId}`) }
+      ? { ...story.chapter, ...tourChapter(XRAY_COPY[screen.key][xrayId], `xray-${xrayId}`) }
       : resolveChapter(story.chapter, story.loop, data, generated);
   const showQr = screen.rail || story.index === screen.chapters.length - 1;
   const captionChapter = story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
   const panel = chapter.panel;
-  const tagIds = useMemo(() => ((xrayId ? XRAY_COPY[xrayId].tags : story.chapter.tags) ?? []).filter((id) => TAGS[id]), [story.chapter, xrayId]);
+  const tagIds = useMemo(() => ((xrayId ? XRAY_COPY[screen.key][xrayId].tags : story.chapter.tags) ?? []).filter((id) => TAGS[id]), [story.chapter, xrayId, screen.key]);
   const tagDefs = useMemo(() => tagIds.map((id) => ({ id, anchor: TAGS[id].anchor })), [tagIds]);
   const walking = Boolean(walk);
   const showAce = Boolean(screen.mascot) && story.chapter.id === "hello" && !walking;
@@ -213,9 +213,8 @@ function Hoarding({ screen }) {
   // A day told over the real place: its clock follows the time-lapse.
   const elapsedS = story.progress * chapter.seconds;
   const liveHour = chapter.day && chapter.live ? Math.round(lapseHour(elapsedS) * 20) / 20 : null;
-  // The example chat sits on the left, as on the students screen, except where the
-  // community screen keeps it clear of its homes grid on the right.
-  const askSide = screen.key === "community" ? "right" : "left";
+  // The example chat sits on the left on every screen.
+  const askSide = "left";
   // With the chat on the left and the QR on the right, the QR card says it all: no caption,
   // so the turbine stays clear in the middle.
   const noCaption = chapter.ask && askSide === "left" && !screen.mascot;

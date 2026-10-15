@@ -30,9 +30,9 @@ export const SKINS = {
     card: "bg-moss-950/60 ring-1 ring-moss-300/25 backdrop-blur-xl shadow-[0_0_40px_rgb(119_192_154/0.12)]",
     pillTone: "light",
   },
-  // College: white text straight on the real scene (with a shadow, for any light), and
-  // cards like the students' screen, solid white with dark ink (the card* classes).
-  college: {
+  // Community and college: white text straight on the real scene (with a shadow, for any
+  // light), and cards like the students' screen, solid white with dark ink (card* classes).
+  cards: {
     dark: true,
     text: "text-white [text-shadow:0_1px_12px_rgb(0_0_0/0.7)]",
     muted: "text-white/85 [text-shadow:0_1px_12px_rgb(0_0_0/0.7)]",

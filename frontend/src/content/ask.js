@@ -12,7 +12,7 @@ export const ASK = {
     suggestions: ["How many homes are you powering right now?", "Who owns this turbine?", "Where does the money go?", "How much carbon did you save today?", "What was your best day ever?"],
   },
   college: {
-    title: "Query Ace",
+    title: "Ask Ace",
     greeting: "Ace here — Enercon E-115 EP3, 4.2 MW, direct drive. Ask about live telemetry, history, the power curve, or how the drivetrain works.",
     suggestions: ["What's my capacity factor this week?", "Explain the power curve", "Why is there no gearbox?", "Compare today with yesterday", "How is the open data licensed?"],
   },

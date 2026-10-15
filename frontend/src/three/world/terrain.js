@@ -4,7 +4,7 @@
 
 import * as THREE from "three";
 import { terrainHeight, GLSL_NOISE } from "./noise.js";
-import { buildLandCoverTexture, EXTENT, ROAD, TRACK, ZONES, LC } from "./layout.js";
+import { buildLandCoverTexture, EXTENT, MAP, ROAD, TRACK, ZONES, LC } from "./layout.js";
 
 const RINGS = 150;
 const SEGMENTS = 220;
@@ -66,6 +66,7 @@ const MAX_PTS = 12;
 const FRAGMENT_COMMON = /* glsl */ `
 uniform sampler2D uLandCover;
 uniform float uExtent;
+uniform float uMapSize;
 uniform float uTime;
 uniform vec2 uWind;
 uniform float uCloudShadow;
@@ -79,6 +80,10 @@ uniform int uTrackN;
 uniform vec4 uEstate;
 varying vec3 vWorld;
 ${GLSL_NOISE}
+vec3 wwClassColour(vec4 l){
+  int c = int(l.r * 255.0 + 0.5);
+  return mix(uColA[c], uColB[c], l.g);
+}
 float wwSegDist(vec2 p, vec2 a, vec2 b, out float along){
   vec2 ab = b - a; float t = clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0);
   along = t * length(ab);
@@ -90,12 +95,24 @@ const FRAGMENT_ALBEDO = /* glsl */ `
 vec2 wp = vWorld.xz;
 float camDist = length(vViewPosition);
 vec2 warp = (vec2(wwNoise(wp * 0.045), wwNoise(wp * 0.045 + 31.7)) - 0.5) * 16.0;
-vec4 lc = texture2D(uLandCover, (wp + warp) / uExtent + 0.5);
+// The land-cover map is ~5 m a pixel and its classes can't be filtered, so reading one pixel
+// gives stair-stepped borders. Instead, blend the colours of the four nearest pixels, with a
+// finer wobble so field edges and hedges wander like real ones.
+vec2 wobble = (vec2(wwNoise(wp * 0.31), wwNoise(wp * 0.31 + 17.0)) - 0.5) * 3.0;
+vec2 lcT = ((wp + warp + wobble) / uExtent + 0.5) * uMapSize - 0.5;
+vec2 lcI = floor(lcT);
+vec2 lcF = smoothstep(0.15, 0.85, fract(lcT));
+vec4 l00 = texture2D(uLandCover, (lcI + vec2(0.5, 0.5)) / uMapSize);
+vec4 l10 = texture2D(uLandCover, (lcI + vec2(1.5, 0.5)) / uMapSize);
+vec4 l01 = texture2D(uLandCover, (lcI + vec2(0.5, 1.5)) / uMapSize);
+vec4 l11 = texture2D(uLandCover, (lcI + vec2(1.5, 1.5)) / uMapSize);
+// The nearest pixel still decides each field's own patterns (rows, mowing, flowers).
+vec4 lc = lcF.y < 0.5 ? (lcF.x < 0.5 ? l00 : l10) : (lcF.x < 0.5 ? l01 : l11);
 int cls = int(lc.r * 255.0 + 0.5);
 float rnd = lc.g;
-float hedge = lc.b;
+float hedge = mix(mix(l00.b, l10.b, lcF.x), mix(l01.b, l11.b, lcF.x), lcF.y);
 
-vec3 albedo = mix(uColA[cls], uColB[cls], rnd);
+vec3 albedo = mix(mix(wwClassColour(l00), wwClassColour(l10), lcF.x), mix(wwClassColour(l01), wwClassColour(l11), lcF.x), lcF.y);
 // clumps and bare patches: darker tussocks, drier yellow-brown spots
 float clump = wwFbm(wp * 0.35 + 9.0);
 albedo = mix(albedo, albedo * vec3(1.12, 1.02, 0.6), smoothstep(0.62, 0.78, clump) * 0.55);
@@ -189,6 +206,7 @@ export function buildTerrain() {
   const uniforms = {
     uLandCover: { value: landCover },
     uExtent: { value: EXTENT },
+    uMapSize: { value: MAP },
     uTime: { value: 0 },
     uWind: { value: new THREE.Vector2(1, 0.4) },
     uCloudShadow: { value: 0.3 },

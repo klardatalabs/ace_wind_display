@@ -62,14 +62,28 @@ export const TAGS = {
  * is the model's illustration of the equipment, not an as-built survey.
  */
 export const XRAY_COPY = {
-  ground: { eyebrow: "X-ray · below ground", line: "22 piles, each 18 m long, hold it up.", sub: "The ground here is poor, so the concrete-and-steel foundation stands on piles, put in from September 2022. Their layout here is illustrative.", tags: ["xPiles", "xPad"] },
-  base: { eyebrow: "X-ray · ground level", line: "Where the power is made ready for the grid.", sub: "A full-power converter turns the generator's variable output into the grid's steady 50 Hz, and a transformer steps the voltage up for export.", tags: ["xConverter", "xTransformer"] },
-  lower: { eyebrow: "X-ray · the climb", line: "A ladder with fall arrest, the whole way up.", sub: "Technicians stay clipped to a safety rail as they climb, with platforms to rest and work on along the way.", tags: ["xLadder", "xPlatform"] },
-  middle: { eyebrow: "X-ray · inside the tower", line: "A 92 m tower, delivered in four sections.", sub: "It arrived by road in February 2023 and was stacked by a specialist crane. Inside: a service lift for people and tools, and the cables bringing the power down.", tags: ["xLift", "xCable"] },
-  top: { eyebrow: "X-ray · top of the tower", line: "The yaw system turns the whole nacelle.", sub: "Electric yaw drives act on a large bearing ring to keep the rotor facing the wind. A loop in the cables lets it turn without twisting them.", tags: ["xYaw", "xCableLoop"] },
-  nacelle: { eyebrow: "X-ray · the nacelle, about 92 m up", line: "A ring generator, and no gearbox.", sub: "The rotor turns the generator directly. On Enercon's EP3 machines it is separately excited: electromagnets, not permanent magnets, sweep past the copper stator windings.", tags: ["xGenerator", "xStator", "xSensors", "xCooling"] },
-  hub: { eyebrow: "X-ray · the rotor", line: "Three 56 m blades, each one pitched.", sub: "The hub turns each blade about its own axis to catch or spill the wind. Together they sweep a circle 115.7 m across.", tags: ["xHub", "xPitch", "xBladeRoot"] },
+  college: {
+    ground: { eyebrow: "X-ray · below ground", line: "22 piles, each 18 m long, hold it up.", sub: "The ground here is poor, so the concrete-and-steel foundation stands on piles, put in from September 2022. Their layout here is illustrative.", tags: ["xPiles", "xPad"] },
+    base: { eyebrow: "X-ray · ground level", line: "Where the power is made ready for the grid.", sub: "A full-power converter turns the generator's variable output into the grid's steady 50 Hz, and a transformer steps the voltage up for export.", tags: ["xConverter", "xTransformer"] },
+    lower: { eyebrow: "X-ray · the climb", line: "A ladder with fall arrest, the whole way up.", sub: "Technicians stay clipped to a safety rail as they climb, with platforms to rest and work on along the way.", tags: ["xLadder", "xPlatform"] },
+    middle: { eyebrow: "X-ray · inside the tower", line: "A 92 m tower, delivered in four sections.", sub: "It arrived by road in February 2023 and was stacked by a specialist crane. Inside: a service lift for people and tools, and the cables bringing the power down.", tags: ["xLift", "xCable"] },
+    top: { eyebrow: "X-ray · top of the tower", line: "The yaw system turns the whole nacelle.", sub: "Electric yaw drives act on a large bearing ring to keep the rotor facing the wind. A loop in the cables lets it turn without twisting them.", tags: ["xYaw", "xCableLoop"] },
+    nacelle: { eyebrow: "X-ray · the nacelle, about 92 m up", line: "A ring generator, and no gearbox.", sub: "The rotor turns the generator directly. On Enercon's EP3 machines it is separately excited: electromagnets, not permanent magnets, sweep past the copper stator windings.", tags: ["xGenerator", "xStator", "xSensors", "xCooling"] },
+    hub: { eyebrow: "X-ray · the rotor", line: "Three 56 m blades, each one pitched.", sub: "The hub turns each blade about its own axis to catch or spill the wind. Together they sweep a circle 115.7 m across.", tags: ["xHub", "xPitch", "xBladeRoot"] },
+  },
+  // Community: the same climb, told as the story of how it was built. Dates and figures
+  // are ACE's timeline (ambitioncommunityenergy.org/timeline).
+  community: {
+    ground: { eyebrow: "Inside our turbine · the ground", line: "It stands on 22 piles, each 18 m long.", sub: "The ground here is poor, so the base went down first, from September 2022. Knights Brown did the groundworks.", tags: ["xPiles", "xPad"] },
+    base: { eyebrow: "Inside our turbine · the door", line: "Where our power sets off for the grid.", sub: "Equipment at the base gets the electricity ready to export. It's sold to OVO Energy, under a deal signed in December 2022.", tags: ["xConverter", "xTransformer"] },
+    lower: { eyebrow: "Inside our turbine · the climb", line: "Engineers climb up here to keep it turning.", sub: "A ladder with a safety line runs all the way up, with platforms to rest on along the way.", tags: ["xLadder", "xPlatform"] },
+    middle: { eyebrow: "Inside our turbine · the tower", line: "It arrived by road in February 2023.", sub: "The blades came under police escort, the tower sections two days later, and a specialist crane stacked them up.", tags: ["xLift", "xCable"] },
+    top: { eyebrow: "Inside our turbine · the top", line: "The whole top turns to face the wind.", sub: "Motors turn it on a big bearing ring, so the blades always meet the wind head on.", tags: ["xYaw", "xCableLoop"] },
+    nacelle: { eyebrow: "Inside our turbine · the machine room", line: "No gearbox: the blades turn the generator.", sub: "Fewer parts to wear out. Enercon's crews fitted the tower, this machine room and the rotor in four days.", tags: ["xGenerator", "xStator", "xSensors", "xCooling"] },
+    hub: { eyebrow: "Inside our turbine · the blades", line: "Three 56 m blades, fitted in a week.", sub: "By May 2023, six years after two residents first talked about it, the turbine was fully running.", tags: ["xHub", "xPitch", "xBladeRoot"] },
+  },
 };
+
 
 /** What the walk says as you climb (keyed by WALK_STAGES ids in three/walk.js). */
 export const WALK_CAPTIONS = {
@@ -237,6 +251,9 @@ export const SCREENS = {
     key: "community",
     name: "Community",
     theme: "realistic",
+    // Cards like the other screens, the caption in one too (components/skins.js).
+    skin: "cards",
+    captionCard: true,
     askLabel: "Ask Ace",
     askHint: "Scan with your phone camera. No app, no login.",
     // The real Lawrence Weston scan around the turbine, in place of the generated scenery.
@@ -244,7 +261,7 @@ export const SCREENS = {
     // The scene also builds the energy journey, for the "Follow the power" chapter.
     tour: true,
     chapters: story({
-      power: { label: "Follow the power", seconds: TOUR_END_AT + TOUR_ENDING_SECONDS, stage: { value: { endAt: TOUR_END_AT } }, ending: "home" },
+      power: { label: "Follow the power", seconds: TOUR_END_AT + 16, stage: { value: { endAt: TOUR_END_AT, ending: "ev" } }, ending: "home" },
       hello: {
         stage: { action: "aerial" },
         tags: ["homes"],
@@ -269,12 +286,13 @@ export const SCREENS = {
           ],
         },
       },
+      // A see-through climb from the piles to the blades, told as the story of the build.
       walk: {
-        copy: [
-          { eyebrow: "Step inside", line: "What's up there, high above the estate?", sub: "A ladder, a few platforms, and a machine room the size of a small flat." },
-          { eyebrow: "Behind the door", line: "Few people ever see inside. Come and look.", sub: "Up through the tower to the machine room, {hubHeight} above our streets." },
-          { eyebrow: "The climb", line: "Engineers make this climb to keep it turning.", sub: "There's a service lift, but the ladder is always there too." },
-        ],
+        label: "Inside",
+        walk: false,
+        xray: true,
+        seconds: Math.ceil(XRAY_SECONDS) + 3,
+        stage: { action: "xray_climb" },
       },
       ask: {
         copy: [
@@ -294,11 +312,11 @@ export const SCREENS = {
     // The real place, like the community screen; only the climb inside turns to X-ray.
     theme: "realistic",
     // Cards like the students' screen, the caption in one too (components/skins.js).
-    skin: "college",
+    skin: "cards",
     captionCard: true,
     // The generated scenery, not the scan: up close the scan breaks into half-drawn trees,
     // and the real place has its own chapters here (the live map).
-    askLabel: "Query Ace",
+    askLabel: "Ask Ace",
     askHint: "Scan to ask about the data, the physics or the engineering",
     tour: true,
     chapters: story({
@@ -343,7 +361,7 @@ export const SCREENS = {
       },
       ask: {
         copy: [
-          { eyebrow: "Live tools + textbooks", line: "Query Ace about the physics or the data.", sub: "It reads the live telemetry, wind-energy textbooks and the web, and cites what it used." },
+          { eyebrow: "Live tools + textbooks", line: "Ask Ace about the physics or the data.", sub: "It reads the live telemetry, wind-energy textbooks and the web, and cites what it used." },
           { eyebrow: "Open data", line: "Ask for this week's capacity factor.", sub: "Answers come from the live feed, the SCADA history or the textbooks, never a guess." },
           { eyebrow: "Go deeper", line: "Why is there no gearbox? Ask.", sub: "Scan the code for answers grounded in the engineering." },
         ],

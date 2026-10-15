@@ -105,7 +105,7 @@ const QUESTIONS = {
   ],
 };
 
-const TITLES = { students: "Ask Ace", community: "Ask Ace", college: "Query Ace" };
+const TITLES = { students: "Ask Ace", community: "Ask Ace", college: "Ask Ace" };
 
 // One question per turn. Times are milliseconds into the turn.
 const TURN_MS = 9800;

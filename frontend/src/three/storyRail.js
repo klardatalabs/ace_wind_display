@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { chapterAt, chapterStart, railProgress, STORY_SECONDS } from "./storyTimeline.ts";
 import { buildStoryHome } from "./storyHome.js";
+import { buildEvScene, EV_SHOT } from "./evScene.js";
 
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 const up = new THREE.Vector3(0, 1, 0);
@@ -69,11 +70,15 @@ export class StoryRail {
   /**
    * Plays the journey from the start, as one chapter of another story. With `endAt`
    * (seconds) it stops there and holds the view, for a screen that ends the journey its
-   * own way.
+   * own way. With `ending: "ev"` (community) the view then moves to the street outside the
+   * home, where a neighbour plugs an electric car into a street charger (evScene.js).
    */
-  start({ endAt = null } = {}) {
+  start({ endAt = null, ending = null } = {}) {
     this.active = true;
     this.endAt = endAt;
+    this.ending = ending;
+    this.endingTime = 0;
+    if (ending === "ev") this.#ensureEv().reset();
     this.savedReturnAfter = this.scene.rig.returnAfter;
     this.scene.rig.returnAfter = 3;
     this.seek(0);
@@ -84,10 +89,73 @@ export class StoryRail {
     if (!this.active) return;
     this.active = false;
     this.endAt = null;
+    if (this.ev) this.ev.group.visible = this.evFeed.visible = this.evFeedGlow.visible = false;
+    if (this.dusk) {
+      this.dusk = false;
+      this.scene.timeLapseTween?.kill();
+      this.scene.setTimeOfDay(null);
+    }
     this.scene.rig.returnAfter = this.savedReturnAfter ?? this.scene.rig.returnAfter;
     this.#rest();
     Object.assign(this.scene.rig, { rail: false, railInside: false });
     this.scene.rig.jumpTo("overview");
+  }
+
+  /** The street-charger ending, built the first time it's needed, on the journey's home. */
+  #ensureEv() {
+    if (this.ev) return this.ev;
+    this.ev = buildEvScene();
+    this.ev.group.position.set(this.house.x, 0, this.house.z);
+    this.ev.group.rotation.y = this.house.rot;
+    this.scene.scene.add(this.ev.group);
+    // The power line down the street carries on to the charger.
+    const junction = this.scene.world.pylons.energyRoute[60];
+    const base = this.houseAt(this.ev.charger.x, 0.4, this.ev.charger.z);
+    const top = this.houseAt(this.ev.charger.x, 1.0, this.ev.charger.z - 0.16);
+    const curve = new THREE.CatmullRomCurve3([junction.clone(), v(junction.x, 0.4, junction.z), this.houseAt(this.ev.charger.x - 1, 0.4, -9.5), base, top]);
+    const material = this.cable.material.clone();
+    material.uniforms.uLength.value = curve.getLength();
+    material.uniforms.uYaw.value = 0;
+    material.uniforms.uOn.value = 1;
+    this.evFeed = new THREE.Mesh(new THREE.TubeGeometry(curve, 120, 0.16, 6, false), material);
+    this.evFeed.renderOrder = 20;
+    this.evFeedGlow = new THREE.Sprite(this.glows[0].material.clone());
+    this.evFeedGlow.renderOrder = 22;
+    this.evFeedGlow.scale.setScalar(1.6);
+    this.evFeed.visible = this.evFeedGlow.visible = false;
+    this.scene.scene.add(this.evFeed, this.evFeedGlow);
+    this.evFeedCurve = curve;
+    return this.ev;
+  }
+
+  /** The street-charger ending: the camera settles on the street and the scene plays. */
+  #playEv(dt) {
+    const first = this.endingTime === 0;
+    this.endingTime += dt;
+    const t = this.endingTime;
+    if (first) {
+      this.ev.group.visible = this.evFeed.visible = this.evFeedGlow.visible = true;
+      // Dusk falls, so the windows and lamps come on (unless it's dark already).
+      const hour = Number(new Date().toLocaleString("en-GB", { hour: "numeric", hour12: false, timeZone: "Europe/London" }));
+      if (hour >= 7 && hour < 18) {
+        this.dusk = true;
+        this.scene.timeLapse(hour, 19.6, 7);
+      }
+    }
+    this.ev.update(t, dt, this.scene.camera);
+    const k = THREE.MathUtils.smoothstep(t, 0, 2.6);
+    const look = this.ev.group.localToWorld(EV_SHOT.look.clone());
+    // Settle on the street, then push in slowly towards the car.
+    const eye = this.ev.group.localToWorld(EV_SHOT.eye.clone()).lerp(look, 0.1 * THREE.MathUtils.smoothstep(t, 3, 16));
+    this.eye.lerp(eye, k);
+    this.look.lerp(look, k);
+    const reach = THREE.MathUtils.smoothstep(t, 0.6, 4.2);
+    const length = this.evFeedCurve.getLength();
+    this.evFeed.material.uniforms.uFront.value = reach * length;
+    this.evFeed.material.uniforms.uTime.value = this.time + t;
+    this.evFeedCurve.getPointAt(Math.max(0.001, reach), this.evFeedGlow.position);
+    // The glow rides the line to the charger, then fades.
+    this.evFeedGlow.material.opacity = 1 - THREE.MathUtils.smoothstep(t, 4.2, 5.2);
   }
 
   /** Everything the journey shows, hidden; everything it hides, shown. */
@@ -326,6 +394,7 @@ export class StoryRail {
       this.look.lerp(time < 88 ? this.home.at(-0.2, 1.25, -1.9) : laptop, time < 88 ? 0.6 : THREE.MathUtils.smoothstep(time, 88, 91));
       if (time >= 88 && time < 90) this.look.lerp(socket, 1 - THREE.MathUtils.smoothstep(time, 88, 90));
     }
+    if (this.ending === "ev" && this.endAt != null && time >= this.endAt) this.#playEv(dt);
     scene.rig.setRailPose(this.eye, this.look, (time >= 11 && time < 40) || time >= 80);
     this.home.group.visible = time >= 79;
     scene.world.group.visible = scene.nodes.root.visible = time < 79;
@@ -339,7 +408,8 @@ export class StoryRail {
     this.group.visible = time < 78 || time >= 80;
     for (const branch of this.branches) {
       branch.mesh.visible = time >= 64 && time < 78;
-      branch.glow.visible = branch.mesh.visible;
+      // (On the street-charger ending the homes' end glows step aside.)
+      branch.glow.visible = branch.mesh.visible && !(this.endingTime > 0);
       branch.mesh.material.uniforms.uOn.value = 1;
       const progress = THREE.MathUtils.smoothstep(time, 64, 70);
       branch.mesh.material.uniforms.uFront.value = progress * branch.length;
