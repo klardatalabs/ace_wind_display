@@ -44,6 +44,8 @@ export const api = {
 
   // Where the turbine stands right now: weather at the site + any demo override
   environment: () => request("/api/environment"),
+  // The South West grid right now: generation mix and carbon intensity (National Grid ESO)
+  grid: () => request("/api/grid"),
 
   // Photographs from Unsplash (searched on the server so the key stays secret)
   photos: (query, count = 5) => request(`/api/photos?q=${encodeURIComponent(query)}&count=${count}`),
@@ -73,6 +75,7 @@ export const ENDPOINTS = [
   { group: "Ask Ace", method: "GET", path: "/api/chat/history", about: "This session's own transcript (Bearer token), so a reload keeps the conversation." },
   { group: "Ask Ace", method: "DELETE", path: "/api/chat/session", about: "Forget this session's conversation." },
   { group: "Photos", method: "GET", path: "/api/photos?q=wind+turbine&count=3", about: "Unsplash photographs for a search (with photographer credits). Needs UNSPLASH_ACCESS_KEY on the server.", tryIt: true },
+  { group: "Live", method: "GET", path: "/api/grid", about: "The South West grid this half hour: generation mix and carbon intensity (National Grid ESO), cached for 10 minutes.", tryIt: true },
   { group: "Live", method: "GET", path: "/api/environment", about: "Weather at the site (OpenWeather) plus any demo override: cloud, rain, fog, time of day.", tryIt: true },
   { group: "Screens", method: "GET", path: "/api/screens", about: "Animation actions a phone can trigger, and how many screens are connected.", tryIt: true },
   { group: "Screens", method: "POST", path: "/api/screens/command", about: "Animate the screen your chat session belongs to ({ action }); rate-limited per screen." },

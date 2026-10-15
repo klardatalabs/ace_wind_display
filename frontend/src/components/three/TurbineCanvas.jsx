@@ -1,6 +1,8 @@
 // Mounts a TurbineScene in a full-size canvas and keeps it fed with live telemetry.
 // Exposes the scene through `sceneRef` so pages can run story actions / phone commands.
 // HUD labels for the "Look inside" parts are positioned by the scene every frame.
+// With a `poster` (a still of the scene's first frame), that picture shows at once and
+// fades into the live 3D when it's ready, instead of a loading message.
 
 import { useEffect, useRef, useState } from "react";
 import { useLiveStore } from "../../store/useLiveStore.js";
@@ -30,7 +32,7 @@ function pushEnvironment(scene) {
   scene.setServerHour(env.hour);
 }
 
-export default function TurbineCanvas({ theme = "realistic", sceneRef, interactive = true, showLabels = true, frameShift = 0, storyRail = false, storyTour = false, scan = false, maxFps = 0, maxPixelRatio, onLookInside, onWalk, onPick, tags = [], tagRefs, className = "" }) {
+export default function TurbineCanvas({ poster, theme = "realistic", sceneRef, interactive = true, showLabels = true, frameShift = 0, storyRail = false, storyTour = false, scan = false, maxFps = 0, maxPixelRatio, onLookInside, onWalk, onPick, tags = [], tagRefs, className = "" }) {
   const canvas = useRef(null);
   const labelRefs = useRef(new Map());
   const [labels, setLabels] = useState([]);
@@ -149,7 +151,15 @@ export default function TurbineCanvas({ theme = "realistic", sceneRef, interacti
           ))}
         </div>
       )}
-      {status !== "ready" && (
+      {poster && (
+        <img
+          src={poster}
+          alt=""
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-0 size-full object-cover transition-opacity duration-[1400ms] ease-out ${status === "ready" ? "opacity-0" : "opacity-100"}`}
+        />
+      )}
+      {status !== "ready" && (!poster || status === "error") && (
         <div className="absolute inset-0 flex items-center justify-center">
           <p className="rounded-full bg-white/70 px-4 py-2 text-sm text-moss-800 backdrop-blur">
             {status === "error" ? "The 3D turbine couldn't load on this device." : "Building the turbine…"}

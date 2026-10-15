@@ -40,7 +40,7 @@ import AskDemo from "./components/AskDemo.jsx";
 import ChapterGust from "./components/ChapterGust.jsx";
 import ChapterPostcard from "./components/ChapterPostcard.jsx";
 import EveningAtHome from "./components/EveningAtHome.jsx";
-import EnergyBudget from "./components/EnergyBudget.jsx";
+import GridEnding from "./components/GridEnding.jsx";
 import XrayRoute from "./components/XrayRoute.jsx";
 import DayTracePanel from "./components/DayTracePanel.jsx";
 
@@ -108,7 +108,7 @@ function useWakeLock() {
 }
 
 function Hoarding({ screen }) {
-  const screenSkin = SKINS[screen.skin ?? screen.theme];
+  const skin = SKINS[screen.skin ?? screen.theme];
   const sceneRef = useRef(null);
   const tagRefs = useRef(new Map());
   const markerRef = useRef(null);
@@ -181,8 +181,6 @@ function Hoarding({ screen }) {
   const tourBeat = tour && (tour.ended && TOUR_ENDINGS[screen.key] ? { beat: TOUR_ENDINGS[screen.key], i: "end" } : { beat: TOUR_BEATS[screen.key][tour.index], i: tour.index });
   const xrayStop = useXrayStop(sceneRef, Boolean(story.chapter.xray));
   const xrayId = xrayStop == null ? null : XRAY_STOPS[xrayStop].id;
-  // The X-ray is drawn on white paper, so everything over it switches to dark ink.
-  const skin = xrayId ? SKINS.paper : screenSkin;
   // Cards (panels, tags, the QR, the caption on college) carry their own ink.
   const cardSkin = cardSkinOf(skin);
   const chapter = tourBeat
@@ -218,7 +216,9 @@ function Hoarding({ screen }) {
   // The example chat sits on the left, as on the students screen, except where the
   // community screen keeps it clear of its homes grid on the right.
   const askSide = screen.key === "community" ? "right" : "left";
-  const captionTopRight = chapter.ask && askSide === "left" && !screen.mascot;
+  // With the chat on the left and the QR on the right, the QR card says it all: no caption,
+  // so the turbine stays clear in the middle.
+  const noCaption = chapter.ask && askSide === "left" && !screen.mascot;
   const onLiveReady = useCallback(() => setLiveReady(true), []);
   // A chapter told over photos softens the 3D view behind them.
   const soft = chapter.backdrop === "soft" && !walking;
@@ -250,7 +250,7 @@ function Hoarding({ screen }) {
       >
         {/* The chapter gust softens this layer for a moment (ChapterGust). */}
         <div ref={gustLayer} className="size-full">
-        <TurbineCanvas theme={screen.theme} scan={Boolean(screen.scan)} storyTour={Boolean(screen.tour)} maxFps={SCREEN_MAX_FPS} maxPixelRatio={SCREEN_MAX_PIXEL_RATIO} sceneRef={sceneRef} frameShift={screen.mascot ? 0 : 0.1} storyRail={screen.rail} onWalk={onWalk} onPick={screen.rail ? onPick : undefined} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
+        <TurbineCanvas poster={screen.rail ? undefined : `/images/renders/screen-start-${screen.key}.jpg`} theme={screen.theme} scan={Boolean(screen.scan)} storyTour={Boolean(screen.tour)} maxFps={SCREEN_MAX_FPS} maxPixelRatio={SCREEN_MAX_PIXEL_RATIO} sceneRef={sceneRef} frameShift={screen.mascot ? 0 : 0.1} storyRail={screen.rail} onWalk={onWalk} onPick={screen.rail ? onPick : undefined} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
         </div>
       </div>
       {liveMounted && (
@@ -303,10 +303,10 @@ function Hoarding({ screen }) {
             <main data-keepout className={`pointer-events-none absolute right-[3vmin] bottom-[3vmin] z-10 rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] portrait:inset-x-[4vmin] portrait:bottom-[34vmin] ${showAce ? "ace-bubble" : ""} ${skin.card}`}>
               <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={cardSkin} bubble />
             </main>
-          ) : (
-            <main data-keepout className={`pointer-events-none absolute z-10 flex flex-col portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin] ${captionTopRight ? "landscape:top-[16vmin] landscape:right-[4vmin] landscape:max-w-[46vw]" : xrayId ? "landscape:bottom-[15vmin] landscape:left-[4vmin]" : "landscape:bottom-[23vmin] landscape:left-[4vmin]"} ${screen.captionCard ? `rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] ${cardSkin.card}` : ""}`}>
+          ) : noCaption ? null : (
+            <main data-keepout className={`pointer-events-none absolute z-10 flex flex-col portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin] landscape:left-[4vmin] ${xrayId ? "landscape:bottom-[15vmin]" : "landscape:bottom-[23vmin]"} ${screen.captionCard ? `rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] ${cardSkin.card}` : ""}`}>
               {chapter.day ? (
-                <DayStory audience={screen.key} elapsedS={elapsedS} skin={screen.captionCard ? cardSkin : skin} />
+                <DayStory audience={screen.key} elapsedS={elapsedS} skin={screen.captionCard ? cardSkin : skin} compact={Boolean(screen.captionCard)} />
               ) : (
                 <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={screen.captionCard ? cardSkin : skin} bubble={Boolean(screen.captionCard)} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
               )}
@@ -315,7 +315,7 @@ function Hoarding({ screen }) {
 
           {!screen.rail && chapter.ask && <AskDemo key={story.loop} data={data} audience={screen.key} skin={cardSkin} side={askSide} startAt={story.loop} />}
           {tour?.ended && story.chapter.ending === "home" && <EveningAtHome data={data} skin={cardSkin} />}
-          {tour?.ended && story.chapter.ending === "data" && <EnergyBudget data={data} skin={cardSkin} />}
+          {tour?.ended && story.chapter.ending === "data" && <GridEnding data={data} skin={cardSkin} />}
           {xrayStop != null && <XrayRoute stop={xrayStop} skin={cardSkin} />}
           {!pick && chapter.viz === "homes" && (
             <aside data-keepout className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:top-[16vmin] portrait:right-[3vmin]">

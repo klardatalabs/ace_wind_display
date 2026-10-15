@@ -45,17 +45,6 @@ export const SKINS = {
     cardAccent: "text-moss-600",
     pillTone: "light",
   },
-  // The X-ray's white paper (college's climb inside): dark ink on frosted white.
-  paper: {
-    dark: false,
-    text: "text-moss-950",
-    muted: "text-moss-900/75",
-    accent: "text-moss-600",
-    scrim: "bg-gradient-to-r from-white/85 via-white/40 to-transparent",
-    scrimBottom: "bg-gradient-to-t from-white/75 to-transparent",
-    card: "bg-white/85 ring-1 ring-moss-100 shadow-[0_20px_60px_rgb(10_21_29/0.12)]",
-    pillTone: "dark",
-  },
 };
 
 /** The skin for what sits inside a card: a skin's card* ink where it has one. */

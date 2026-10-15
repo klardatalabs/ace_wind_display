@@ -141,7 +141,7 @@ export const TOUR_BEATS = {
 /** How the community and college screens end the journey (pages/screens/components). */
 export const TOUR_ENDINGS = {
   community: { eyebrow: "An evening in Lawrence Weston", line: "Lights on. Cars charging. Our power at work.", sub: "And because we own it, the money it earns goes back into Lawrence Weston." },
-  college: { eyebrow: "Energy path · the budget", line: "From wind to wire: where the energy goes.", sub: "No rotor can catch more than 59.3% of the wind's power (the Betz limit). Live readings, open under CC BY 4.0: doi:10.5281/zenodo.22662372." },
+  college: { eyebrow: "Energy path · the grid", line: "Into the South West grid, right now.", sub: "Wind is one part of the mix the region is running on this half hour. The grid figures are National Grid ESO's; the turbine's are open data." },
 };
 
 // Where the journey stops on the community and college screens: the streets, lit up.
@@ -296,7 +296,8 @@ export const SCREENS = {
     // Cards like the students' screen, the caption in one too (components/skins.js).
     skin: "college",
     captionCard: true,
-    scan: true,
+    // The generated scenery, not the scan: up close the scan breaks into half-drawn trees,
+    // and the real place has its own chapters here (the live map).
     askLabel: "Query Ace",
     askHint: "Scan to ask about the data, the physics or the engineering",
     tour: true,

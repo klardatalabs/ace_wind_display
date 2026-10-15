@@ -425,7 +425,7 @@ export class TurbineScene {
 
       const plain = !mesh.isInstancedMesh && !mesh.userData.part;
       if (theme === "cartoon" && plain) addOutline(mesh, mesh.userData.neighbour ? 0.002 : 0.0035);
-      if (isDrawnTheme(theme) && plain) addEdges(mesh, drawnColours(theme).line, theme === "xray" ? 0.5 : 0.9);
+      if (isDrawnTheme(theme) && plain) addEdges(mesh, drawnColours(theme).line, theme === "xray" ? 0.7 : 0.9);
     }
     if (this.nodes) clearLit(this.nodes.root);
     if (this.foundation) this.foundation.visible = theme === "xray";

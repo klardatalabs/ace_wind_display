@@ -22,18 +22,19 @@ export function useDayHistory() {
   return history;
 }
 
-export default function DayStory({ audience, elapsedS, skin }) {
+/** `compact` sits the day in a small card (college) instead of across the open scene. */
+export default function DayStory({ audience, elapsedS, skin, compact = false }) {
   const history = useDayHistory();
   const moment = dayMoment(audience, lapseHour(elapsedS), history);
   return (
-    <div className="flex max-w-[min(62vw,1500px)] flex-col gap-[1.4vmin] portrait:max-w-full">
-      <p className={`font-mono text-[clamp(28px,7vmin,150px)] leading-none font-semibold tabular-nums ${skin.text} ${skin.dark ? "[text-shadow:0_2px_30px_rgb(0_0_0/0.45)]" : ""}`}>{moment.clock}</p>
-      <Moment key={moment.key} moment={moment} skin={skin} />
+    <div className={`flex flex-col portrait:max-w-full ${compact ? "max-w-[min(34vw,760px)] gap-[1vmin]" : "max-w-[min(62vw,1500px)] gap-[1.4vmin]"}`}>
+      <p className={`font-mono leading-none ${compact ? "text-[clamp(22px,4.4vmin,90px)]" : "text-[clamp(28px,7vmin,150px)]"} font-semibold tabular-nums ${skin.text} ${skin.dark ? "[text-shadow:0_2px_30px_rgb(0_0_0/0.45)]" : ""}`}>{moment.clock}</p>
+      <Moment key={moment.key} moment={moment} skin={skin} compact={compact} />
     </div>
   );
 }
 
-function Moment({ moment, skin }) {
+function Moment({ moment, skin, compact }) {
   const root = useRef(null);
   useGSAP(
     () => {
@@ -52,8 +53,8 @@ function Moment({ moment, skin }) {
         <span className="h-px w-[4vmin] bg-current opacity-70" />
         {moment.eyebrow}
       </p>
-      <h1 className={`day-line font-display text-[clamp(26px,5vmin,110px)] leading-[1.05] font-medium tracking-display text-balance ${skin.text} ${skin.dark ? "[text-shadow:0_2px_30px_rgb(0_0_0/0.45)]" : ""}`}>{moment.line}</h1>
-      <p className={`day-sub max-w-[min(48vw,900px)] text-[clamp(14px,2.1vmin,42px)] leading-snug ${skin.muted} ${skin.dark ? "[text-shadow:0_1px_16px_rgb(0_0_0/0.5)]" : ""} portrait:max-w-full`}>{moment.sub}</p>
+      <h1 className={`day-line font-display leading-[1.08] ${compact ? "text-[clamp(18px,3vmin,64px)]" : "text-[clamp(26px,5vmin,110px)]"} font-medium tracking-display text-balance ${skin.text} ${skin.dark ? "[text-shadow:0_2px_30px_rgb(0_0_0/0.45)]" : ""}`}>{moment.line}</h1>
+      <p className={`day-sub leading-snug ${compact ? "text-[clamp(12px,1.8vmin,36px)]" : "max-w-[min(48vw,900px)] text-[clamp(14px,2.1vmin,42px)]"} ${skin.muted} ${skin.dark ? "[text-shadow:0_1px_16px_rgb(0_0_0/0.5)]" : ""} portrait:max-w-full`}>{moment.sub}</p>
     </div>
   );
 }

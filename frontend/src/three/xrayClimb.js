@@ -97,7 +97,7 @@ export function lightParts(root, ids, glow) {
     const base = o.userData.xrayBase;
     const on = lit.has(o.userData.hotspot);
     m.color.setHex(on ? glow : base.color);
-    m.opacity = on ? Math.min(0.85, Math.max(0.6, base.opacity + 0.2)) : base.opacity;
+    m.opacity = on ? Math.min(0.9, Math.max(0.7, base.opacity + 0.25)) : base.opacity;
   });
 }
 

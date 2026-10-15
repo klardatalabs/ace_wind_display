@@ -21,6 +21,7 @@ import { chatRoutes } from "./routes/chat.js";
 import { photoRoutes } from "./routes/photos.js";
 import { healthRoutes } from "./routes/health.js";
 import { storyRoutes } from "./routes/stories.js";
+import { gridRoutes } from "./routes/grid.js";
 
 const log = logger("api.http");
 const FRONTEND = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "frontend", "dist");
@@ -70,6 +71,7 @@ export function createApp() {
   app.use("/api/chat", chatRoutes);
   app.use("/api/photos", photoRoutes);
   app.use("/api/stories", storyRoutes);
+  app.use("/api/grid", gridRoutes);
   app.use("/api", () => {
     throw notFound();
   });

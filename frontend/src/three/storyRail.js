@@ -333,7 +333,9 @@ export class StoryRail {
     if (time >= 79) this.home.update(time);
     this.cable.material.depthTest = this.pulses.material.depthTest = time >= 80;
     for (const glow of this.glows) glow.material.depthTest = time >= 80;
-    this.houseHalo.visible = time >= 64 && time < 78;
+    // The ring marks the home the power goes into, so only on the full journey (a screen
+    // that ends at the streets, with endAt, never goes into a home).
+    this.houseHalo.visible = this.endAt == null && time >= 64 && time < 78;
     this.group.visible = time < 78 || time >= 80;
     for (const branch of this.branches) {
       branch.mesh.visible = time >= 64 && time < 78;

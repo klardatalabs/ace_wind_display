@@ -2,8 +2,8 @@
 //   cartoon   — students: bright, friendly toon shading with ink outlines
 //   realistic — community: PBR materials in the real light of the hour, the Lawrence Weston scan around it
 //   blueprint — classic engineering drawing, cyan lines on deep navy
-//   xray      — college's climb inside: ink lines on white paper, the structure see-through,
-//               copper in copper and the part being explained lit in Enercon green
+//   xray      — college's climb inside: a radiograph, pale mint lines on deep green, the
+//               structure see-through, copper warm and the part being explained bright green
 // The turbine itself is always white with Enercon-green tower bands, as in real life.
 
 import * as THREE from "three";
@@ -16,8 +16,8 @@ export const MOSS = {
 
 // Blueprint drawing colours.
 export const BLUEPRINT = { paper: 0x071a33, paperLight: 0x0d2b52, line: 0x9fd8ff, lineDim: 0x4fb3ff, solid: 0x1b4a7a, fill: 0x2f78b8 };
-// X-ray colours: black on white, nothing blue.
-export const XRAY = { paper: 0xf3f5f6, paperLight: 0xe4e9ec, line: 0x1b2125, lineDim: 0xc3cbd0, solid: 0x3a434a, fill: 0x59646b, glow: 0x169a55 };
+// X-ray colours: a green radiograph.
+export const XRAY = { paper: 0x03140d, paperLight: 0x0a2619, line: 0xc6f4da, lineDim: 0x1e4a36, solid: 0x7fd1a6, fill: 0x9fe3be, glow: 0x5dff9e };
 
 /** The drawn looks (edges on a plain backdrop instead of a lit world). */
 export const isDrawnTheme = (theme) => theme === "blueprint" || theme === "xray";
@@ -66,10 +66,10 @@ const PALETTES = {
   },
   xray: {
     body: XRAY.solid, band1: XRAY.solid, band2: XRAY.solid, band3: XRAY.solid, band4: XRAY.solid, band5: XRAY.solid,
-    ground: XRAY.paperLight, metal: 0x4a545b, dark: XRAY.solid, light: 0xe0362c, copper: 0xc0661f, cabinet: 0x5d686f,
-    accent: 0xb07a1c, cable: 0x1b2125,
-    lamp: 0x9aa4aa,
-    grass: XRAY.paper, tree: 0xd5dbdf, trunk: 0xd5dbdf, house: 0xd0d7db, roof: 0xc4ccd1, water: 0xe9eef0, road: 0xdfe5e8,
+    ground: XRAY.paperLight, metal: 0xa9e8c6, dark: XRAY.solid, light: 0xff6b5a, copper: 0xffb26b, cabinet: 0x8fdab3,
+    accent: 0xf3d67a, cable: 0xeafff3,
+    lamp: 0xc6f4da,
+    grass: XRAY.paper, tree: 0x0f3324, trunk: 0x0f3324, house: 0x12392a, roof: 0x164430, water: 0x061c13, road: 0x0c2a1d,
   },
 };
 
@@ -117,8 +117,8 @@ export function createMaterial(theme, role) {
   if (isDrawnTheme(theme)) {
     const interior = ["accent", "copper", "cabinet", "metal", "cable", "lamp"].includes(role);
     // The X-ray keeps the shell fainter, so what's inside is what you see.
-    const shell = theme === "xray" ? 0.06 : 0.22;
-    return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: interior ? (theme === "xray" ? 0.5 : 0.55) : shell, depthWrite: interior });
+    const shell = theme === "xray" ? 0.07 : 0.22;
+    return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: interior ? 0.55 : shell, depthWrite: interior });
   }
   if (role === "water") return new THREE.MeshStandardMaterial({ color, roughness: 0.15, metalness: 0.3 });
   if (role === "lamp") return new THREE.MeshStandardMaterial({ color, emissive: new THREE.Color(0xffe2a8), emissiveIntensity: 2.4, roughness: 0.4 });
