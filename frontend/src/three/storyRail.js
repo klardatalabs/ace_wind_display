@@ -66,9 +66,14 @@ export class StoryRail {
     else this.#rest();
   }
 
-  /** Plays the journey from the start, as one chapter of another story. */
-  start() {
+  /**
+   * Plays the journey from the start, as one chapter of another story. With `endAt`
+   * (seconds) it stops there and holds the view, for a screen that ends the journey its
+   * own way.
+   */
+  start({ endAt = null } = {}) {
     this.active = true;
+    this.endAt = endAt;
     this.savedReturnAfter = this.scene.rig.returnAfter;
     this.scene.rig.returnAfter = 3;
     this.seek(0);
@@ -78,6 +83,7 @@ export class StoryRail {
   stop() {
     if (!this.active) return;
     this.active = false;
+    this.endAt = null;
     this.scene.rig.returnAfter = this.savedReturnAfter ?? this.scene.rig.returnAfter;
     this.#rest();
     Object.assign(this.scene.rig, { rail: false, railInside: false });
@@ -277,7 +283,7 @@ export class StoryRail {
     const fade = this.frozen ? 0 : Math.max(0, 1 - this.time / 0.65, (this.time - (STORY_SECONDS - 0.65)) / 0.65);
     const lead = this.energyCurve.getPointAt(this.uniforms.uFront.value / this.energyLength);
     const transition = THREE.MathUtils.smoothstep(this.time, 77.2, 78) * (1 - THREE.MathUtils.smoothstep(this.time, 80.2, 81.2));
-    return { ...beat, seconds: this.time, fade: Math.max(fade, transition), blur: transition * 16, final: this.time >= 94, charging: this.time >= 90, camera: this.scene.camera.position.toArray(), rail: this.eye.toArray(), userOffset: { ...this.scene.rig.user }, energyMetres: this.uniforms.uFront.value, lead: lead.toArray(), leadNdc: lead.clone().project(this.scene.camera).toArray(), fps: this.fps, drawCalls: this.scene.renderer.info.render.calls, triangles: this.scene.renderer.info.render.triangles, magnetAngle: this.magnetRing.rotation.x };
+    return { ...beat, ended: this.endAt != null && this.time >= this.endAt, seconds: this.time, fade: Math.max(fade, transition), blur: transition * 16, final: this.time >= 94, charging: this.time >= 90, camera: this.scene.camera.position.toArray(), rail: this.eye.toArray(), userOffset: { ...this.scene.rig.user }, energyMetres: this.uniforms.uFront.value, lead: lead.toArray(), leadNdc: lead.clone().project(this.scene.camera).toArray(), fps: this.fps, drawCalls: this.scene.renderer.info.render.calls, triangles: this.scene.renderer.info.render.triangles, magnetAngle: this.magnetRing.rotation.x };
   }
 
   update(dt) {
@@ -290,7 +296,7 @@ export class StoryRail {
         this.frameSeconds = this.frameCount = 0;
       }
     }
-    if (!this.frozen) this.time = (this.time + dt) % STORY_SECONDS;
+    if (!this.frozen) this.time = this.endAt != null ? Math.min(this.time + dt, this.endAt) : (this.time + dt) % STORY_SECONDS;
     const time = this.time;
     const scene = this.scene;
     if (Math.abs(scene.shown.yaw - this.lastYaw) > 0.001) {

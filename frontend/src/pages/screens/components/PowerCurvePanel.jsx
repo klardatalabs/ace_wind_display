@@ -27,7 +27,7 @@ export default function PowerCurvePanel({ curve, stale=false, windSpeed, powerKw
           {measured.length ? `${measured.reduce((s, b) => s + b.sample_count, 0).toLocaleString("en-GB")} measured intervals${stale ? ' · last known' : ''}` : "manufacturer reference"}
         </span>
       </figcaption>
-      <svg viewBox={`0 0 ${W} ${H}`} className="block w-[clamp(280px,38vmin,820px)]" role="img" aria-label="Power output against wind speed">
+      <svg viewBox={`0 0 ${W} ${H}`} className={`block w-[clamp(280px,38vmin,820px)] ${skin.glass ? "drop-shadow-[0_1px_3px_rgb(0_0_0/0.7)]" : ""}`} role="img" aria-label="Power output against wind speed">
         {[0, 1000, 2000, 3000, 4000].map((kw) => (
           <g key={kw}>
             <line x1={PAD.l} x2={W - PAD.r} y1={y(kw)} y2={y(kw)} stroke={faint} />

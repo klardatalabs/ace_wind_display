@@ -10,7 +10,8 @@ import { splitShell } from "./splitShell.js";
 import { buildInteriors, buildWalkHatch } from "./interiors.js";
 import { LookInside } from "./lookInside.js";
 import { CameraRig, SHOTS } from "./cameraRig.js";
-import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS, BLUEPRINT } from "./themes.js";
+import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS, XRAY, isDrawnTheme, drawnColours } from "./themes.js";
+import { XRAY_STOPS, buildFoundation, xrayAnchors, lightParts, clearLit } from "./xrayClimb.js";
 import { createSky } from "./sky.js";
 import { buildWorld } from "./world/index.js";
 import { loadSiteSplat } from "./splat.js";
@@ -23,6 +24,9 @@ import { StoryRail } from "./storyRail.js";
 import { resolveHotspot } from "./hotspots.js";
 import { ExplorerNavigation } from "./explorerNavigation.js";
 import { londonHourToDate } from "@shared/time.js";
+
+// The X-ray climb's stops fly like any other named shot.
+for (const stop of XRAY_STOPS) SHOTS[`xray-${stop.id}`] = stop.shot;
 
 // The camera shots are composed for the turbine facing this bearing (the prevailing
 // south-westerly). The model's yaw is the live nacelle bearing relative to it.
@@ -186,12 +190,15 @@ export class TurbineScene {
       }
 
       const shells = [splitShell(nodes.tower), splitShell(nodes.towerBands), splitShell(nodes.nacelleShell)];
-      const interiors = buildInteriors(nodes, this.towerPivot);
+      const interiors = buildInteriors(nodes, this.towerPivot, { explorer: this.explorerEnabled });
       this.lift = interiors.lift;
       this.labels = interiors.labels;
       this.nacelleLights = interiors.nacelleLights;
       this.walkHatch = buildWalkHatch(nodes);
       this.interiors = interiors;
+      // Piles and pad under the tower, drawn only in the X-ray.
+      this.foundation = buildFoundation();
+      this.towerPivot.add(this.foundation);
 
       nodes.yaw.add(this.fx.wind);
       this.annotations = buildAnnotations(this.towerPivot, nodes.yaw);
@@ -214,6 +221,7 @@ export class TurbineScene {
         stack: anchor(root, "stack", this.world.stackTop.x, this.world.stackTop.y, this.world.stackTop.z),
       };
       for (const [name, obj] of Object.entries(this.annotations.anchors)) this.anchors[`dim${name[0].toUpperCase()}${name.slice(1)}`] = obj;
+      Object.assign(this.anchors, xrayAnchors(this.towerPivot, nodes.yaw, interiors.lift));
 
       this.aviationLights = meshesOf(root).filter((m) => m.userData.materialName === "M_Aviation_Light");
       this.applyTheme(this.theme);
@@ -271,7 +279,8 @@ export class TurbineScene {
   #updateScan(dt) {
     const splat = this.splat;
     if (!splat) return;
-    const want = this.theme === "realistic" && (this.lookInside?.u ?? 0) < 0.2 ? 1 : 0;
+    // The energy journey follows the generated route, so the scan steps aside while it plays.
+    const want = this.theme === "realistic" && (this.lookInside?.u ?? 0) < 0.2 && !this.tour?.active ? 1 : 0;
     splat.opacity += (want - splat.opacity) * (1 - Math.exp(-dt * 1.6));
     if (Math.abs(want - splat.opacity) < 0.005) splat.opacity = want;
     splat.visible = splat.opacity > 0.01;
@@ -279,8 +288,6 @@ export class TurbineScene {
     if (scan !== this.scanShown) {
       this.scanShown = scan;
       this.world.setScan?.(scan);
-      // The scan has the neighbouring turbine in it already.
-      if (this.neighbour) this.neighbour.visible = !scan;
     }
   }
 
@@ -414,14 +421,16 @@ export class TurbineScene {
       if (whiteExterior) mesh.material.color.set(0xffffff);
       if (mesh.material.isMeshStandardMaterial) mesh.material.envMapIntensity = whiteExterior ? .4 : .9;
       if (!this.explorerEnabled) applyBands(mesh, theme);
-      mesh.castShadow = theme !== "blueprint" && !mesh.userData.neighbour;
+      mesh.castShadow = !isDrawnTheme(theme) && !mesh.userData.neighbour;
 
       const plain = !mesh.isInstancedMesh && !mesh.userData.part;
       if (theme === "cartoon" && plain) addOutline(mesh, mesh.userData.neighbour ? 0.002 : 0.0035);
-      if (theme === "blueprint" && plain) addEdges(mesh);
+      if (isDrawnTheme(theme) && plain) addEdges(mesh, drawnColours(theme).line, theme === "xray" ? 0.5 : 0.9);
     }
+    if (this.nodes) clearLit(this.nodes.root);
+    if (this.foundation) this.foundation.visible = theme === "xray";
 
-    this.setXray?.(theme === "blueprint");
+    this.setXray?.(isDrawnTheme(theme));
     this.lookInside?.setTheme(theme);
     this.lookInside?.rebind();
     this.walkHatch?.(Boolean(this.rig.walk));
@@ -548,7 +557,8 @@ export class TurbineScene {
       if (chapter != null) this.story.seekChapter(chapter);
       return;
     }
-    if (action === "tour") return this.tour?.start();
+    if (action !== "xray_climb") this.#endXrayClimb();
+    if (action === "tour") return this.tour?.start(value ?? {});
     this.tour?.stop();
     const token = ++this.commandToken;
     const still = () => token === this.commandToken && !this.disposed;
@@ -564,6 +574,8 @@ export class TurbineScene {
       }
       case "walk_stop":
         return this.stopWalk();
+      case "xray_climb":
+        return this.#xrayClimb(still);
       case "look_inside": {
         // Camera fly-in: approach the nacelle from wherever we are, then dock inside.
         this.lookInside.open(3.2);
@@ -599,6 +611,50 @@ export class TurbineScene {
       default:
         if (action in SHOTS) await this.rig.flyTo(action);
     }
+  }
+
+  // ---------------------------------------------------------------- the X-ray climb
+
+  /**
+   * College's "Go inside": the turbine turns see-through and the camera climbs from the piles
+   * to the hub (three/xrayClimb.js), lighting up the parts at each stop. `xrayClimbState.stop`
+   * says which stop it's at, for the captions and labels.
+   */
+  async #xrayClimb(still) {
+    if (this.lookInside.u > 0.02) this.lookInside.close(0.8);
+    if (!this.xrayClimbState) this.xrayClimbState = { stop: 0, from: this.theme };
+    this.applyTheme("xray");
+    for (let i = 0; i < XRAY_STOPS.length; i++) {
+      if (!still()) return;
+      const stop = XRAY_STOPS[i];
+      this.xrayClimbState.stop = i;
+      lightParts(this.nodes.root, stop.lit, XRAY.glow);
+      await this.rig.flyTo(`xray-${stop.id}`, { duration: stop.fly });
+      if (!still()) return;
+      // Hold, circling slowly round what's being explained.
+      const rig = this.rig;
+      const offset = rig.pos.clone().sub(rig.target);
+      const turn = { a: 0 };
+      await new Promise((resolve) => {
+        this.xrayDrift = gsap.to(turn, {
+          a: stop.drift,
+          duration: stop.hold,
+          ease: "sine.inOut",
+          onUpdate: () => rig.pos.copy(offset).applyAxisAngle(THREE.Object3D.DEFAULT_UP, turn.a).add(rig.target),
+          onComplete: resolve,
+          onInterrupt: resolve,
+        });
+      });
+    }
+  }
+
+  /** Back to the screen's own look when the climb is over. */
+  #endXrayClimb() {
+    if (!this.xrayClimbState) return;
+    this.xrayDrift?.kill();
+    const { from } = this.xrayClimbState;
+    this.xrayClimbState = null;
+    this.applyTheme(from);
   }
 
   // ---------------------------------------------------------------- walking through the turbine
@@ -740,6 +796,7 @@ export class TurbineScene {
    */
   applyStage(stage = {}) {
     if (stage.action !== "tour") this.tour?.stop();
+    if (stage.action !== "xray_climb") this.#endXrayClimb();
     this.windViz = stage.wind ? 1 : 0;
     if (stage.lapse) {
       const [from, to, seconds] = stage.lapse;
@@ -882,11 +939,18 @@ export class TurbineScene {
     this.xray = on;
     this.world.group.visible = !on;
     this.sky.visible = !on;
+    const colours = drawnColours(this.theme);
+    if (on && this.xrayGrid && this.xrayGrid.userData.theme !== this.theme) {
+      this.scene.remove(this.xrayGrid);
+      this.xrayGrid.traverse((o) => (o.geometry?.dispose(), o.material?.dispose?.()));
+      this.xrayGrid = null;
+    }
     if (on && !this.xrayGrid) {
       const grid = new THREE.Group();
       grid.name = "XrayGrid";
-      const major = new THREE.GridHelper(2400, 48, BLUEPRINT.lineDim, BLUEPRINT.lineDim);
-      const minor = new THREE.GridHelper(2400, 240, BLUEPRINT.solid, BLUEPRINT.solid);
+      grid.userData.theme = this.theme;
+      const major = new THREE.GridHelper(2400, 48, colours.lineDim, colours.lineDim);
+      const minor = new THREE.GridHelper(2400, 240, colours.paperLight, colours.paperLight);
       for (const [g, opacity] of [[major, 0.55], [minor, 0.35]]) {
         g.material.transparent = true;
         g.material.opacity = opacity;
@@ -898,7 +962,7 @@ export class TurbineScene {
       this.scene.add(grid);
     }
     if (this.xrayGrid) this.xrayGrid.visible = on;
-    this.scene.background = on ? new THREE.Color(BLUEPRINT.paper) : null;
+    this.scene.background = on ? new THREE.Color(colours.paper) : null;
     this.envDirty = true;
   }
 
@@ -938,13 +1002,16 @@ export class TurbineScene {
       }
       if (this.lift && this.lookInside) {
         // The service lift climbs the tower while the cutaway is open.
-        const k = (Math.sin(t * 0.07) * 0.5 + 0.5) * this.lookInside.u;
+        const k = (Math.sin(t * 0.07) * 0.5 + 0.5) * Math.max(this.lookInside.u, this.xrayClimbState ? 1 : 0);
         this.lift.position.y = 3 + k * 82;
       }
       blinkAviationLight(this.aviationLights, t, this.theme);
       this.lookInside?.updatePlanes();
       if (this.rig.walk) this.walkHatch?.(true, this.rig.walk.s > 0.93);
       this.#updateScan(realDt);
+      // The scan has the neighbouring turbine in it already, and the X-ray is about this
+      // machine alone.
+      if (this.neighbour) this.neighbour.visible = !this.scanShown && this.theme !== "xray";
     }
 
     this.envClock += dt;
@@ -952,7 +1019,7 @@ export class TurbineScene {
       this.#applyEnvironment(t);
       // X-ray: the grid fades into the navy instead of the day's haze.
       if (this.xray && this.scene.fog) {
-        this.scene.fog.color.set(BLUEPRINT.paper);
+        this.scene.fog.color.set(drawnColours(this.theme).paper);
         this.scene.fog.near = 300;
         this.scene.fog.far = 1600;
       }

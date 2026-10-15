@@ -31,12 +31,12 @@ const VOICES = {
     { eyebrow: "Evening", line: "Lights on along every street." },
   ],
   college: [
-    { eyebrow: "Overnight", line: "Demand is low, but the wind keeps working." },
-    { eyebrow: "Morning ramp", line: "National demand climbs as the country wakes." },
-    { eyebrow: "Midday", line: "Solar peaks; wind and solar share the load." },
-    { eyebrow: "Afternoon", line: "Solar fades; the grid leans more on wind." },
-    { eyebrow: "Evening peak", line: "The day's highest demand, after sunset." },
-    { eyebrow: "Late evening", line: "Demand falls back towards the overnight low." },
+    { eyebrow: "Before dawn", line: "National demand is near its daily low. The rotor doesn't care." },
+    { eyebrow: "Morning ramp", line: "Demand climbs steeply as the country wakes up." },
+    { eyebrow: "Midday", line: "On a sunny day, solar peaks and shares the load with wind." },
+    { eyebrow: "Afternoon", line: "Solar fades; the grid leans harder on wind and gas." },
+    { eyebrow: "Evening peak", line: "The day's highest demand, as lights and ovens come on." },
+    { eyebrow: "Late evening", line: "Demand eases. A turbine works whenever the wind does." },
   ],
 };
 

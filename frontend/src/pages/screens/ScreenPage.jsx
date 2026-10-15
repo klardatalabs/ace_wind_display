@@ -8,7 +8,9 @@ import { Link, useParams } from "react-router";
 import TurbineCanvas from "../../components/three/TurbineCanvas.jsx";
 import StepPills from "../../components/ui/StepPills.jsx";
 import Icon from "../../components/ui/Icon.jsx";
-import { SCREENS, SCREEN_KEYS, TAGS, TOUR_BEATS } from "../../content/screens.js";
+import { SCREENS, SCREEN_KEYS, TAGS, TOUR_BEATS, TOUR_ENDINGS, XRAY_COPY } from "../../content/screens.js";
+import { XRAY_STOPS } from "../../three/xrayStops.js";
+import { lapseHour } from "../../content/dayStory.js";
 import { subscribeScreen } from "../../realtime/liveSocket.js";
 import { useEnvironmentStore } from "../../store/useEnvironmentStore.js";
 import { sunPosition } from "../../three/environment.js";
@@ -16,7 +18,7 @@ import { useScreenData } from "./useScreenData.js";
 import { useStoryLoop } from "./useStoryLoop.js";
 import { useGeneratedStories } from "./useGeneratedStories.js";
 import { resolveChapter, tourChapter } from "../../content/storyCopy.js";
-import { SKINS } from "./components/skins.js";
+import { SKINS, cardSkinOf } from "./components/skins.js";
 import ScreenTopBar from "./components/ScreenTopBar.jsx";
 import CinematicCaption from "./components/CinematicCaption.jsx";
 import DataTags from "./components/DataTags.jsx";
@@ -36,32 +38,58 @@ import SpeedPanel from "./components/SpeedPanel.jsx";
 import TownPanel from "./components/TownPanel.jsx";
 import AskDemo from "./components/AskDemo.jsx";
 import ChapterGust from "./components/ChapterGust.jsx";
+import ChapterPostcard from "./components/ChapterPostcard.jsx";
+import EveningAtHome from "./components/EveningAtHome.jsx";
+import EnergyBudget from "./components/EnergyBudget.jsx";
+import XrayRoute from "./components/XrayRoute.jsx";
+import DayTracePanel from "./components/DayTracePanel.jsx";
 
 // The real-world view (Cesium + Google 3D tiles) is big, so it loads after the 3D scene.
 const SiteCesiumViewer = lazy(() => import("../../components/cesium/SiteCesiumViewer.jsx"));
 
 const IDLE_CLOSE_MS = 30_000;
+// How each hoarding screen moves between chapters: a gust of wind for the students and
+// college, a postcard from Lawrence Weston for the community.
+const TRANSITIONS = { students: ChapterGust, community: ChapterPostcard, college: ChapterGust };
 // A hoarding's story moves slowly, so the 3D scene draws at most this often: on a laptop's
 // 120 Hz screen that's a quarter of the GPU work, and the motion still looks smooth.
 const SCREEN_MAX_FPS = 30;
 // Hoarding panels are viewed from a few metres away, so extra pixel density buys nothing.
 const SCREEN_MAX_PIXEL_RATIO = 1.25;
 
-/** While a tour chapter plays, which stop of the energy journey it's at and how faded the view is. */
+/**
+ * While a tour chapter plays: which stop of the energy journey it's at, how faded the view
+ * is, and whether it has reached the screen's own ending (see StoryRail.start's endAt).
+ */
 function useTourState(sceneRef, on) {
   const [state, setState] = useState({ index: 0, fade: 0 });
   useEffect(() => {
     if (!on) return undefined;
-    setState({ index: 0, fade: 1 }); // each time round, start from the first stop
+    setState({ index: 0, fade: 1, ended: false }); // each time round, start from the first stop
     const id = setInterval(() => {
       const tour = sceneRef.current?.tour;
       if (!tour?.active) return;
-      const { index, fade } = tour.getState();
-      setState((s) => (s.index === index && Math.abs(s.fade - fade) < 0.02 ? s : { index, fade }));
+      const { index, fade, ended } = tour.getState();
+      setState((s) => (s.index === index && s.ended === ended && Math.abs(s.fade - fade) < 0.02 ? s : { index, fade, ended }));
     }, 120);
     return () => clearInterval(id);
   }, [sceneRef, on]);
   return on ? state : null;
+}
+
+/** While the X-ray climb plays, which of its stops the camera is at (TurbineScene.xrayClimbState). */
+function useXrayStop(sceneRef, on) {
+  const [stop, setStop] = useState(0);
+  useEffect(() => {
+    if (!on) return undefined;
+    setStop(0);
+    const id = setInterval(() => {
+      const state = sceneRef.current?.xrayClimbState;
+      if (state) setStop(state.stop);
+    }, 150);
+    return () => clearInterval(id);
+  }, [sceneRef, on]);
+  return on ? stop : null;
 }
 
 /** Keeps a kiosk display from sleeping (where the browser allows it). */
@@ -80,7 +108,7 @@ function useWakeLock() {
 }
 
 function Hoarding({ screen }) {
-  const skin = SKINS[screen.theme];
+  const screenSkin = SKINS[screen.skin ?? screen.theme];
   const sceneRef = useRef(null);
   const tagRefs = useRef(new Map());
   const markerRef = useRef(null);
@@ -150,26 +178,47 @@ function Hoarding({ screen }) {
   const pillZoom = Math.min(2.4, Math.max(1, Math.min(window.innerWidth, window.innerHeight) / 900));
   const generated = useGeneratedStories(screen.key);
   const tour = useTourState(sceneRef, Boolean(story.chapter.tour));
-  const chapter = tour ? { ...story.chapter, ...tourChapter(TOUR_BEATS[tour.index], tour.index) } : resolveChapter(story.chapter, story.loop, data, generated);
+  const tourBeat = tour && (tour.ended && TOUR_ENDINGS[screen.key] ? { beat: TOUR_ENDINGS[screen.key], i: "end" } : { beat: TOUR_BEATS[screen.key][tour.index], i: tour.index });
+  const xrayStop = useXrayStop(sceneRef, Boolean(story.chapter.xray));
+  const xrayId = xrayStop == null ? null : XRAY_STOPS[xrayStop].id;
+  // The X-ray is drawn on white paper, so everything over it switches to dark ink.
+  const skin = xrayId ? SKINS.paper : screenSkin;
+  // Cards (panels, tags, the QR, the caption on college) carry their own ink.
+  const cardSkin = cardSkinOf(skin);
+  const chapter = tourBeat
+    ? { ...story.chapter, ...tourChapter(tourBeat.beat, tourBeat.i) }
+    : xrayId
+      ? { ...story.chapter, ...tourChapter(XRAY_COPY[xrayId], `xray-${xrayId}`) }
+      : resolveChapter(story.chapter, story.loop, data, generated);
   const showQr = screen.rail || story.index === screen.chapters.length - 1;
   const captionChapter = story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
   const panel = chapter.panel;
-  const tagIds = useMemo(() => (story.chapter.tags ?? []).filter((id) => TAGS[id]), [story.chapter]);
+  const tagIds = useMemo(() => ((xrayId ? XRAY_COPY[xrayId].tags : story.chapter.tags) ?? []).filter((id) => TAGS[id]), [story.chapter, xrayId]);
   const tagDefs = useMemo(() => tagIds.map((id) => ({ id, anchor: TAGS[id].anchor })), [tagIds]);
   const walking = Boolean(walk);
   const showAce = Boolean(screen.mascot) && story.chapter.id === "hello" && !walking;
-  const liveChapter = screen.chapters.findIndex((c) => c.live);
+  const Transition = TRANSITIONS[screen.key];
+  // Chapters told over the real-world view ("Right now", and college's "A day here").
+  const liveChapters = useMemo(() => screen.chapters.flatMap((c, i) => (c.live ? [i] : [])), [screen.chapters]);
   // Load the real-world view a little after start, and let it render (warming its tiles)
-  // through the chapter before its own, so it's ready the moment "Right now" begins.
+  // through the chapter before each of its own, so it's ready the moment they begin.
   const [liveMounted, setLiveMounted] = useState(false);
   const [liveReady, setLiveReady] = useState(false);
   useEffect(() => {
-    if (liveChapter < 0) return undefined;
+    if (!liveChapters.length) return undefined;
     const id = setTimeout(() => setLiveMounted(true), 2500);
     return () => clearTimeout(id);
-  }, [liveChapter]);
+  }, [liveChapters]);
   const showLive = chapter.live && liveReady && !walking;
-  const liveActive = liveChapter >= 0 && (story.index === liveChapter || story.index === (liveChapter - 1 + screen.chapters.length) % screen.chapters.length);
+  const n = screen.chapters.length;
+  const liveActive = liveChapters.some((i) => story.index === i || story.index === (i - 1 + n) % n);
+  // A day told over the real place: its clock follows the time-lapse.
+  const elapsedS = story.progress * chapter.seconds;
+  const liveHour = chapter.day && chapter.live ? Math.round(lapseHour(elapsedS) * 20) / 20 : null;
+  // The example chat sits on the left, as on the students screen, except where the
+  // community screen keeps it clear of its homes grid on the right.
+  const askSide = screen.key === "community" ? "right" : "left";
+  const captionTopRight = chapter.ask && askSide === "left" && !screen.mascot;
   const onLiveReady = useCallback(() => setLiveReady(true), []);
   // A chapter told over photos softens the 3D view behind them.
   const soft = chapter.backdrop === "soft" && !walking;
@@ -207,7 +256,7 @@ function Hoarding({ screen }) {
       {liveMounted && (
         <div className={`absolute inset-0 transition-opacity duration-1000 ${showLive ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!showLive}>
           <Suspense fallback={null}>
-            <SiteCesiumViewer hoarding active={liveActive} onReady={onLiveReady} className="size-full" />
+            <SiteCesiumViewer hoarding active={liveActive} onReady={onLiveReady} hour={liveHour} className="size-full" />
           </Suspense>
         </div>
       )}
@@ -219,7 +268,7 @@ function Hoarding({ screen }) {
       {!screen.mascot && <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-[46vh] ${skin.scrimBottom}`} />}
       <div className={`pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b to-transparent ${screen.mascot ? "h-[12vh] from-white/30" : `h-[18vh] ${skin.dark ? "from-black/40" : "from-white/50"}`}`} />
 
-      {!walking && !showLive && <DataTags ids={tagIds} data={data} tagRefs={tagRefs} skin={skin} />}
+      {!walking && !showLive && <DataTags ids={tagIds} data={data} tagRefs={tagRefs} skin={cardSkin} />}
       <div
         ref={markerRef}
         data-on="0"
@@ -232,9 +281,9 @@ function Hoarding({ screen }) {
 
       <ScreenTopBar skin={skin} screenName={screen.name} mood={data.mood} statusStale={data.statusStale} screenKey={screen.key} />
       <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20">
-        <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={skin} />
+        <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={cardSkin} />
       </div>
-      <RemoteToast event={toast} skin={skin} />
+      <RemoteToast event={toast} skin={cardSkin} />
 
       {/* Ace introduces itself in the opening chapter, from the bottom-left corner; after
           that the story is told in the bubble alone. */}
@@ -245,46 +294,50 @@ function Hoarding({ screen }) {
       )}
 
       {walking ? (
-        <WalkHud walk={walk} skin={skin} timeline={Boolean(screen.walkTimeline)} />
+        <WalkHud walk={walk} skin={cardSkin} timeline={Boolean(screen.walkTimeline)} />
       ) : (
         <>
           {screen.mascot ? (
             // Ace's words, in a speech bubble in the bottom-right corner, never on the busy scene.
             // (On "Ask me", an example chat on a phone shows what the QR code leads to.)
             <main data-keepout className={`pointer-events-none absolute right-[3vmin] bottom-[3vmin] z-10 rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] portrait:inset-x-[4vmin] portrait:bottom-[34vmin] ${showAce ? "ace-bubble" : ""} ${skin.card}`}>
-              <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} bubble />
+              <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={cardSkin} bubble />
             </main>
           ) : (
-            <main data-keepout className="pointer-events-none absolute z-10 flex flex-col landscape:bottom-[23vmin] landscape:left-[4vmin] portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin]">
+            <main data-keepout className={`pointer-events-none absolute z-10 flex flex-col portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin] ${captionTopRight ? "landscape:top-[16vmin] landscape:right-[4vmin] landscape:max-w-[46vw]" : xrayId ? "landscape:bottom-[15vmin] landscape:left-[4vmin]" : "landscape:bottom-[23vmin] landscape:left-[4vmin]"} ${screen.captionCard ? `rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] ${cardSkin.card}` : ""}`}>
               {chapter.day ? (
-                <DayStory audience={screen.key} elapsedS={story.progress * chapter.seconds} skin={skin} />
+                <DayStory audience={screen.key} elapsedS={elapsedS} skin={screen.captionCard ? cardSkin : skin} />
               ) : (
-                <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
+                <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={screen.captionCard ? cardSkin : skin} bubble={Boolean(screen.captionCard)} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
               )}
             </main>
           )}
 
-          {screen.mascot && chapter.ask && <AskDemo key={story.loop} data={data} />}
+          {!screen.rail && chapter.ask && <AskDemo key={story.loop} data={data} audience={screen.key} skin={cardSkin} side={askSide} startAt={story.loop} />}
+          {tour?.ended && story.chapter.ending === "home" && <EveningAtHome data={data} skin={cardSkin} />}
+          {tour?.ended && story.chapter.ending === "data" && <EnergyBudget data={data} skin={cardSkin} />}
+          {xrayStop != null && <XrayRoute stop={xrayStop} skin={cardSkin} />}
           {!pick && chapter.viz === "homes" && (
             <aside data-keepout className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:top-[16vmin] portrait:right-[3vmin]">
-              <HomesGrid homes={data.homes} skin={skin} />
+              <HomesGrid homes={data.homes} skin={cardSkin} />
             </aside>
           )}
           {!pick && panel && (
             <aside data-keepout key={panel} className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:bottom-[34vmin] portrait:right-[3vmin]">
-              {panel === "curve" && <PowerCurvePanel curve={data.curve} stale={data.curveStale} windSpeed={data.windSpeed} powerKw={data.powerKw} skin={skin} />}
-              {panel === "daily" && <DailyBarsPanel daily={data.daily} stale={data.historyStale} skin={skin} />}
-              {panel === "spec" && <SpecPanel skin={skin} />}
-              {panel === "height" && <HeightPanel skin={skin} rpm={data.rotorRpm} />}
-              {panel === "race" && <SpeedPanel tipMph={data.tipMph} skin={skin} />}
-              {panel === "town" && <TownPanel skin={skin} />}
+              {panel === "curve" && <PowerCurvePanel curve={data.curve} stale={data.curveStale} windSpeed={data.windSpeed} powerKw={data.powerKw} skin={cardSkin} />}
+              {panel === "daily" && <DailyBarsPanel daily={data.daily} stale={data.historyStale} skin={cardSkin} />}
+              {panel === "spec" && <SpecPanel skin={cardSkin} />}
+              {panel === "height" && <HeightPanel skin={cardSkin} rpm={data.rotorRpm} />}
+              {panel === "race" && <SpeedPanel tipMph={data.tipMph} skin={cardSkin} />}
+              {panel === "town" && <TownPanel skin={cardSkin} />}
+              {panel === "daytrace" && <DayTracePanel elapsedS={elapsedS} skin={cardSkin} />}
             </aside>
           )}
         </>
       )}
 
       {/* Tap cards only on the story rail; the hoarding screens just tell their story. */}
-      {screen.rail && <HotspotCard pick={pick} ctx={ctx} screenKey={screen.key} skin={skin} onClose={closePick} />}
+      {screen.rail && <HotspotCard pick={pick} ctx={ctx} screenKey={screen.key} skin={cardSkin} onClose={closePick} />}
 
       <footer className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-[3vmin] p-[3vmin] portrait:flex-col portrait:items-center ${showAce ? "landscape:pl-[31vmin]" : ""}`}>
         <div data-keepout className="pointer-events-auto flex flex-col gap-[1.4vmin] portrait:items-center">
@@ -311,11 +364,11 @@ function Hoarding({ screen }) {
           screenKey={screen.key}
           label={screen.askLabel}
           hint={screen.askHint}
-          skin={skin}
+          skin={cardSkin}
           className={`transition-[opacity,translate,scale] duration-700 ease-out ${showQr ? "pointer-events-auto opacity-100" : "pointer-events-none translate-y-[2vmin] opacity-0"}`}
         />}
       </footer>
-      {screen.mascot && <ChapterGust index={story.index} label={story.chapter.label} total={screen.chapters.length} layerRef={gustLayer} />}
+      {Transition && <Transition index={story.index} label={story.chapter.label} total={screen.chapters.length} layerRef={gustLayer} />}
       {screen.mascot && (
         <div className="absolute top-[16vmin] right-[3vmin] z-20">
           <QrCard
@@ -324,7 +377,7 @@ function Hoarding({ screen }) {
             screenKey={screen.key}
             label={screen.askLabel}
             hint={screen.askHint}
-            skin={skin}
+            skin={cardSkin}
             className={`transition-[opacity,translate,scale] duration-700 ease-out ${showQr ? "pointer-events-auto scale-100 opacity-100" : "pointer-events-none scale-90 opacity-0"}`}
           />
         </div>

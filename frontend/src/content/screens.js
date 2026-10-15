@@ -9,6 +9,7 @@
 import { formatInt, compassPoint } from "../lib/format.js";
 import { STORY_CHAPTERS } from "@shared/stories.js";
 import { STORY_SECONDS } from "../three/storyTimeline.ts";
+import { XRAY_SECONDS } from "../three/xrayStops.js";
 
 const mph = (ms) => ms * 2.23694;
 
@@ -32,6 +33,42 @@ export const TAGS = {
   tsr: { anchor: "rotorTip", label: "Tip-speed ratio", value: (d) => `λ ${d.tsr.toFixed(1)}`, sub: (d) => `${d.tipMs.toFixed(0)} m/s at the tip` },
   curve: { anchor: "nacelle", label: "Power curve says", value: (d) => `${formatInt(d.theoreticalKw)} kW`, sub: (d) => `measured ${formatInt(d.powerKw)} kW` },
   lifetime: { anchor: "base", label: "Since 2023", value: (d) => `${d.lifetime.value} ${d.lifetime.unit}`, sub: () => "generated in total" },
+
+  // The X-ray climb (three/xrayClimb.js). Figures are ACE's (piles), Wikipedia's (tower,
+  // blades) or Enercon's (generator); parts the model only illustrates say what they do.
+  xPiles: { anchor: "xPiles", label: "Piles", value: () => "22 × 18 m", sub: () => "into poor ground, from Sept 2022" },
+  xPad: { anchor: "xPad", label: "Foundation", value: () => "concrete + steel", sub: () => "spreads the loads into the piles" },
+  xConverter: { anchor: "xConverter", label: "Converter", value: () => "→ 50 Hz", sub: () => "variable output to grid frequency" },
+  xTransformer: { anchor: "transformer", label: "Transformer", value: () => "voltage up", sub: () => "less current, less lost as heat" },
+  xLadder: { anchor: "xLadder", label: "Ladder", value: () => "fall arrest", sub: () => "clipped on the whole way up" },
+  xPlatform: { anchor: "xPlatform", label: "Platform", value: () => "rest stop", sub: () => "breaks the climb into stages" },
+  xLift: { anchor: "xLift", label: "Service lift", value: () => "people + tools", sub: () => "the ladder stays a separate route" },
+  xCable: { anchor: "xCable", label: "Power cables", value: (d) => `${d.power.value} ${d.power.unit}`, sub: () => "flowing down the tower now" },
+  xYaw: { anchor: "xYaw", label: "Yaw bearing", value: (d) => `${compassPoint(d.nacelleDeg)} ${Math.round(d.nacelleDeg)}°`, sub: () => "where the rotor faces now" },
+  xCableLoop: { anchor: "xCableLoop", label: "Cable loop", value: () => "free to turn", sub: () => "so yawing doesn't twist the cables" },
+  xGenerator: { anchor: "xGenerator", label: "Ring generator", value: (d) => `${d.rotorRpm.toFixed(1)} rpm`, sub: () => "turns at rotor speed, no gearbox" },
+  xStator: { anchor: "xStator", label: "Stator windings", value: (d) => `${d.power.value} ${d.power.unit}`, sub: () => "where turning becomes electricity" },
+  xCooling: { anchor: "xCooling", label: "Cooling", value: () => "fans", sub: () => "carry the heat away" },
+  xSensors: { anchor: "xSensors", label: "Wind sensors", value: (d) => `${d.windSpeed.toFixed(1)} m/s`, sub: () => "on the nacelle roof" },
+  xHub: { anchor: "xHub", label: "Rotor", value: () => "115.7 m", sub: () => "10,516 m² swept" },
+  xPitch: { anchor: "xPitch", label: "Pitch system", value: () => "each blade", sub: () => "turns to catch or spill the wind" },
+  xBladeRoot: { anchor: "xBladeRoot", label: "Blade", value: () => "56 m", sub: () => "serrated trailing edge, for less noise" },
+};
+
+/**
+ * What the X-ray climb says at each stop (three/xrayStops.js), and which labels it shows.
+ * Sources: ACE's timeline (piles, delivery, assembly), Wikipedia (tower, blades, foundation),
+ * Enercon (the EP3 platform's separately excited ring generator). The inside of the tower
+ * is the model's illustration of the equipment, not an as-built survey.
+ */
+export const XRAY_COPY = {
+  ground: { eyebrow: "X-ray · below ground", line: "22 piles, each 18 m long, hold it up.", sub: "The ground here is poor, so the concrete-and-steel foundation stands on piles, put in from September 2022. Their layout here is illustrative.", tags: ["xPiles", "xPad"] },
+  base: { eyebrow: "X-ray · ground level", line: "Where the power is made ready for the grid.", sub: "A full-power converter turns the generator's variable output into the grid's steady 50 Hz, and a transformer steps the voltage up for export.", tags: ["xConverter", "xTransformer"] },
+  lower: { eyebrow: "X-ray · the climb", line: "A ladder with fall arrest, the whole way up.", sub: "Technicians stay clipped to a safety rail as they climb, with platforms to rest and work on along the way.", tags: ["xLadder", "xPlatform"] },
+  middle: { eyebrow: "X-ray · inside the tower", line: "A 92 m tower, delivered in four sections.", sub: "It arrived by road in February 2023 and was stacked by a specialist crane. Inside: a service lift for people and tools, and the cables bringing the power down.", tags: ["xLift", "xCable"] },
+  top: { eyebrow: "X-ray · top of the tower", line: "The yaw system turns the whole nacelle.", sub: "Electric yaw drives act on a large bearing ring to keep the rotor facing the wind. A loop in the cables lets it turn without twisting them.", tags: ["xYaw", "xCableLoop"] },
+  nacelle: { eyebrow: "X-ray · the nacelle, about 92 m up", line: "A ring generator, and no gearbox.", sub: "The rotor turns the generator directly. On Enercon's EP3 machines it is separately excited: electromagnets, not permanent magnets, sweep past the copper stator windings.", tags: ["xGenerator", "xStator", "xSensors", "xCooling"] },
+  hub: { eyebrow: "X-ray · the rotor", line: "Three 56 m blades, each one pitched.", sub: "The hub turns each blade about its own axis to catch or spill the wind. Together they sweep a circle 115.7 m across.", tags: ["xHub", "xPitch", "xBladeRoot"] },
 };
 
 /** What the walk says as you climb (keyed by WALK_STAGES ids in three/walk.js). */
@@ -64,20 +101,52 @@ const CHAPTERS = {
 };
 
 /**
- * Ace's words for each stop of the energy journey (the beats of three/storyTimeline.ts),
- * after the "Follow the Energy" story screen, in the students' voice.
+ * The words for each stop of the energy journey (the beats of three/storyTimeline.ts), after
+ * the "Follow the Energy" story screen, in each screen's voice. The students hear the whole
+ * journey, into a home and a laptop; the community and college screens stop at the streets
+ * (stage value endAt) and end it their own way (TOUR_ENDINGS).
  */
-export const TOUR_BEATS = [
-  { eyebrow: "Follow my power", line: "It all starts with the wind pushing my blades.", sub: "The stronger the wind, the more power I can catch, right up to my full {rated}." },
-  { eyebrow: "Inside my head", line: "Magnets whizz past copper coils. Zap!", sub: "My magnets are electromagnets, made with electricity. As they pass the coils, more electricity flows. No gearbox needed!" },
-  { eyebrow: "Next stop", line: "Down to the converter at the bottom of my tower.", sub: "It gets my electricity ready for the grid, which beats fifty times every second." },
-  { eyebrow: "Going down", line: "Down the cables inside my tower we go.", sub: "Thick power cables hang beside the ladder and the lift, all the way to the ground." },
-  { eyebrow: "The transformer", line: "The transformer gives my power a big push.", sub: "It raises the voltage, so electricity can travel a long way without wasting much." },
-  { eyebrow: "Along the lines", line: "Now it zooms along the power lines.", sub: "This glow shows the idea of power travelling through the shared grid. It isn't the exact real cable." },
-  { eyebrow: "Our streets", line: "Right now I'm making enough for {homes} homes.", sub: "That's how many homes' worth of electricity I'm making this second, not a count of real houses." },
-  { eyebrow: "Into a home", line: "From the street into a home.", sub: "Through the fuse box and the wires in the wall to a socket. This home is a made-up example." },
-  { eyebrow: "Your game", line: "Low battery? Plug in. Play on!", sub: "A laptop starts charging from the socket. It's a pretend charge, sped up so you can see it." },
-];
+export const TOUR_BEATS = {
+  students: [
+    { eyebrow: "Follow my power", line: "It all starts with the wind pushing my blades.", sub: "The stronger the wind, the more power I can catch, right up to my full {rated}." },
+    { eyebrow: "Inside my head", line: "Magnets whizz past copper coils. Zap!", sub: "My magnets are electromagnets, made with electricity. As they pass the coils, more electricity flows. No gearbox needed!" },
+    { eyebrow: "Next stop", line: "Down to the converter at the bottom of my tower.", sub: "It gets my electricity ready for the grid, which beats fifty times every second." },
+    { eyebrow: "Going down", line: "Down the cables inside my tower we go.", sub: "Thick power cables hang beside the ladder and the lift, all the way to the ground." },
+    { eyebrow: "The transformer", line: "The transformer gives my power a big push.", sub: "It raises the voltage, so electricity can travel a long way without wasting much." },
+    { eyebrow: "Along the lines", line: "Now it zooms along the power lines.", sub: "This glow shows the idea of power travelling through the shared grid. It isn't the exact real cable." },
+    { eyebrow: "Our streets", line: "Right now I'm making enough for {homes} homes.", sub: "That's how many homes' worth of electricity I'm making this second, not a count of real houses." },
+    { eyebrow: "Into a home", line: "From the street into a home.", sub: "Through the fuse box and the wires in the wall to a socket. This home is a made-up example." },
+    { eyebrow: "Your game", line: "Low battery? Plug in. Play on!", sub: "A laptop starts charging from the socket. It's a pretend charge, sped up so you can see it." },
+  ],
+  community: [
+    { eyebrow: "Follow the power", line: "It starts with wind off the Severn.", sub: "Our turbine's blades catch it, up to a full {rated}." },
+    { eyebrow: "In the nacelle", line: "Electromagnets sweep past copper coils.", sub: "The ring generator turns at blade speed, with no gearbox, and that makes the electricity." },
+    { eyebrow: "At the tower base", line: "The converter gets it ready for the grid.", sub: "It matches the turbine's output to the grid's steady rhythm of fifty cycles a second." },
+    { eyebrow: "Down the tower", line: "Power cables run all the way down.", sub: "Beside the ladder and the service lift, to the cabinets at the base." },
+    { eyebrow: "The transformer", line: "Stepped up and ready to travel.", sub: "A higher voltage means less energy is lost on its way into the network." },
+    { eyebrow: "Into the network", line: "Onto the lines, towards Lawrence Weston.", sub: "An illustration of the shared grid, not a map of the actual cables." },
+    { eyebrow: "Our streets", line: "Enough for {homes} homes right now.", sub: "A homes' worth estimate for this moment, not a count of connected houses." },
+  ],
+  college: [
+    { eyebrow: "Energy path · capture", line: "The rotor captures kinetic energy from the wind.", sub: "Available power scales with the cube of wind speed; pitch control caps output at {rated}." },
+    { eyebrow: "Energy path · generator", line: "Direct drive: a separately excited ring generator.", sub: "Electromagnets on the rotor induce current in the stator coils at rotor speed. There is no gearbox." },
+    { eyebrow: "Energy path · converter", line: "A full-power converter at the tower base.", sub: "It decouples the variable rotor speed from the fixed fifty hertz grid frequency." },
+    { eyebrow: "Energy path · cabling", line: "Down-tower cables, with a loop for yaw.", sub: "The cable loop lets the nacelle turn into the wind without twisting the conductors." },
+    { eyebrow: "Energy path · transformer", line: "Stepped up to distribution voltage.", sub: "Higher voltage means lower current, and resistive losses fall with the square of the current." },
+    { eyebrow: "Energy path · network", line: "Exported to the local distribution network.", sub: "The route shown is illustrative; the real connection follows the network operator's lines." },
+    { eyebrow: "Energy path · demand", line: "{power} now, about {homes} homes' average demand.", sub: "Estimated at 0.35 kW per home, roughly 3,070 kWh a year." },
+  ],
+};
+
+/** How the community and college screens end the journey (pages/screens/components). */
+export const TOUR_ENDINGS = {
+  community: { eyebrow: "An evening in Lawrence Weston", line: "Lights on. Cars charging. Our power at work.", sub: "And because we own it, the money it earns goes back into Lawrence Weston." },
+  college: { eyebrow: "Energy path · the budget", line: "From wind to wire: where the energy goes.", sub: "No rotor can catch more than 59.3% of the wind's power (the Betz limit). Live readings, open under CC BY 4.0: doi:10.5281/zenodo.22662372." },
+};
+
+// Where the journey stops on the community and college screens: the streets, lit up.
+const TOUR_END_AT = 74;
+const TOUR_ENDING_SECONDS = 14;
 
 /**
  * One screen's story: the shared chapters with this screen's tags, extras and words.
@@ -172,7 +241,10 @@ export const SCREENS = {
     askHint: "Scan with your phone camera. No app, no login.",
     // The real Lawrence Weston scan around the turbine, in place of the generated scenery.
     scan: true,
+    // The scene also builds the energy journey, for the "Follow the power" chapter.
+    tour: true,
     chapters: story({
+      power: { label: "Follow the power", seconds: TOUR_END_AT + TOUR_ENDING_SECONDS, stage: { value: { endAt: TOUR_END_AT } }, ending: "home" },
       hello: {
         stage: { action: "aerial" },
         tags: ["homes"],
@@ -210,26 +282,34 @@ export const SCREENS = {
           { eyebrow: "Ask the turbine", line: "Where does the money go? Ask it.", sub: "It knows the live figures, the history and the story of the project." },
           { eyebrow: "Your turbine, your questions", line: "Curious what it made this week?", sub: "Scan the code and ask. No app, no login." },
         ],
+        // Long enough for the example chat to answer three questions (components/AskDemo.jsx).
+        seconds: 30,
       },
-    }),
+    }, ["hello", "now", "power", "walk", "day", "ask"]),
   },
 
   college: {
     key: "college",
     name: "College",
-    // An X-ray look: the drawing office's cyan lines on navy, so the structure shows through.
-    theme: "blueprint",
+    // The real place, like the community screen; only the climb inside turns to X-ray.
+    theme: "realistic",
+    // Cards like the students' screen, the caption in one too (components/skins.js).
+    skin: "college",
+    captionCard: true,
+    scan: true,
     askLabel: "Query Ace",
     askHint: "Scan to ask about the data, the physics or the engineering",
+    tour: true,
     chapters: story({
+      power: { label: "Energy path", seconds: TOUR_END_AT + TOUR_ENDING_SECONDS, stage: { value: { endAt: TOUR_END_AT } }, ending: "data" },
       hello: {
         stage: { action: "overview", annotations: ["height", "rotor"] },
         tags: ["height", "rotor"],
         panel: "spec",
         copy: [
-          { eyebrow: "Enercon E-115 EP3", line: "Gearless, direct drive, {rated}.", sub: "Hub at {hubHeight}, tip at {tipHeight}. Cut-in 2.5 m/s, rated 12.5 m/s, storm control above 28 m/s." },
+          { eyebrow: "Enercon E-115 EP3", line: "Gearless, direct drive, {rated}.", sub: "Hub at about {hubHeight}, tip at {tipHeight}. Cut-in 2.5 m/s, rated 12.5 m/s, storm control above 28 m/s." },
           { eyebrow: "The machine", line: "One rotor, one ring generator, no gearbox.", sub: "Fewer moving parts means less to wear out: the rotor drives the generator directly." },
-          { eyebrow: "Structure", line: "A {tipHeight} machine on a concrete-and-steel tower.", sub: "Concrete segments below, steel above. Every metre of height reaches steadier, faster wind." },
+          { eyebrow: "Structure", line: "A {tipHeight} machine on a 92 m tower.", sub: "The tower came by road in four sections, and the foundation stands on 22 piles, each 18 m long." },
         ],
       },
       now: {
@@ -247,12 +327,18 @@ export const SCREENS = {
           ],
         },
       },
+      // An X-ray climb from the piles to the hub, every part labelled (three/xrayClimb.js).
       walk: {
-        copy: [
-          { eyebrow: "Tower and access", line: "Ladder, service lift, cable loop.", sub: "Power cables hang in a loop so the nacelle can yaw. Converters and the transformer sit at the base." },
-          { eyebrow: "Field trip", line: "Follow a technician's route to the nacelle.", sub: "Fall-arrest on the ladder, rest platforms on the way, and a hatch into the machine room." },
-          { eyebrow: "Inside the tower", line: "The tower is also a cable duct and a lift shaft.", sub: "It carries the full power down to the converter cabinets, {hubHeight} below the hub." },
-        ],
+        label: "X-ray",
+        walk: false,
+        xray: true,
+        seconds: Math.ceil(XRAY_SECONDS) + 3,
+        stage: { action: "xray_climb" },
+      },
+      // The day over the real place: the live map's clock sweeps from dawn to night.
+      day: {
+        live: true,
+        panel: "daytrace",
       },
       ask: {
         copy: [
@@ -260,8 +346,9 @@ export const SCREENS = {
           { eyebrow: "Open data", line: "Ask for this week's capacity factor.", sub: "Answers come from the live feed, the SCADA history or the textbooks, never a guess." },
           { eyebrow: "Go deeper", line: "Why is there no gearbox? Ask.", sub: "Scan the code for answers grounded in the engineering." },
         ],
+        seconds: 30,
       },
-    }),
+    }, ["hello", "now", "power", "walk", "day", "ask"]),
   },
 };
 

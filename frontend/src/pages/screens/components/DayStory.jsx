@@ -7,7 +7,7 @@ import { prefersReducedMotion } from "../../../hooks/useReducedMotion.js";
 import { api } from "../../../lib/api.js";
 import { dayMoment, lapseHour } from "../../../content/dayStory.js";
 
-function useDayHistory() {
+export function useDayHistory() {
   const [history, setHistory] = useState(null);
   useEffect(() => {
     let alive = true;
@@ -27,7 +27,7 @@ export default function DayStory({ audience, elapsedS, skin }) {
   const moment = dayMoment(audience, lapseHour(elapsedS), history);
   return (
     <div className="flex max-w-[min(62vw,1500px)] flex-col gap-[1.4vmin] portrait:max-w-full">
-      <p className={`font-mono text-[clamp(28px,7vmin,150px)] leading-none font-semibold tabular-nums ${skin.text} [text-shadow:0_2px_30px_rgb(0_0_0/0.45)]`}>{moment.clock}</p>
+      <p className={`font-mono text-[clamp(28px,7vmin,150px)] leading-none font-semibold tabular-nums ${skin.text} ${skin.dark ? "[text-shadow:0_2px_30px_rgb(0_0_0/0.45)]" : ""}`}>{moment.clock}</p>
       <Moment key={moment.key} moment={moment} skin={skin} />
     </div>
   );
@@ -52,8 +52,8 @@ function Moment({ moment, skin }) {
         <span className="h-px w-[4vmin] bg-current opacity-70" />
         {moment.eyebrow}
       </p>
-      <h1 className={`day-line font-display text-[clamp(26px,5vmin,110px)] leading-[1.05] font-medium tracking-display text-balance ${skin.text} [text-shadow:0_2px_30px_rgb(0_0_0/0.45)]`}>{moment.line}</h1>
-      <p className={`day-sub max-w-[min(48vw,900px)] text-[clamp(14px,2.1vmin,42px)] leading-snug ${skin.muted} [text-shadow:0_1px_16px_rgb(0_0_0/0.5)] portrait:max-w-full`}>{moment.sub}</p>
+      <h1 className={`day-line font-display text-[clamp(26px,5vmin,110px)] leading-[1.05] font-medium tracking-display text-balance ${skin.text} ${skin.dark ? "[text-shadow:0_2px_30px_rgb(0_0_0/0.45)]" : ""}`}>{moment.line}</h1>
+      <p className={`day-sub max-w-[min(48vw,900px)] text-[clamp(14px,2.1vmin,42px)] leading-snug ${skin.muted} ${skin.dark ? "[text-shadow:0_1px_16px_rgb(0_0_0/0.5)]" : ""} portrait:max-w-full`}>{moment.sub}</p>
     </div>
   );
 }
