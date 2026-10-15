@@ -49,13 +49,15 @@ export class TurbineScene {
    * @param {number} [options.frameShift]     on wide screens, push the subject this fraction of the width to the right (room for text)
    * @param {boolean} [options.storyRail]     opt into the continuous energy journey
    * @param {boolean} [options.scan]          fade the real Lawrence Weston scan in around the turbine (realistic look)
+   * @param {number} [options.maxFps]         draw at most this many frames a second (unattended screens save GPU)
+   * @param {number} [options.maxPixelRatio]  cap on device pixels per CSS pixel
    * @param {(u: number) => void} [options.onLookInside]
    * @param {(pick: { id: string, x: number, y: number } | null) => void} [options.onPick]  something was tapped (id of its description card), or null
    * @param {(s: number, height: number) => void} [options.onWalk]  progress 0..1 and metres climbed during the walk
    * @param {() => void} [options.onReady]
    * @param {(err: Error) => void} [options.onError]
    */
-  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, scan = false, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
+  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, scan = false, maxFps = 0, maxPixelRatio = 1.75, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
     this.canvas = canvas;
     this.frameShift = frameShift;
     this.theme = theme;
@@ -72,7 +74,13 @@ export class TurbineScene {
     this.disposed = false;
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, storyRail ? 1 : 1.75));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, storyRail ? 1 : maxPixelRatio));
+    this.frameInterval = maxFps > 0 ? 1000 / maxFps : 0;
+    this.lastFrameAt = -Infinity;
+    // Nothing is drawn until every material's GPU program has compiled (see #compileAll):
+    // drawing first would compile them one at a time on the main thread, freezing the page
+    // for many seconds on integrated graphics.
+    this.warming = true;
     this.renderer.localClippingEnabled = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
@@ -123,7 +131,7 @@ export class TurbineScene {
     this.#observeSize();
     if (interactive && !explorer) this.#bindPointer();
     this.timer = new THREE.Timer();
-    this.renderer.setAnimationLoop(() => this.#tick());
+    this.renderer.setAnimationLoop((now) => this.#tick(now));
   }
 
   // ---------------------------------------------------------------- setup
@@ -212,6 +220,8 @@ export class TurbineScene {
       if (this.storyRailEnabled) this.story = new StoryRail(this, interiors);
 
       if (this.explorerEnabled) this.explorer = new ExplorerNavigation(this);
+      await this.#compileAll();
+      if (this.disposed) return;
       this.callbacks.onReady?.({});
       // Opening move: drift from the wide establishing shot into the hero framing.
       if (!this.story && !this.explorerEnabled) this.rig.flyTo("hero", { duration: 5, ease: "power2.inOut" });
@@ -219,8 +229,22 @@ export class TurbineScene {
       if (this.scanEnabled && this.theme === "realistic") this.#loadScan();
     } catch (err) {
       console.error("[3d] failed to load turbine", err);
+      this.warming = false;
       this.callbacks.onError?.(err);
     }
+  }
+
+  /**
+   * Compiles every material in the scene (hidden interiors too) in parallel, through
+   * KHR_parallel_shader_compile, and only then lets frames draw. The environment map goes
+   * on first, since whether a material has one changes the program it needs.
+   */
+  async #compileAll() {
+    if (!this.envMap) this.#applyEnvironment(this.timer.getElapsed());
+    const done = this.renderer.compileAsync(this.scene, this.camera).catch((err) => console.warn("[3d] shader warm-up failed", err));
+    // A driver that never reports back shouldn't keep the scene hidden.
+    await Promise.race([done, new Promise((resolve) => setTimeout(resolve, 20_000))]);
+    this.warming = false;
   }
 
   async #loadScan() {
@@ -874,7 +898,11 @@ export class TurbineScene {
     this.paused = paused;
   }
 
-  #tick() {
+  #tick(now) {
+    // Skip display refreshes until the next frame is due (2 ms slack for vsync jitter); the
+    // timer then spans the skipped ones, so the rotor still turns at the true rpm.
+    if (this.frameInterval && now - this.lastFrameAt < this.frameInterval - 2) return;
+    this.lastFrameAt = now;
     this.timer.update();
     if (this.paused) return;
     // Real elapsed time drives the rotor, so on a slow device it still turns at the true
@@ -946,6 +974,7 @@ export class TurbineScene {
     this.sky.position.copy(this.camera.position);
     this.#updateLabels();
     this.#updateTags();
+    if (this.warming) return;
     this.renderer.render(this.scene, this.camera);
   }
 

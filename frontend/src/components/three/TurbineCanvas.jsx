@@ -30,7 +30,7 @@ function pushEnvironment(scene) {
   scene.setServerHour(env.hour);
 }
 
-export default function TurbineCanvas({ theme = "realistic", sceneRef, interactive = true, showLabels = true, frameShift = 0, storyRail = false, scan = false, onLookInside, onWalk, onPick, tags = [], tagRefs, className = "" }) {
+export default function TurbineCanvas({ theme = "realistic", sceneRef, interactive = true, showLabels = true, frameShift = 0, storyRail = false, scan = false, maxFps = 0, maxPixelRatio, onLookInside, onWalk, onPick, tags = [], tagRefs, className = "" }) {
   const canvas = useRef(null);
   const labelRefs = useRef(new Map());
   const [labels, setLabels] = useState([]);
@@ -55,6 +55,8 @@ export default function TurbineCanvas({ theme = "realistic", sceneRef, interacti
         frameShift,
         storyRail,
         scan,
+        maxFps,
+        maxPixelRatio,
         onLookInside: (u) => lookInsideCb.current?.(u),
         onWalk: (s, height) => walkCb.current?.(s, height),
         onPick: (p) => pickCb.current?.(p),

@@ -1,6 +1,6 @@
-// The words on the three hoarding screens. Every screen tells the same five-chapter story
-// (hello, now, walk, day, ask) in its own voice; only the words change, and they change
-// every time the story comes round again. The day chapter tells its hours from real data
+// The words on the three hoarding screens. Every screen tells a five-chapter story (hello,
+// now, walk, day, ask; the students screen has town in place of day) in its own voice; the
+// words change every time the story comes round again. The day chapter tells its hours from real data
 // (frontend/src/content/dayStory.js), so only the other four get generated words.
 //
 // Words come from hand-written variants (frontend/src/content/screens.js) and from fresh

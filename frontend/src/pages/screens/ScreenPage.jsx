@@ -30,11 +30,20 @@ import PowerCurvePanel from "./components/PowerCurvePanel.jsx";
 import DailyBarsPanel from "./components/DailyBarsPanel.jsx";
 import SpecPanel from "./components/SpecPanel.jsx";
 import DayStory from "./components/DayStory.jsx";
+import AceMascot from "./components/AceMascot.jsx";
+import HeightPanel from "./components/HeightPanel.jsx";
+import SpeedPanel from "./components/SpeedPanel.jsx";
+import TownPanel from "./components/TownPanel.jsx";
 
 // The real-world view (Cesium + Google 3D tiles) is big, so it loads after the 3D scene.
 const SiteCesiumViewer = lazy(() => import("../../components/cesium/SiteCesiumViewer.jsx"));
 
 const IDLE_CLOSE_MS = 30_000;
+// A hoarding's story moves slowly, so the 3D scene draws at most this often: on a laptop's
+// 120 Hz screen that's a quarter of the GPU work, and the motion still looks smooth.
+const SCREEN_MAX_FPS = 30;
+// Hoarding panels are viewed from a few metres away, so extra pixel density buys nothing.
+const SCREEN_MAX_PIXEL_RATIO = 1.25;
 
 /** Keeps a kiosk display from sleeping (where the browser allows it). */
 function useWakeLock() {
@@ -160,7 +169,7 @@ function Hoarding({ screen }) {
   return (
     <div className={`relative h-dvh w-screen overflow-hidden select-none ${skin.dark ? "bg-moss-950" : "bg-moss-50"}`}>
       <div className="absolute inset-0" onPointerDown={onTouch} style={screen.rail ? { filter: `blur(${story.railState?.blur ?? 0}px)` } : undefined}>
-        <TurbineCanvas theme={screen.theme} scan={Boolean(screen.scan)} sceneRef={sceneRef} frameShift={0.1} storyRail={screen.rail} onWalk={onWalk} onPick={screen.rail ? onPick : undefined} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
+        <TurbineCanvas theme={screen.theme} scan={Boolean(screen.scan)} maxFps={SCREEN_MAX_FPS} maxPixelRatio={SCREEN_MAX_PIXEL_RATIO} sceneRef={sceneRef} frameShift={screen.mascot ? 0 : 0.1} storyRail={screen.rail} onWalk={onWalk} onPick={screen.rail ? onPick : undefined} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
       </div>
       {liveMounted && (
         <div className={`absolute inset-0 transition-opacity duration-1000 ${showLive ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!showLive}>
@@ -172,7 +181,7 @@ function Hoarding({ screen }) {
       {screen.rail && <div className="pointer-events-none absolute inset-0 bg-moss-950" style={{ opacity: story.fade }} />}
       {screen.rail && story.railState && new URLSearchParams(window.location.search).has("debug") && <output hidden data-story-state>{JSON.stringify(story.railState)}</output>}
 
-      <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-[46vh] ${skin.scrimBottom}`} />
+      <div className={`pointer-events-none absolute inset-x-0 bottom-0 ${screen.mascot ? "h-[20vh]" : "h-[46vh]"} ${skin.scrimBottom}`} />
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-[18vh] bg-gradient-to-b ${skin.dark ? "from-black/40" : "from-white/50"} to-transparent`} />
 
       {!walking && !showLive && <DataTags ids={tagIds} data={data} tagRefs={tagRefs} skin={skin} />}
@@ -193,16 +202,26 @@ function Hoarding({ screen }) {
       <RemoteToast event={toast} skin={skin} />
 
       {walking ? (
-        <WalkHud walk={walk} skin={skin} />
+        <WalkHud walk={walk} skin={skin} timeline={Boolean(screen.walkTimeline)} />
       ) : (
         <>
-          <main data-keepout className="pointer-events-none absolute z-10 flex flex-col landscape:bottom-[23vmin] landscape:left-[4vmin] portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin]">
-            {chapter.day ? (
-              <DayStory audience={screen.key} elapsedS={story.progress * chapter.seconds} skin={skin} />
-            ) : (
-              <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
-            )}
-          </main>
+          {screen.mascot ? (
+            // Ace tells the story in a speech bubble, so the words never sit on the busy scene.
+            <main data-keepout className="pointer-events-none absolute z-10 flex items-end gap-[2.4vmin] landscape:bottom-[13vmin] landscape:left-[2vmin] portrait:inset-x-0 portrait:bottom-[30vmin] portrait:flex-col portrait:items-center portrait:px-[4vmin]">
+              <AceMascot mood={data.mood} windMs={data.windSpeed} rpm={data.rotorRpm} wave={Boolean(chapter.ask)} className="h-[44vmin] shrink-0 portrait:h-[28vmin]" />
+              <div className={`ace-bubble mb-[6vmin] rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] portrait:mb-0 ${skin.card}`}>
+                <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} bubble />
+              </div>
+            </main>
+          ) : (
+            <main data-keepout className="pointer-events-none absolute z-10 flex flex-col landscape:bottom-[23vmin] landscape:left-[4vmin] portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin]">
+              {chapter.day ? (
+                <DayStory audience={screen.key} elapsedS={story.progress * chapter.seconds} skin={skin} />
+              ) : (
+                <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
+              )}
+            </main>
+          )}
 
           {!pick && chapter.viz === "homes" && (
             <aside data-keepout className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:top-[16vmin] portrait:right-[3vmin]">
@@ -214,6 +233,9 @@ function Hoarding({ screen }) {
               {panel === "curve" && <PowerCurvePanel curve={data.curve} stale={data.curveStale} windSpeed={data.windSpeed} powerKw={data.powerKw} skin={skin} />}
               {panel === "daily" && <DailyBarsPanel daily={data.daily} stale={data.historyStale} skin={skin} />}
               {panel === "spec" && <SpecPanel skin={skin} />}
+              {panel === "height" && <HeightPanel skin={skin} />}
+              {panel === "race" && <SpeedPanel tipMph={data.tipMph} skin={skin} />}
+              {panel === "town" && <TownPanel skin={skin} />}
             </aside>
           )}
         </>

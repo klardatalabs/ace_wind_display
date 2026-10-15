@@ -162,3 +162,110 @@
 @media (prefers-reduced-motion: reduce) {
   .shimmer-text { animation: none; color: var(--color-moss-700); }
 }
+
+/* A build-story milestone popping in on the climb up the tower. */
+@keyframes milestone-in {
+  from { opacity: 0; transform: translateY(2.4vmin) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+.milestone-in {
+  animation: milestone-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .milestone-in { animation: none; }
+}
+
+/* Ace, the students screen's cartoon turbine (pages/screens/components/AceMascot.jsx). */
+@keyframes ace-blink {
+  0%, 93%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+.ace-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ace-blink 4.2s ease-in-out infinite;
+}
+@keyframes ace-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.2%); }
+}
+.ace-bob { animation: ace-bob 3.6s ease-in-out infinite; }
+@keyframes ace-wave {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-5deg); }
+  40% { transform: rotate(4deg); }
+  60% { transform: rotate(-3deg); }
+  80% { transform: rotate(0deg); }
+}
+.ace-wave {
+  transform-origin: 50% 93%;
+  animation: ace-wave 2.4s ease-in-out infinite;
+}
+@keyframes ace-zzz {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(3vmin, -6vmin) scale(1.2); }
+}
+.ace-zzz span {
+  position: absolute;
+  font-size: clamp(16px, 3.4vmin, 70px);
+  animation: ace-zzz 3s ease-out infinite;
+}
+.ace-zzz span:nth-child(2) { animation-delay: 1s; }
+.ace-zzz span:nth-child(3) { animation-delay: 2s; }
+@keyframes ace-gust {
+  0% { opacity: 0; transform: translateX(-4vmin) scaleX(0.4); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(6vmin) scaleX(1); }
+}
+.ace-gust {
+  transform-origin: left;
+  animation: ace-gust 1.4s ease-out infinite;
+}
+
+/* The speech bubble Ace talks in: a card with a tail pointing down-left at Ace. */
+.ace-bubble { position: relative; }
+.ace-bubble::after {
+  content: "";
+  position: absolute;
+  left: -1.4vmin;
+  bottom: 4vmin;
+  width: 3vmin;
+  height: 3vmin;
+  background: inherit;
+  transform: rotate(45deg);
+  border-radius: 0.4vmin;
+}
+
+/* Students panels: things that grow, race and drop in. */
+@keyframes grow-up {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+.grow-up {
+  transform-origin: bottom;
+  animation: grow-up 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes race-bar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.race-bar {
+  transform-origin: left;
+  animation: race-bar 2.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes polaroid-drop {
+  from { opacity: 0; transform: translateY(-6vmin) rotate(var(--tilt, 0deg)) scale(1.08); }
+  to { opacity: 1; transform: rotate(var(--tilt, 0deg)); }
+}
+.polaroid-drop { animation: polaroid-drop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes dot-on {
+  from { opacity: 0.15; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+.dot-on { animation: dot-on 0.4s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ace-blink, .ace-bob, .ace-wave, .ace-zzz span, .ace-gust,
+  .grow-up, .race-bar, .polaroid-drop, .dot-on { animation: none; }
+}

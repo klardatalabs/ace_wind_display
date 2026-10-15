@@ -50,12 +50,14 @@ export const WALK_CAPTIONS = {
 //   walk    "Go inside": the shared tour from the door up the tower to the machine room
 //   day     a day here in twenty seconds, each hour told from what the turbine really did
 //   ask     the invitation to scan the QR code and chat
+// The students screen swaps "day" for "town" (who owns the turbine, from ACE's own figures).
 const CHAPTERS = {
   hello: { id: "hello", label: "Hello", seconds: 12 },
   now: { id: "now", label: "Right now", seconds: 16, stage: { action: "hero" }, live: true },
   walk: { id: "walk", label: "Go inside", seconds: 50, stage: { action: "walk_start", value: 44 }, walk: true },
   day: { id: "day", label: "A day here", seconds: 24, stage: { action: "overview", lapse: [5, 22, 21] }, day: true },
   ask: { id: "ask", label: "Ask me", seconds: 14, stage: { action: "hero" }, ask: true },
+  town: { id: "town", label: "Our town", seconds: 18, stage: { action: "aerial" } },
 };
 
 /**
@@ -64,54 +66,75 @@ const CHAPTERS = {
  * with fresh ones from the server when it has them. "now" has separate words for when the
  * turbine is working and when it's becalmed.
  */
-const story = (per) => STORY_CHAPTERS.map((id) => ({ ...CHAPTERS[id], ...per[id], stage: { ...CHAPTERS[id].stage, ...per[id]?.stage } }));
+const story = (per, ids = STORY_CHAPTERS) => ids.map((id) => ({ ...CHAPTERS[id], ...per[id], stage: { ...CHAPTERS[id].stage, ...per[id]?.stage } }));
 
 export const SCREENS = {
   students: {
     key: "students",
     name: "Students",
-    theme: "realistic",
+    theme: "cartoon",
     askLabel: "Ask Ace anything!",
     askHint: "Point your phone camera here",
-    chapters: story({
-      hello: {
-        stage: { action: "hero", annotations: ["height", "bigben"] },
-        tags: ["height", "bigben"],
-        copy: [
-          { eyebrow: "Hi there!", line: "I'm Ace, the giant on your doorstep.", sub: "I'm taller than Big Ben, and I belong to the people of Lawrence Weston." },
-          { eyebrow: "Look up!", line: "Taller than Big Ben. Powered by wind.", sub: "From the ground to the tip of my blade is {tipHeight}. That's about 34 double-decker buses stacked up!" },
-          { eyebrow: "Meet Ace", line: "A wind turbine that belongs to a whole town.", sub: "People here built me together, and what I earn helps the neighbourhood." },
-        ],
-      },
-      now: {
-        copy: {
-          working: [
-            { eyebrow: "Zoom!", line: "My blade tips are flying round at {tip}.", sub: "Each blade is {bladeLength} long, longer than two blue whales nose to tail." },
-            { eyebrow: "Feel that wind?", line: "A {wind} wind is spinning me right now.", sub: "It's blowing from the {windFrom}. Watch the streaks: that's the air pushing my blades round." },
-            { eyebrow: "Power up!", line: "I'm making {power} of electricity right now.", sub: "That's enough for {homes} homes. Every turn of my blades counts." },
+    // Ace, a cartoon of the turbine, tells the story in a speech bubble (components/AceMascot.jsx).
+    mascot: true,
+    // The climb up the tower tells how the turbine was built (content/buildTimeline.js).
+    walkTimeline: true,
+    chapters: story(
+      {
+        hello: {
+          // The height panel makes the comparisons, so the 3D scene shows Ace alone.
+          stage: { action: "hero" },
+          panel: "height",
+          copy: [
+            { eyebrow: "Hi there!", line: "I'm Ace, the giant on your doorstep.", sub: "I'm taller than Big Ben, and I belong to the people of Lawrence Weston." },
+            { eyebrow: "Look up!", line: "Taller than Big Ben. Powered by wind.", sub: "From the ground to the tip of my blade is {tipHeight}. That's about 34 double-decker buses stacked up!" },
+            { eyebrow: "Meet Ace", line: "A wind turbine that belongs to a whole town.", sub: "People here made me happen together, and what I earn helps the neighbourhood." },
           ],
-          calm: [
-            { eyebrow: "Shhh…", line: "No wind right now, so I'm having a rest.", sub: "I need a breeze of about six miles an hour to start turning. I'll be ready when it comes." },
-            { eyebrow: "Waiting for wind", line: "Even giants have to wait sometimes.", sub: "My blades turn to face the wind as soon as it picks up." },
-            { eyebrow: "Quiet day", line: "The air is still, so my blades are still.", sub: "Wind comes and goes. That's why lots of turbines share the job across the country." },
+        },
+        now: {
+          // The real-world map is for grown-ups; here the race panel tells the live story,
+          // and the screen never has to load the map.
+          live: false,
+          panel: "race",
+          copy: {
+            working: [
+              { eyebrow: "Zoom!", line: "My blade tips are flying round at {tip}.", sub: "Each blade is {bladeLength} long, about as long as two blue whales nose to tail." },
+              { eyebrow: "Feel that wind?", line: "A {wind} wind is spinning me right now.", sub: "It's blowing from the {windFrom}, and it's pushing my blades round." },
+              { eyebrow: "Power up!", line: "I'm making {power} of electricity right now.", sub: "That's enough for {homes} homes, right this second. Every turn of my blades counts." },
+            ],
+            calm: [
+              { eyebrow: "Shhh…", line: "No wind right now, so I'm having a rest.", sub: "I need a breeze of about six miles an hour to start turning. I'll be ready when it comes." },
+              { eyebrow: "Waiting for wind", line: "Even giants have to wait sometimes.", sub: "My head turns to face the wind, so I'm ready the moment it picks up." },
+              { eyebrow: "Quiet day", line: "The air is still, so my blades are still.", sub: "Wind comes and goes. That's why lots of turbines share the job across the country." },
+            ],
+          },
+        },
+        walk: {
+          label: "My story",
+          copy: [
+            { eyebrow: "My story", line: "Climb up inside me and I'll tell you my story.", sub: "Every step up the ladder is a step forward in time, from one idea to a giant turbine." },
+            { eyebrow: "Time to climb", line: "Each step up is a step through my history.", sub: "We start at the door and finish in my machine room, {hubHeight} up." },
+            { eyebrow: "Hard hats on", line: "Let's climb through the years I was built.", sub: "Engineers climb this ladder for real, with a safety harness, and there's a lift too." },
+          ],
+        },
+        town: {
+          panel: "town",
+          copy: [
+            { eyebrow: "This town owns me", line: "I belong to everyone in Lawrence Weston.", sub: "Neighbours dreamed me up and made me happen. No shareholders, just the community." },
+            { eyebrow: "Our money, our town", line: "When I sell electricity, the town wins.", sub: "The money I make goes back into Lawrence Weston, to help the neighbourhood." },
+            { eyebrow: "Opening day", line: "A man in a top hat cut my ribbon!", sub: "A Brunel lookalike opened me. Brunel was Bristol's most famous engineer." },
+          ],
+        },
+        ask: {
+          copy: [
+            { eyebrow: "Your turn!", line: "Got a question? Ask me anything!", sub: "Scan the code with a phone. I'll answer, and I might show you pictures too." },
+            { eyebrow: "Ask Ace", line: "What do you want to know about me?", sub: "How fast? How tall? What happens in a storm? Scan the code and ask." },
+            { eyebrow: "Chat with me", line: "I know my science from real books.", sub: "Scan the code to ask. Nothing you type shows up on this screen." },
           ],
         },
       },
-      walk: {
-        copy: [
-          { eyebrow: "Let's go inside", line: "Come on, I'll take you up to the top.", sub: "It's like climbing thirty floors. Engineers do it with a harness and a lift." },
-          { eyebrow: "Adventure time", line: "Want to see what's inside me?", sub: "Through the door, up the ladders, all the way to my machine room, {hubHeight} up." },
-          { eyebrow: "Climb with me", line: "There's a secret room at the top of my tower.", sub: "Hard hats on! We're going all the way up to where the magic happens." },
-        ],
-      },
-      ask: {
-        copy: [
-          { eyebrow: "Your turn!", line: "Got a question? Ask me anything!", sub: "Scan the code with a phone. I'll answer, and I might show you pictures too." },
-          { eyebrow: "Ask Ace", line: "What do you want to know about me?", sub: "How fast? How tall? What happens in a storm? Scan the code and ask." },
-          { eyebrow: "Chat with me", line: "I know my science from real books.", sub: "Scan the code to ask. Nothing you type shows up on this screen." },
-        ],
-      },
-    }),
+      ["hello", "now", "walk", "town", "ask"]
+    ),
   },
 
   community: {
