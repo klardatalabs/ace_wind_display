@@ -80,6 +80,7 @@ Rules:
 ${placeholders}
 - Write "carbon dioxide", never the chemical formula. No emoji, no links, no markdown, no hashtags.
 - Use only the facts above; invent nothing. British English. Each variant must say something different.
+- Never say where something is on the screen (above, below, beside, left, right): the layout changes.
 
 Chapters:
 ${GENERATED_CHAPTERS.map((id) => `- ${id}: ${SCREEN_CHAPTER_BRIEFS[audience]?.[id] ?? CHAPTER_BRIEFS[id]}`).join("\n")}
