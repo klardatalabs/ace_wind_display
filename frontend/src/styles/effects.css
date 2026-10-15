@@ -308,3 +308,29 @@
 @media (prefers-reduced-motion: reduce) {
   [class*="art-"] { animation: none !important; opacity: 1 !important; stroke-dashoffset: 0 !important; }
 }
+
+/* "Ask me" example chat (pages/screens/components/AskDemo.jsx). */
+@keyframes ask-finger {
+  0% { opacity: 0; transform: translate(4vmin, 6vmin) scale(1); }
+  35% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(0.7); }
+  65% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+}
+.ask-finger { animation: ask-finger 1.4s ease-out both; }
+@keyframes ask-chip-tap {
+  0%, 30% { background: transparent; }
+  45%, 100% { background: var(--color-moss-100); color: var(--color-moss-950); }
+}
+.ask-chip-tap { animation: ask-chip-tap 1.4s ease-out both; }
+@keyframes ask-typing {
+  0% { opacity: 0; max-height: 0; padding-block: 0; }
+  12% { opacity: 1; max-height: 8vmin; padding-block: 1.4vmin; }
+  88% { opacity: 1; max-height: 8vmin; padding-block: 1.4vmin; }
+  100% { opacity: 0; max-height: 0; padding-block: 0; }
+}
+.ask-typing { overflow: hidden; animation: ask-typing 1.4s ease-in-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .ask-finger, .ask-chip-tap { animation: none; }
+  .ask-typing { display: none; }
+}

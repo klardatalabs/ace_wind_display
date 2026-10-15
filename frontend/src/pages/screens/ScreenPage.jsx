@@ -34,7 +34,8 @@ import AceMascot from "./components/AceMascot.jsx";
 import HeightPanel from "./components/HeightPanel.jsx";
 import SpeedPanel from "./components/SpeedPanel.jsx";
 import TownPanel from "./components/TownPanel.jsx";
-import AskBubbles from "./components/AskBubbles.jsx";
+import AskDemo from "./components/AskDemo.jsx";
+import ChapterGust from "./components/ChapterGust.jsx";
 
 // The real-world view (Cesium + Google 3D tiles) is big, so it loads after the 3D scene.
 const SiteCesiumViewer = lazy(() => import("../../components/cesium/SiteCesiumViewer.jsx"));
@@ -83,6 +84,7 @@ function Hoarding({ screen }) {
   const sceneRef = useRef(null);
   const tagRefs = useRef(new Map());
   const markerRef = useRef(null);
+  const gustLayer = useRef(null);
   const data = useScreenData();
   const story = useStoryLoop(screen.chapters, sceneRef, screen.rail);
   const weather = useEnvironmentStore((s) => s.environment?.weather);
@@ -155,6 +157,7 @@ function Hoarding({ screen }) {
   const tagIds = useMemo(() => (story.chapter.tags ?? []).filter((id) => TAGS[id]), [story.chapter]);
   const tagDefs = useMemo(() => tagIds.map((id) => ({ id, anchor: TAGS[id].anchor })), [tagIds]);
   const walking = Boolean(walk);
+  const showAce = Boolean(screen.mascot) && story.chapter.id === "hello" && !walking;
   const liveChapter = screen.chapters.findIndex((c) => c.live);
   // Load the real-world view a little after start, and let it render (warming its tiles)
   // through the chapter before its own, so it's ready the moment "Right now" begins.
@@ -196,7 +199,10 @@ function Hoarding({ screen }) {
         onPointerDown={onTouch}
         style={screen.rail ? { filter: `blur(${story.railState?.blur ?? 0}px)` } : soft ? { filter: "blur(10px) saturate(1.1)", scale: "1.04" } : undefined}
       >
+        {/* The chapter gust softens this layer for a moment (ChapterGust). */}
+        <div ref={gustLayer} className="size-full">
         <TurbineCanvas theme={screen.theme} scan={Boolean(screen.scan)} storyTour={Boolean(screen.tour)} maxFps={SCREEN_MAX_FPS} maxPixelRatio={SCREEN_MAX_PIXEL_RATIO} sceneRef={sceneRef} frameShift={screen.mascot ? 0 : 0.1} storyRail={screen.rail} onWalk={onWalk} onPick={screen.rail ? onPick : undefined} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
+        </div>
       </div>
       {liveMounted && (
         <div className={`absolute inset-0 transition-opacity duration-1000 ${showLive ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!showLive}>
@@ -230,11 +236,11 @@ function Hoarding({ screen }) {
       </div>
       <RemoteToast event={toast} skin={skin} />
 
-      {/* Ace stands in the bottom-left corner the whole time (in a hard hat for the climb),
-          and the middle of the screen stays clear for the turbine. */}
-      {screen.mascot && (
-        <div data-keepout className={`pointer-events-none absolute bottom-[1vmin] left-0 z-10 transition-[height] duration-700 ${walking ? "h-[24vmin]" : "h-[46vmin] portrait:h-[30vmin]"}`}>
-          <AceMascot mood={data.mood} windMs={data.windSpeed} rpm={data.rotorRpm} wave={Boolean(chapter.ask) || story.chapter.id === "hello"} hat={walking} className="h-full" />
+      {/* Ace introduces itself in the opening chapter, from the bottom-left corner; after
+          that the story is told in the bubble alone. */}
+      {showAce && (
+        <div data-keepout className="pointer-events-none absolute bottom-[1vmin] left-0 z-10 h-[46vmin] portrait:h-[30vmin]">
+          <AceMascot mood={data.mood} windMs={data.windSpeed} rpm={data.rotorRpm} wave className="h-full" />
         </div>
       )}
 
@@ -244,8 +250,8 @@ function Hoarding({ screen }) {
         <>
           {screen.mascot ? (
             // Ace's words, in a speech bubble in the bottom-right corner, never on the busy scene.
-            // (On "Ask me", example questions pop up beside Ace too.)
-            <main data-keepout className={`ace-bubble pointer-events-none absolute right-[3vmin] bottom-[3vmin] z-10 rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] portrait:inset-x-[4vmin] portrait:bottom-[34vmin] ${skin.card}`}>
+            // (On "Ask me", an example chat on a phone shows what the QR code leads to.)
+            <main data-keepout className={`pointer-events-none absolute right-[3vmin] bottom-[3vmin] z-10 rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] portrait:inset-x-[4vmin] portrait:bottom-[34vmin] ${showAce ? "ace-bubble" : ""} ${skin.card}`}>
               <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} bubble />
             </main>
           ) : (
@@ -258,7 +264,7 @@ function Hoarding({ screen }) {
             </main>
           )}
 
-          {screen.mascot && chapter.ask && <AskBubbles key={story.loop} />}
+          {screen.mascot && chapter.ask && <AskDemo key={story.loop} data={data} />}
           {!pick && chapter.viz === "homes" && (
             <aside data-keepout className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:top-[16vmin] portrait:right-[3vmin]">
               <HomesGrid homes={data.homes} skin={skin} />
@@ -280,7 +286,7 @@ function Hoarding({ screen }) {
       {/* Tap cards only on the story rail; the hoarding screens just tell their story. */}
       {screen.rail && <HotspotCard pick={pick} ctx={ctx} screenKey={screen.key} skin={skin} onClose={closePick} />}
 
-      <footer className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-[3vmin] p-[3vmin] portrait:flex-col portrait:items-center ${screen.mascot ? "landscape:pl-[31vmin]" : ""}`}>
+      <footer className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-[3vmin] p-[3vmin] portrait:flex-col portrait:items-center ${showAce ? "landscape:pl-[31vmin]" : ""}`}>
         <div data-keepout className="pointer-events-auto flex flex-col gap-[1.4vmin] portrait:items-center">
           <StepPills
             steps={screen.chapters.map((c) => c.label)}
@@ -309,6 +315,7 @@ function Hoarding({ screen }) {
           className={`transition-[opacity,translate,scale] duration-700 ease-out ${showQr ? "pointer-events-auto opacity-100" : "pointer-events-none translate-y-[2vmin] opacity-0"}`}
         />}
       </footer>
+      {screen.mascot && <ChapterGust index={story.index} label={story.chapter.label} total={screen.chapters.length} layerRef={gustLayer} />}
       {screen.mascot && (
         <div className="absolute top-[16vmin] right-[3vmin] z-20">
           <QrCard

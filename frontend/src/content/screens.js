@@ -151,6 +151,8 @@ export const SCREENS = {
           ],
         },
         ask: {
+          // Long enough for the example chat to answer all three of its questions.
+          seconds: 24,
           copy: [
             { eyebrow: "Your turn!", line: "Got a question? Ask me anything!", sub: "Scan the code with a phone. I'll answer, and I might show you pictures too." },
             { eyebrow: "Ask Ace", line: "What do you want to know about me?", sub: "How fast? How tall? What happens in a storm? Scan the code and ask." },
