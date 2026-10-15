@@ -21,9 +21,17 @@ const FACTS = `Facts you may use (nothing else):
 - It is owned by the community through Ambition Community Energy; its income supports Ambition
   Lawrence Weston's work in the neighbourhood. It started generating in spring 2023.
 - It is one of England's tallest onshore turbines. Inside the tower: a ladder, rest platforms,
-  a service lift and power cables. The machine room (nacelle) is at the top.
-- The screen shows the turbine in 3D, a live real-world view, a walk up inside the tower, a
-  day-in-a-minute time-lapse and a QR code that opens a private chat with Ace on a phone.`;
+  a service lift and power cables. The machine room (nacelle) is at the top.`;
+
+// What each screen actually shows, so captions never point at something that isn't there.
+const GROWN_UP_SCREEN =
+  "The screen shows the turbine in 3D, a live real-world view, a walk up inside the tower, a day-in-a-minute time-lapse and a QR code that opens a private chat with Ace on a phone.";
+const SCREEN_SHOWS = {
+  students:
+    "The screen shows a cartoon of Ace with a face telling the story in a speech bubble, the turbine in 3D, a race between Ace's blade tips and other fast things, a climb up inside the tower that tells how Ace was built, a page about the town that owns it, and a QR code that opens a private chat with Ace on a phone. There is no map, live camera, quiz or game.",
+  community: GROWN_UP_SCREEN,
+  college: GROWN_UP_SCREEN,
+};
 
 const VOICES = {
   students: "School students aged 7-16. Playful, vivid headlines, simple words, one fun comparison at most. Speak as Ace, in the first person.",
@@ -38,6 +46,14 @@ const CHAPTER_BRIEFS = {
   ask: "The end: invite people to scan the QR code on screen and ask Ace a question on their phone. Mention that the chat is private or that it's free, at most.",
 };
 
+// Where a screen tells a chapter its own way (see frontend/src/content/screens.js).
+const SCREEN_CHAPTER_BRIEFS = {
+  students: {
+    now: "Right now: shown over the 3D turbine beside a race of Ace's live blade-tip speed against fast things. Write 'working' variants (the turbine is generating) and 'calm' variants (too little wind to generate); never mention spinning or power in the calm ones.",
+    walk: "My story: the start of a climb up inside the tower; on the way up the screen tells how Ace was built, from the first idea to switching on. An invitation to climb through Ace's story. Give no dates or build details: they're shown on the way.",
+  },
+};
+
 export function storyPrompt(audience) {
   const placeholders = Object.entries(STORY_PLACEHOLDERS).map(([k, v]) => `{${k}}: ${v}`).join("\n");
   const shape = GENERATED_CHAPTERS.map((id) =>
@@ -49,6 +65,7 @@ export function storyPrompt(audience) {
       content: `You write the captions for a big public screen beside a community wind turbine. Children read it.
 
 ${FACTS}
+- ${SCREEN_SHOWS[audience]}
 
 Audience: ${VOICES[audience]}
 
@@ -64,7 +81,7 @@ ${placeholders}
 - Use only the facts above; invent nothing. British English. Each variant must say something different.
 
 Chapters:
-${GENERATED_CHAPTERS.map((id) => `- ${id}: ${CHAPTER_BRIEFS[id]}`).join("\n")}
+${GENERATED_CHAPTERS.map((id) => `- ${id}: ${SCREEN_CHAPTER_BRIEFS[audience]?.[id] ?? CHAPTER_BRIEFS[id]}`).join("\n")}
 
 Reply with JSON only, no prose, in exactly this shape:
 {
