@@ -6,7 +6,10 @@
 // blade tip, the nacelle, the homes) instead of sitting in cards. `d` is the live data from
 // pages/screens/useScreenData.js.
 
-import { formatInt, formatEnergy, compassPoint } from "../lib/format.js";
+import { formatInt, compassPoint } from "../lib/format.js";
+import { STORY_CHAPTERS } from "@shared/stories.js";
+import { STORY_SECONDS } from "../three/storyTimeline.ts";
+import { XRAY_SECONDS } from "../three/xrayStops.js";
 
 const mph = (ms) => ms * 2.23694;
 
@@ -30,7 +33,57 @@ export const TAGS = {
   tsr: { anchor: "rotorTip", label: "Tip-speed ratio", value: (d) => `λ ${d.tsr.toFixed(1)}`, sub: (d) => `${d.tipMs.toFixed(0)} m/s at the tip` },
   curve: { anchor: "nacelle", label: "Power curve says", value: (d) => `${formatInt(d.theoreticalKw)} kW`, sub: (d) => `measured ${formatInt(d.powerKw)} kW` },
   lifetime: { anchor: "base", label: "Since 2023", value: (d) => `${d.lifetime.value} ${d.lifetime.unit}`, sub: () => "generated in total" },
+
+  // The X-ray climb (three/xrayClimb.js). Figures are ACE's (piles), Wikipedia's (tower,
+  // blades) or Enercon's (generator); parts the model only illustrates say what they do.
+  xPiles: { anchor: "xPiles", label: "Piles", value: () => "22 × 18 m", sub: () => "into poor ground, from Sept 2022" },
+  xPad: { anchor: "xPad", label: "Foundation", value: () => "concrete + steel", sub: () => "spreads the loads into the piles" },
+  xConverter: { anchor: "xConverter", label: "Converter", value: () => "→ 50 Hz", sub: () => "variable output to grid frequency" },
+  xTransformer: { anchor: "transformer", label: "Transformer", value: () => "voltage up", sub: () => "less current, less lost as heat" },
+  xLadder: { anchor: "xLadder", label: "Ladder", value: () => "fall arrest", sub: () => "clipped on the whole way up" },
+  xPlatform: { anchor: "xPlatform", label: "Platform", value: () => "rest stop", sub: () => "breaks the climb into stages" },
+  xLift: { anchor: "xLift", label: "Service lift", value: () => "people + tools", sub: () => "the ladder stays a separate route" },
+  xCable: { anchor: "xCable", label: "Power cables", value: (d) => `${d.power.value} ${d.power.unit}`, sub: () => "flowing down the tower now" },
+  xYaw: { anchor: "xYaw", label: "Yaw bearing", value: (d) => `${compassPoint(d.nacelleDeg)} ${Math.round(d.nacelleDeg)}°`, sub: () => "where the rotor faces now" },
+  xCableLoop: { anchor: "xCableLoop", label: "Cable loop", value: () => "free to turn", sub: () => "so yawing doesn't twist the cables" },
+  xGenerator: { anchor: "xGenerator", label: "Ring generator", value: (d) => `${d.rotorRpm.toFixed(1)} rpm`, sub: () => "turns at rotor speed, no gearbox" },
+  xStator: { anchor: "xStator", label: "Stator windings", value: (d) => `${d.power.value} ${d.power.unit}`, sub: () => "where turning becomes electricity" },
+  xCooling: { anchor: "xCooling", label: "Cooling", value: () => "fans", sub: () => "carry the heat away" },
+  xSensors: { anchor: "xSensors", label: "Wind sensors", value: (d) => `${d.windSpeed.toFixed(1)} m/s`, sub: () => "on the nacelle roof" },
+  xHub: { anchor: "xHub", label: "Rotor", value: () => "115.7 m", sub: () => "10,516 m² swept" },
+  xPitch: { anchor: "xPitch", label: "Pitch system", value: () => "each blade", sub: () => "turns to catch or spill the wind" },
+  xBladeRoot: { anchor: "xBladeRoot", label: "Blade", value: () => "56 m", sub: () => "serrated trailing edge, for less noise" },
 };
+
+/**
+ * What the X-ray climb says at each stop (three/xrayStops.js), and which labels it shows.
+ * Sources: ACE's timeline (piles, delivery, assembly), Wikipedia (tower, blades, foundation),
+ * Enercon (the EP3 platform's separately excited ring generator). The inside of the tower
+ * is the model's illustration of the equipment, not an as-built survey.
+ */
+export const XRAY_COPY = {
+  college: {
+    ground: { eyebrow: "X-ray · below ground", line: "22 piles, each 18 m long, hold it up.", sub: "The ground here is poor, so the concrete-and-steel foundation stands on piles, put in from September 2022. Their layout here is illustrative.", tags: ["xPiles", "xPad"] },
+    base: { eyebrow: "X-ray · ground level", line: "Where the power is made ready for the grid.", sub: "A full-power converter turns the generator's variable output into the grid's steady 50 Hz, and a transformer steps the voltage up for export.", tags: ["xConverter", "xTransformer"] },
+    lower: { eyebrow: "X-ray · the climb", line: "A ladder with fall arrest, the whole way up.", sub: "Technicians stay clipped to a safety rail as they climb, with platforms to rest and work on along the way.", tags: ["xLadder", "xPlatform"] },
+    middle: { eyebrow: "X-ray · inside the tower", line: "A 92 m tower, delivered in four sections.", sub: "It arrived by road in February 2023 and was stacked by a specialist crane. Inside: a service lift for people and tools, and the cables bringing the power down.", tags: ["xLift", "xCable"] },
+    top: { eyebrow: "X-ray · top of the tower", line: "The yaw system turns the whole nacelle.", sub: "Electric yaw drives act on a large bearing ring to keep the rotor facing the wind. A loop in the cables lets it turn without twisting them.", tags: ["xYaw", "xCableLoop"] },
+    nacelle: { eyebrow: "X-ray · the nacelle, about 92 m up", line: "A ring generator, and no gearbox.", sub: "The rotor turns the generator directly. On Enercon's EP3 machines it is separately excited: electromagnets, not permanent magnets, sweep past the copper stator windings.", tags: ["xGenerator", "xStator", "xSensors", "xCooling"] },
+    hub: { eyebrow: "X-ray · the rotor", line: "Three 56 m blades, each one pitched.", sub: "The hub turns each blade about its own axis to catch or spill the wind. Together they sweep a circle 115.7 m across.", tags: ["xHub", "xPitch", "xBladeRoot"] },
+  },
+  // Community: the same climb, told as the story of how it was built. Dates and figures
+  // are ACE's timeline (ambitioncommunityenergy.org/timeline).
+  community: {
+    ground: { eyebrow: "Inside our turbine · the ground", line: "It stands on 22 piles, each 18 m long.", sub: "The ground here is poor, so the base went down first, from September 2022. Knights Brown did the groundworks.", tags: ["xPiles", "xPad"] },
+    base: { eyebrow: "Inside our turbine · the door", line: "Where our power sets off for the grid.", sub: "Equipment at the base gets the electricity ready to export. It's sold to OVO Energy, under a deal signed in December 2022.", tags: ["xConverter", "xTransformer"] },
+    lower: { eyebrow: "Inside our turbine · the climb", line: "Engineers climb up here to keep it turning.", sub: "A ladder with a safety line runs all the way up, with platforms to rest on along the way.", tags: ["xLadder", "xPlatform"] },
+    middle: { eyebrow: "Inside our turbine · the tower", line: "It arrived by road in February 2023.", sub: "The blades came under police escort, the tower sections two days later, and a specialist crane stacked them up.", tags: ["xLift", "xCable"] },
+    top: { eyebrow: "Inside our turbine · the top", line: "The whole top turns to face the wind.", sub: "Motors turn it on a big bearing ring, so the blades always meet the wind head on.", tags: ["xYaw", "xCableLoop"] },
+    nacelle: { eyebrow: "Inside our turbine · the machine room", line: "No gearbox: the blades turn the generator.", sub: "Fewer parts to wear out. Enercon's crews fitted the tower, this machine room and the rotor in four days.", tags: ["xGenerator", "xStator", "xSensors", "xCooling"] },
+    hub: { eyebrow: "Inside our turbine · the blades", line: "Three 56 m blades, fitted in a week.", sub: "By May 2023, six years after two residents first talked about it, the turbine was fully running.", tags: ["xHub", "xPitch", "xBladeRoot"] },
+  },
+};
+
 
 /** What the walk says as you climb (keyed by WALK_STAGES ids in three/walk.js). */
 export const WALK_CAPTIONS = {
@@ -42,271 +95,284 @@ export const WALK_CAPTIONS = {
   machine: { title: "The machine room", text: "You are 90 m up, inside the nacelle. The ring generator is right in front of you." },
 };
 
-const day = { lapse: [5, 22, 18] };
+// The five chapters every hoarding screen plays, in the same order with the same camera
+// moves; each screen speaks them in its own voice (`copy` below):
+//   hello   who the turbine is, in the 3D place
+//   now     the live, real-world view (the same Google 3D scene as the live visualisation)
+//   walk    "Go inside": the shared tour from the door up the tower to the machine room
+//   day     a day here in twenty seconds, each hour told from what the turbine really did
+//   ask     the invitation to scan the QR code and chat
+// The students screen swaps "day" for "town" (who owns the turbine, from ACE's own figures).
+const CHAPTERS = {
+  hello: { id: "hello", label: "Hello", seconds: 12 },
+  now: { id: "now", label: "Right now", seconds: 16, stage: { action: "hero" }, live: true },
+  walk: { id: "walk", label: "Go inside", seconds: 50, stage: { action: "walk_start", value: 44 }, walk: true },
+  day: { id: "day", label: "A day here", seconds: 24, stage: { action: "overview", lapse: [5, 22, 21] }, day: true },
+  ask: { id: "ask", label: "Ask me", seconds: 14, stage: { action: "hero" }, ask: true },
+  town: { id: "town", label: "Our town", seconds: 16, stage: { action: "aerial" } },
+  // Shashi's energy journey (three/storyRail.js) played once through: wind to a home.
+  power: { id: "power", label: "Follow my power", seconds: STORY_SECONDS, stage: { action: "tour" }, tour: true },
+};
+
+/**
+ * The words for each stop of the energy journey (the beats of three/storyTimeline.ts), after
+ * the "Follow the Energy" story screen, in each screen's voice. The students hear the whole
+ * journey, into a home and a laptop; the community and college screens stop at the streets
+ * (stage value endAt) and end it their own way (TOUR_ENDINGS).
+ */
+export const TOUR_BEATS = {
+  students: [
+    { eyebrow: "Follow my power", line: "It all starts with the wind pushing my blades.", sub: "The stronger the wind, the more power I can catch, right up to my full {rated}." },
+    { eyebrow: "Inside my head", line: "Magnets whizz past copper coils. Zap!", sub: "My magnets are electromagnets, made with electricity. As they pass the coils, more electricity flows. No gearbox needed!" },
+    { eyebrow: "Next stop", line: "Down to the converter at the bottom of my tower.", sub: "It gets my electricity ready for the grid, which beats fifty times every second." },
+    { eyebrow: "Going down", line: "Down the cables inside my tower we go.", sub: "Thick power cables hang beside the ladder and the lift, all the way to the ground." },
+    { eyebrow: "The transformer", line: "The transformer gives my power a big push.", sub: "It raises the voltage, so electricity can travel a long way without wasting much." },
+    { eyebrow: "Along the lines", line: "Now it zooms along the power lines.", sub: "This glow shows the idea of power travelling through the shared grid. It isn't the exact real cable." },
+    { eyebrow: "Our streets", line: "Right now I'm making enough for {homes} homes.", sub: "That's how many homes' worth of electricity I'm making this second, not a count of real houses." },
+    { eyebrow: "Into a home", line: "From the street into a home.", sub: "Through the fuse box and the wires in the wall to a socket. This home is a made-up example." },
+    { eyebrow: "Your game", line: "Low battery? Plug in. Play on!", sub: "A laptop starts charging from the socket. It's a pretend charge, sped up so you can see it." },
+  ],
+  community: [
+    { eyebrow: "Follow the power", line: "It starts with wind off the Severn.", sub: "Our turbine's blades catch it, up to a full {rated}." },
+    { eyebrow: "In the nacelle", line: "Electromagnets sweep past copper coils.", sub: "The ring generator turns at blade speed, with no gearbox, and that makes the electricity." },
+    { eyebrow: "At the tower base", line: "The converter gets it ready for the grid.", sub: "It matches the turbine's output to the grid's steady rhythm of fifty cycles a second." },
+    { eyebrow: "Down the tower", line: "Power cables run all the way down.", sub: "Beside the ladder and the service lift, to the cabinets at the base." },
+    { eyebrow: "The transformer", line: "Stepped up and ready to travel.", sub: "A higher voltage means less energy is lost on its way into the network." },
+    { eyebrow: "Into the network", line: "Onto the lines, towards Lawrence Weston.", sub: "An illustration of the shared grid, not a map of the actual cables." },
+    { eyebrow: "Our streets", line: "Enough for {homes} homes right now.", sub: "A homes' worth estimate for this moment, not a count of connected houses." },
+  ],
+  college: [
+    { eyebrow: "Energy path · capture", line: "The rotor captures kinetic energy from the wind.", sub: "Available power scales with the cube of wind speed; pitch control caps output at {rated}." },
+    { eyebrow: "Energy path · generator", line: "Direct drive: a separately excited ring generator.", sub: "Electromagnets on the rotor induce current in the stator coils at rotor speed. There is no gearbox." },
+    { eyebrow: "Energy path · converter", line: "A full-power converter at the tower base.", sub: "It decouples the variable rotor speed from the fixed fifty hertz grid frequency." },
+    { eyebrow: "Energy path · cabling", line: "Down-tower cables, with a loop for yaw.", sub: "The cable loop lets the nacelle turn into the wind without twisting the conductors." },
+    { eyebrow: "Energy path · transformer", line: "Stepped up to distribution voltage.", sub: "Higher voltage means lower current, and resistive losses fall with the square of the current." },
+    { eyebrow: "Energy path · network", line: "Exported to the local distribution network.", sub: "The route shown is illustrative; the real connection follows the network operator's lines." },
+    { eyebrow: "Energy path · demand", line: "{power} now, about {homes} homes' average demand.", sub: "Estimated at 0.35 kW per home, roughly 3,070 kWh a year." },
+  ],
+};
+
+/** How the community and college screens end the journey (pages/screens/components). */
+export const TOUR_ENDINGS = {
+  community: { eyebrow: "An evening in Lawrence Weston", line: "Lights on. Cars charging. Our power at work.", sub: "And because we own it, the money it earns goes back into Lawrence Weston." },
+  college: { eyebrow: "Energy path · the grid", line: "Into the South West grid, right now.", sub: "Wind is one part of the mix the region is running on this half hour. The grid figures are National Grid ESO's; the turbine's are open data." },
+};
+
+// Where the journey stops on the community and college screens: the streets, lit up.
+const TOUR_END_AT = 74;
+const TOUR_ENDING_SECONDS = 14;
+
+/**
+ * One screen's story: the shared chapters with this screen's tags, extras and words.
+ * `copy` holds hand-written variants; the screen shows the next one each time round, mixed
+ * with fresh ones from the server when it has them. "now" has separate words for when the
+ * turbine is working and when it's becalmed.
+ */
+const story = (per, ids = STORY_CHAPTERS) => ids.map((id) => ({ ...CHAPTERS[id], ...per[id], stage: { ...CHAPTERS[id].stage, ...per[id]?.stage } }));
 
 export const SCREENS = {
   students: {
     key: "students",
     name: "Students",
-    theme: "realistic",
+    theme: "cartoon",
     askLabel: "Ask Ace anything!",
     askHint: "Point your phone camera here",
-    chapters: [
+    // Ace, a cartoon of the turbine, tells the story in a speech bubble (components/AceMascot.jsx).
+    mascot: true,
+    // The scene also builds Shashi's energy journey, for the "Follow my power" chapter.
+    tour: true,
+    // The climb up the tower tells how the turbine was built (content/buildTimeline.js).
+    walkTimeline: true,
+    chapters: story(
       {
-        id: "hello",
-        label: "Hello",
-        seconds: 14,
-        stage: { action: "hero", annotations: ["height", "bigben"] },
-        tags: ["height", "bigben"],
-        eyebrow: "Hi there!",
-        line: () => "I'm Ace, the wind turbine on your doorstep.",
-        sub: () => "I'm taller than Big Ben, and I belong to the people of Lawrence Weston.",
+        hello: {
+          // The height panel makes the comparisons, so the 3D scene shows Ace alone.
+          stage: { action: "hero" },
+          panel: "height",
+          copy: [
+            { eyebrow: "{greeting}!", line: "I'm Ace, the giant on your doorstep.", sub: "I'm taller than Big Ben, and I belong to the people of Lawrence Weston." },
+            { eyebrow: "Look up!", line: "Taller than Big Ben. Powered by wind.", sub: "From the ground to the tip of my blade is {tipHeight}. That's about 34 double-decker buses stacked up!" },
+            { eyebrow: "Meet Ace", line: "A wind turbine that belongs to a whole town.", sub: "People here made me happen together, and what I earn helps the neighbourhood." },
+          ],
+        },
+        now: {
+          // The real-world map is for grown-ups; here the race panel tells the live story,
+          // and the screen never has to load the map.
+          live: false,
+          // The wind itself, streaming into the blades from where it's really blowing.
+          stage: { wind: true },
+          panel: "race",
+          copy: {
+            working: [
+              { eyebrow: "Zoom!", line: "My blade tips are flying round at {tip}.", sub: "Each blade is {bladeLength} long, about as long as two blue whales nose to tail." },
+              { eyebrow: "Feel that wind?", line: "A {wind} wind is spinning me right now.", sub: "See the streaks? That's the wind from the {windFrom}, pushing my blades round." },
+              { eyebrow: "Power up!", line: "I'm making {power} of electricity right now.", sub: "That's enough for {homes} homes, right this second. Every turn of my blades counts." },
+            ],
+            calm: [
+              { eyebrow: "Shhh…", line: "No wind right now, so I'm having a rest.", sub: "I need a breeze of about six miles an hour to start turning. I'll be ready when it comes." },
+              { eyebrow: "Waiting for wind", line: "Even giants have to wait sometimes.", sub: "My head turns to face the wind, so I'm ready the moment it picks up." },
+              { eyebrow: "Quiet day", line: "The air is still, so my blades are still.", sub: "Wind comes and goes. That's why lots of turbines share the job across the country." },
+            ],
+          },
+        },
+        walk: {
+          label: "My story",
+          copy: [
+            { eyebrow: "My story", line: "Climb up inside me and I'll tell you my story.", sub: "Every step up the ladder is a step forward in time, from one idea to a giant turbine." },
+            { eyebrow: "Time to climb", line: "Each step up is a step through my history.", sub: "We start at the door and finish in my machine room, {hubHeight} up." },
+            { eyebrow: "Hard hats on", line: "Let's climb through the years I was built.", sub: "Engineers climb this ladder for real, with a safety harness, and there's a lift too." },
+          ],
+        },
+        town: {
+          // The real photos are the scene here; the 3D view softens behind them, and the
+          // caption steps through all its lines while they're up.
+          backdrop: "soft",
+          cycle: true,
+          panel: "town",
+          copy: [
+            { eyebrow: "This town owns me", line: "I belong to everyone in Lawrence Weston.", sub: "Neighbours dreamed me up and made me happen. No shareholders, just the community." },
+            { eyebrow: "Our money, our town", line: "When I sell electricity, the town wins.", sub: "The money I make goes back into Lawrence Weston, to help the neighbourhood." },
+            { eyebrow: "Opening day", line: "A man in a top hat cut my ribbon!", sub: "A Brunel lookalike opened me. Brunel designed Bristol's Clifton Suspension Bridge." },
+          ],
+        },
+        ask: {
+          // Long enough for the example chat to answer three questions (components/AskDemo.jsx).
+          seconds: 30,
+          copy: [
+            { eyebrow: "Your turn!", line: "Got a question? Ask me anything!", sub: "Scan the code with a phone. I'll answer, and I might show you pictures too." },
+            { eyebrow: "Ask Ace", line: "What do you want to know about me?", sub: "How fast? How tall? What happens in a storm? Scan the code and ask." },
+            { eyebrow: "Chat with me", line: "I know my science from real books.", sub: "Scan the code to ask. Nothing you type shows up on this screen." },
+          ],
+        },
       },
-      {
-        id: "wind",
-        label: "Wind",
-        seconds: 13,
-        stage: { action: "overview", wind: true },
-        tags: ["wind", "power"],
-        eyebrow: "Can you feel it?",
-        line: (d) => (d.windSpeed < 2.5 ? "It's very still out here. I'm waiting for the wind." : `The wind is ${d.beaufort.toLowerCase()} today, ${Math.round(mph(d.windSpeed))} mph from the ${compassPoint(d.windDir)}.`),
-        sub: () => "Watch the streaks. They show where the air is going, and my blades are catching it.",
-      },
-      {
-        id: "blades",
-        label: "Blades",
-        seconds: 13,
-        stage: { action: "spin_blades" },
-        tags: ["tip", "rpm"],
-        eyebrow: "Zoom!",
-        line: (d) => (d.tipMph > 1 ? `The tips of my blades are moving at ${formatInt(d.tipMph)} mph.` : "My blades are resting. No wind, no spin."),
-        sub: () => "Each blade is about 56 m long, longer than two blue whales end to end.",
-      },
-      {
-        id: "climb",
-        label: "Climb in!",
-        seconds: 50,
-        stage: { action: "walk_start", value: 44 },
-        walk: true,
-        eyebrow: "Let's go inside",
-        line: () => "Come on, I'll take you up to the top.",
-        sub: () => "It's like climbing thirty floors. Engineers do it with a harness and a lift.",
-      },
-      {
-        id: "machine",
-        label: "Magnets",
-        seconds: 15,
-        stage: { action: "look_inside" },
-        eyebrow: "No gearbox!",
-        line: () => "My blades turn a giant ring of magnets.",
-        sub: () => "Magnets sweeping past copper coils push electricity along the wires.",
-        tags: ["yaw", "power"],
-      },
-      {
-        id: "homes",
-        label: "Homes",
-        seconds: 15,
-        stage: { action: "close_inside", annotations: [] },
-        tags: ["homes", "today"],
-        viz: "homes",
-        eyebrow: "Power to the people",
-        line: (d) => (d.homes > 0 ? `Right now I'm powering ${formatInt(d.homes)} homes.` : "I'm saving up for the next gust."),
-        sub: (d) => `So far today I've made enough electricity to boil ${formatInt(d.cupsOfTea)} cups of tea.`,
-      },
-      {
-        id: "day",
-        label: "A day here",
-        seconds: 20,
-        stage: { action: "overview", ...day },
-        eyebrow: "One day, quickly",
-        line: () => "The sun comes up, the town wakes up, and I keep turning.",
-        sub: () => "This is Lawrence Weston. The sky you see is the real sky over Bristol.",
-      },
-      {
-        id: "ask",
-        label: "Ask me",
-        seconds: 13,
-        stage: { action: "hero" },
-        eyebrow: "Your turn",
-        line: () => "Scan the code and ask me anything.",
-        sub: () => "Tap anything you can see on this screen and I'll tell you about it.",
-        tags: ["power"],
-      },
-    ],
+      ["hello", "now", "power", "walk", "town", "ask"]
+    ),
   },
 
   community: {
     key: "community",
     name: "Community",
     theme: "realistic",
+    // Cards like the other screens, the caption in one too (components/skins.js).
+    skin: "cards",
+    captionCard: true,
+    // Side cards sit bottom-right, beside the caption, leaving the sky clear.
+    cardsBottom: true,
     askLabel: "Ask Ace",
     askHint: "Scan with your phone camera. No app, no login.",
-    chapters: [
-      {
-        id: "ours",
-        label: "Ours",
-        seconds: 15,
-        stage: { action: "overview" },
+    // The real Lawrence Weston scan around the turbine, in place of the generated scenery.
+    scan: true,
+    // The scene also builds the energy journey, for the "Follow the power" chapter.
+    tour: true,
+    chapters: story({
+      power: { label: "Follow the power", seconds: TOUR_END_AT + 16, stage: { value: { endAt: TOUR_END_AT, ending: "ev" } }, ending: "home" },
+      hello: {
+        stage: { action: "aerial" },
         tags: ["homes"],
-        viz: "homes",
-        eyebrow: "Lawrence Weston",
-        line: () => "Our turbine. Our power.",
-        sub: () => "Set up by residents through Ambition Community Energy. What it earns goes back into the neighbourhood.",
+        copy: [
+          { eyebrow: "Lawrence Weston", line: "Our turbine. Our power.", sub: "Set up by residents through Ambition Community Energy. What it earns goes back into the neighbourhood." },
+          { eyebrow: "Built by neighbours", line: "The tallest thing in Bristol belongs to us.", sub: "Residents dreamed it, fought for it and own it. At {tipHeight} it's one of England's tallest onshore turbines." },
+          { eyebrow: "Our place", line: "This is Lawrence Weston, as the turbine sees it.", sub: "A real scan of our streets, with the turbine standing over them." },
+        ],
       },
-      {
-        id: "now",
-        label: "Now",
-        seconds: 14,
-        stage: { action: "hero", wind: true },
-        tags: ["wind", "power", "rpm"],
-        eyebrow: "Right now",
-        line: (d) => (d.powerKw > 0 ? `Making ${d.power.value} ${d.power.unit} of clean electricity.` : "Resting until the wind picks up."),
-        sub: (d) => `Wind ${d.windSpeed.toFixed(1)} m/s from the ${compassPoint(d.windDir)}. The rotor is turning at ${d.rotorRpm.toFixed(1)} rpm.`,
+      now: {
+        copy: {
+          working: [
+            { eyebrow: "Right now", line: "Making {power} of clean electricity.", sub: "A {wind} wind from the {windFrom}. Enough power for {homes} homes, right now." },
+            { eyebrow: "Live", line: "Enough for {homes} homes, this very minute.", sub: "That's {share} of full power, from wind blowing in off the Severn." },
+            { eyebrow: "On the job", line: "The wind is working for Lawrence Weston.", sub: "Making {power} right now, with the rotor turning at {rpm}." },
+          ],
+          calm: [
+            { eyebrow: "Right now", line: "Resting until the wind picks up.", sub: "Still air today. The turbine turns itself into the wind as soon as there's enough to use." },
+            { eyebrow: "A quiet spell", line: "No wind, no power. It'll be back.", sub: "Across the year the wind here does the work. Calm days are part of the deal." },
+            { eyebrow: "Waiting", line: "The blades are still, but the job isn't over.", sub: "So far it has made {lifetime} for the area since spring 2023." },
+          ],
+        },
       },
-      {
-        id: "today",
-        label: "Today",
-        seconds: 14,
-        stage: { action: "blades" },
-        tags: ["today"],
-        eyebrow: "So far today",
-        line: (d) => `${d.today.value} ${d.today.unit} generated since midnight.`,
-        sub: (d) => `About ${formatInt(d.co2Kg)} kg of CO₂ kept out of the air. A tree takes a year to soak up ${(d.co2Kg / Math.max(1, d.trees)).toFixed(0)} kg.`,
-      },
-      {
-        id: "climb",
+      // A see-through climb from the piles to the blades, told as the story of the build.
+      walk: {
         label: "Inside",
-        seconds: 50,
-        stage: { action: "walk_start", value: 44 },
-        walk: true,
-        eyebrow: "Step inside",
-        line: () => "What's up there, 90 m above the estate?",
-        sub: () => "A ladder, a few platforms, and a machine room the size of a small flat.",
+        walk: false,
+        xray: true,
+        seconds: Math.ceil(XRAY_SECONDS) + 3,
+        stage: { action: "xray_climb" },
       },
-      {
-        id: "week",
-        label: "This week",
-        seconds: 15,
-        stage: { action: "close_inside", annotations: [] },
-        tags: ["homes", "today"],
-        viz: "homes",
-        eyebrow: "The last 7 days",
-        line: (d) => (d.weekKwh > 0 ? `${formatEnergy(d.weekKwh).value} ${formatEnergy(d.weekKwh).unit} this week.` : "Every kilowatt-hour counts."),
-        sub: (d) => (d.weekKwh > 0 ? `Enough for ${formatInt(d.weekKwh / 7 / 8.4)} homes' daily electricity, every day this week.` : "Weekly figures appear once the history has synced."),
+      ask: {
+        copy: [
+          { eyebrow: "Got a question?", line: "Scan to chat with the turbine.", sub: "Your chat stays on your phone. Nothing you type appears on this screen." },
+          { eyebrow: "Ask the turbine", line: "Where does the money go? Ask it.", sub: "It knows the live figures, the history and the story of the project." },
+          { eyebrow: "Your turbine, your questions", line: "Curious what it made this week?", sub: "Scan the code and ask. No app, no login." },
+        ],
+        // Long enough for the example chat to answer three questions (components/AskDemo.jsx).
+        seconds: 30,
       },
-      {
-        id: "lifetime",
-        label: "Since 2023",
-        seconds: 14,
-        stage: { action: "low" },
-        tags: ["lifetime"],
-        eyebrow: "Since spring 2023",
-        line: (d) => `${d.lifetime.value} ${d.lifetime.unit} of local, clean power.`,
-        sub: () => "Every unit made here is one that didn't have to come from gas.",
-      },
-      {
-        id: "day",
-        label: "A day here",
-        seconds: 20,
-        stage: { action: "overview", ...day },
-        eyebrow: "A day at Lawrence Weston",
-        line: () => "From first light to the lights coming on.",
-        sub: () => "This is the sky over Bristol, as it is today.",
-      },
-      {
-        id: "ask",
-        label: "Ask",
-        seconds: 13,
-        stage: { action: "hero" },
-        tags: ["power"],
-        eyebrow: "Got a question?",
-        line: () => "Scan to chat with the turbine.",
-        sub: () => "Your chat stays on your phone. Nothing you type appears on this screen.",
-      },
-    ],
+    }, ["hello", "now", "power", "walk", "day", "ask"]),
   },
 
   college: {
     key: "college",
     name: "College",
+    // The real place, like the community screen; only the climb inside turns to X-ray.
     theme: "realistic",
-    askLabel: "Query Ace",
+    // Cards like the students' screen, the caption in one too (components/skins.js).
+    skin: "cards",
+    captionCard: true,
+    // Side cards (spec, power curve, the climb's route) sit bottom-right, beside the caption.
+    cardsBottom: true,
+    // The generated scenery, not the scan: up close the scan breaks into half-drawn trees,
+    // and the real place has its own chapters here (the live map).
+    askLabel: "Ask Ace",
     askHint: "Scan to ask about the data, the physics or the engineering",
-    chapters: [
-      {
-        id: "spec",
-        label: "Spec",
-        seconds: 15,
-        stage: { action: "overview", annotations: ["height", "rotor"] },
-        tags: ["height", "rotor"],
+    tour: true,
+    chapters: story({
+      power: { label: "Energy path", seconds: TOUR_END_AT + TOUR_ENDING_SECONDS, stage: { value: { endAt: TOUR_END_AT } }, ending: "data" },
+      hello: {
+        // The spec card gives the heights; the scene shows the machine without dimension lines.
+        stage: { action: "overview" },
         panel: "spec",
-        eyebrow: "Enercon E-115 EP3",
-        line: () => "4.2 MW, gearless, direct drive.",
-        sub: () => "Hub ≈ 92 m, tip 150 m. Cut-in 2.5 m/s, rated 12.5 m/s, storm control above 28 m/s.",
+        copy: [
+          { eyebrow: "Enercon E-115 EP3", line: "Gearless, direct drive, {rated}.", sub: "Hub at about {hubHeight}, tip at {tipHeight}. Cut-in 2.5 m/s, rated 12.5 m/s, storm control above 28 m/s." },
+          { eyebrow: "The machine", line: "One rotor, one ring generator, no gearbox.", sub: "Fewer moving parts means less to wear out: the rotor drives the generator directly." },
+          { eyebrow: "Structure", line: "A {tipHeight} machine on a 92 m tower.", sub: "The tower came by road in four sections, and the foundation stands on 22 piles, each 18 m long." },
+        ],
       },
-      {
-        id: "curve",
-        label: "Power curve",
-        seconds: 17,
-        stage: { action: "blades", wind: true },
-        tags: ["wind", "curve"],
+      now: {
         panel: "curve",
-        eyebrow: "P ∝ v³ until rated",
-        line: (d) => `At ${d.windSpeed.toFixed(1)} m/s it is making ${formatInt(d.powerKw)} kW.`,
-        sub: (d) => `The reference curve gives ${formatInt(d.theoreticalKw)} kW at this wind. Capacity utilisation now: ${d.utilisation.toFixed(0)}%.`,
+        copy: {
+          working: [
+            { eyebrow: "Power ∝ v³", line: "At {wind} it's producing {power}.", sub: "Wind power rises with the cube of speed, until the controller caps output at {rated}." },
+            { eyebrow: "Live telemetry", line: "Running at {share} of rated power.", sub: "Rotor at {rpm}, tips at {tip}. Pitch and speed control keep the blades near their best angle." },
+            { eyebrow: "Tip-speed ratio", line: "Blade tips at {tip}, far faster than the wind.", sub: "Variable speed holds the tip-speed ratio near its optimum, so the rotor extracts as much as it can." },
+          ],
+          calm: [
+            { eyebrow: "Below cut-in", line: "Not enough wind to make useful power.", sub: "Under about two and a half metres per second, losses outweigh output, so the rotor idles." },
+            { eyebrow: "Idling", line: "The rotor waits for the cut-in speed.", sub: "Yaw drives keep the nacelle facing the wind so it can start the moment it's worth it." },
+            { eyebrow: "Variability", line: "Calm air is why the grid needs a mix.", sub: "Wind output varies hour to hour; storage, interconnectors and other generation fill the gaps." },
+          ],
+        },
       },
-      {
-        id: "rotor",
-        label: "Rotor",
-        seconds: 14,
-        stage: { action: "face", annotations: ["rotor"] },
-        tags: ["tsr", "rpm"],
-        eyebrow: "Tip-speed ratio",
-        line: (d) => `λ = ${d.tsr.toFixed(1)} at ${d.rotorRpm.toFixed(1)} rpm.`,
-        sub: (d) => `Tip speed ${d.tipMs.toFixed(0)} m/s. Variable speed keeps λ near its optimum so the blades extract as much as they can.`,
+      // An X-ray climb from the piles to the hub, every part labelled (three/xrayClimb.js).
+      walk: {
+        label: "X-ray",
+        walk: false,
+        xray: true,
+        seconds: Math.ceil(XRAY_SECONDS) + 3,
+        stage: { action: "xray_climb" },
       },
-      {
-        id: "generator",
-        label: "Generator",
-        seconds: 17,
-        stage: { action: "look_inside" },
-        tags: ["yaw", "power"],
-        eyebrow: "Section cutaway",
-        line: () => "An annular ring generator, with no gearbox.",
-        sub: () => "Rotor and stator ring at blade speed. A full-power converter decouples the generator from the 50 Hz grid; yaw drives follow the wind.",
+      // The day over the real place: the live map's clock sweeps from dawn to night.
+      day: {
+        live: true,
+        panel: "daytrace",
       },
-      {
-        id: "climb",
-        label: "Tower",
-        seconds: 50,
-        stage: { action: "walk_start", value: 44 },
-        walk: true,
-        eyebrow: "Tower and access",
-        line: () => "Ladder, service lift, cable loop.",
-        sub: () => "Power cables hang in a loop so the nacelle can yaw. Converters and the transformer sit at the base.",
+      ask: {
+        copy: [
+          { eyebrow: "Live tools + textbooks", line: "Ask Ace about the physics or the data.", sub: "It reads the live telemetry, wind-energy textbooks and the web, and cites what it used." },
+          { eyebrow: "Open data", line: "Ask for this week's capacity factor.", sub: "Answers come from the live feed, the SCADA history or the textbooks, never a guess." },
+          { eyebrow: "Go deeper", line: "Why is there no gearbox? Ask.", sub: "Scan the code for answers grounded in the engineering." },
+        ],
+        seconds: 30,
       },
-      {
-        id: "records",
-        label: "Records",
-        seconds: 15,
-        stage: { action: "close_inside", annotations: [] },
-        tags: ["lifetime"],
-        panel: "daily",
-        eyebrow: "From the open dataset",
-        line: (d) => (d.capacityFactor > 0 ? `Lifetime capacity factor ≈ ${d.capacityFactor.toFixed(1)}%.` : "Open data, CC-BY-4.0."),
-        sub: () => "Every 10-minute SCADA interval is published on Zenodo. Grab the Parquet files from the Developers page.",
-      },
-      {
-        id: "ask",
-        label: "Query",
-        seconds: 13,
-        stage: { action: "hero" },
-        tags: ["power"],
-        eyebrow: "Live tools + web search",
-        line: () => "Ask Ace about the physics or the data.",
-        sub: () => "It reads the live telemetry, searches the web for facts, and can drive this screen.",
-      },
-    ],
+    }, ["hello", "now", "power", "walk", "day", "ask"]),
   },
 };
 
@@ -315,7 +381,7 @@ SCREENS.story = {
   askLabel: "Ask Ace", askHint: "Scan to explore the journey from wind to home",
   chapters: [
     { id: "wind", label: "Wind", seconds: 11, stage: {}, eyebrow: "01 · Avonmouth / Lawrence Weston, Bristol", line: () => "Local wind. Community power.", sub: () => "The blades turn the hub. Pitch helps them catch or spill wind; available wind power rises roughly as P ∝ v³ until rated output." },
-    { id: "generator", label: "Generator", seconds: 12, stage: {}, eyebrow: "02 · Motion into electricity", line: () => "Magnets pass copper coils. Current flows.", sub: () => "ACE's ring generator turns at blade speed. Direct drive — no gearbox. Watch the coils glow as the magnets pass." },
+    { id: "generator", label: "Generator", seconds: 12, stage: {}, eyebrow: "02 · Motion into electricity", line: () => "Magnets pass copper coils. Current flows.", sub: () => "ACE's ring generator turns at blade speed: electromagnets, no permanent magnets, and no gearbox. Watch the coils glow as they pass." },
     { id: "converter", label: "Converter", seconds: 7, stage: {}, eyebrow: "03 · Getting ready for the grid", line: () => "The next stop is the converter at the tower base.", sub: () => "The full-power converter decouples the variable-speed generator from the 50 Hz grid. First, the electricity travels down these cables." },
     { id: "tower", label: "Tower", seconds: 10, stage: {}, eyebrow: "04 · Follow the cable", line: () => "Down the tower. Into the converter.", sub: () => "Power cables hang beside the ladder and service lift, carrying electricity to the cabinets at the base." },
     { id: "transformer", label: "Transformer", seconds: 10, stage: {}, eyebrow: "05 · Into the network", line: () => "The transformer steps the voltage up.", sub: () => "Higher voltage helps power travel with less loss. From here, the supply joins the shared grid." },

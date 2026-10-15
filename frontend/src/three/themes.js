@@ -1,7 +1,9 @@
 // Three looks, all in natural colour:
 //   cartoon   — students: bright, friendly toon shading with ink outlines
 //   realistic — community: PBR materials in the real light of the hour, the Lawrence Weston scan around it
-//   blueprint — college: classic engineering drawing, cyan lines on deep navy
+//   blueprint — classic engineering drawing, cyan lines on deep navy
+//   xray      — college's climb inside: a radiograph, pale mint lines on deep green, the
+//               structure see-through, copper warm and the part being explained bright green
 // The turbine itself is always white with Enercon-green tower bands, as in real life.
 
 import * as THREE from "three";
@@ -14,6 +16,13 @@ export const MOSS = {
 
 // Blueprint drawing colours.
 export const BLUEPRINT = { paper: 0x071a33, paperLight: 0x0d2b52, line: 0x9fd8ff, lineDim: 0x4fb3ff, solid: 0x1b4a7a, fill: 0x2f78b8 };
+// X-ray colours: a green radiograph.
+export const XRAY = { paper: 0x03140d, paperLight: 0x0a2619, line: 0xc6f4da, lineDim: 0x1e4a36, solid: 0x7fd1a6, fill: 0x9fe3be, glow: 0x5dff9e };
+
+/** The drawn looks (edges on a plain backdrop instead of a lit world). */
+export const isDrawnTheme = (theme) => theme === "blueprint" || theme === "xray";
+/** The backdrop colours of a drawn look. */
+export const drawnColours = (theme) => (theme === "xray" ? XRAY : BLUEPRINT);
 
 // glTF material name -> colour role
 const ROLE_BY_MATERIAL = {
@@ -55,6 +64,13 @@ const PALETTES = {
     lamp: 0xffffff,
     grass: BLUEPRINT.paper, tree: 0x1f5c91, trunk: 0x1b4a7a, house: 0x2a6aa6, roof: 0x3f86c7, water: 0x0a2a52, road: 0x123a69,
   },
+  xray: {
+    body: XRAY.solid, band1: XRAY.solid, band2: XRAY.solid, band3: XRAY.solid, band4: XRAY.solid, band5: XRAY.solid,
+    ground: XRAY.paperLight, metal: 0xa9e8c6, dark: XRAY.solid, light: 0xff6b5a, copper: 0xffb26b, cabinet: 0x8fdab3,
+    accent: 0xf3d67a, cable: 0xeafff3,
+    lamp: 0xc6f4da,
+    grass: XRAY.paper, tree: 0x0f3324, trunk: 0x0f3324, house: 0x12392a, roof: 0x164430, water: 0x061c13, road: 0x0c2a1d,
+  },
 };
 
 // Landscape parts are lit but never translucent, outlined or edged.
@@ -62,13 +78,15 @@ const LANDSCAPE_ROLES = new Set(["grass", "tree", "trunk", "house", "roof", "wat
 export const isLandscapeRole = (role) => LANDSCAPE_ROLES.has(role);
 
 // Colour of the faces revealed when the shell is cut open.
-export const CAP_COLORS = { cartoon: 0xf7b267, realistic: 0xe9b872, blueprint: 0x7fd6ff };
+export const CAP_COLORS = { cartoon: 0xf7b267, realistic: 0xe9b872, blueprint: 0x7fd6ff, xray: 0xe9eef1 };
 
 /** Fallback sky for themes without a live environment (the blueprint look is a fixed drawing). */
 export const ENVIRONMENTS = {
-  cartoon: { skyTop: 0x4aa8f0, skyBottom: 0xd6efff, fog: 0xd6efff, fogNear: 260, fogFar: 1100, exposure: 1.05 },
+  // Fog only far off, so the houses and the estuary stay crisp on the students screen.
+  cartoon: { skyTop: 0x4aa8f0, skyBottom: 0xd6efff, fog: 0xd6efff, fogNear: 700, fogFar: 2800, exposure: 1.05 },
   realistic: { skyTop: 0x5a95d6, skyBottom: 0xcfe0ee, fog: 0xcfdbe4, fogNear: 400, fogFar: 2800, exposure: 1.0 },
   blueprint: { skyTop: BLUEPRINT.paper, skyBottom: BLUEPRINT.paperLight, fog: BLUEPRINT.paper, fogNear: 200, fogFar: 900, exposure: 1.0 },
+  xray: { skyTop: XRAY.paper, skyBottom: XRAY.paperLight, fog: XRAY.paper, fogNear: 200, fogFar: 900, exposure: 1.0 },
 };
 
 let toonGradient = null;
@@ -93,12 +111,14 @@ export function createMaterial(theme, role) {
     if (role === "light") mat.emissive = new THREE.Color(0xff3b30);
     return mat;
   }
-  if (theme === "blueprint" && isLandscapeRole(role)) {
+  if (isDrawnTheme(theme) && isLandscapeRole(role)) {
     return new THREE.MeshBasicMaterial({ color, transparent: role !== "grass", opacity: role === "grass" ? 1 : 0.5 });
   }
-  if (theme === "blueprint") {
-    const interior = ["accent", "copper", "cabinet", "metal", "cable"].includes(role);
-    return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: interior ? 0.55 : 0.22, depthWrite: interior });
+  if (isDrawnTheme(theme)) {
+    const interior = ["accent", "copper", "cabinet", "metal", "cable", "lamp"].includes(role);
+    // The X-ray keeps the shell fainter, so what's inside is what you see.
+    const shell = theme === "xray" ? 0.07 : 0.22;
+    return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: interior ? 0.55 : shell, depthWrite: interior });
   }
   if (role === "water") return new THREE.MeshStandardMaterial({ color, roughness: 0.15, metalness: 0.3 });
   if (role === "lamp") return new THREE.MeshStandardMaterial({ color, emissive: new THREE.Color(0xffe2a8), emissiveIntensity: 2.4, roughness: 0.4 });

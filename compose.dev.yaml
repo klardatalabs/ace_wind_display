@@ -1,0 +1,35 @@
+# Local development services: TimescaleDB, Redis and the embedding model, on localhost.
+# Then run the app itself with `npm run dev` (see .env.example for the matching settings).
+#
+#   docker compose -f compose.dev.yaml up -d
+
+name: weston-wind-dev
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17
+    ports: ["127.0.0.1:5432:5432"]
+    environment:
+      POSTGRES_USER: ace
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: ace_wind
+    volumes: [db_data:/home/postgres/pgdata]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ace -d ace_wind"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    ports: ["127.0.0.1:6379:6379"]
+    command: ["redis-server", "--requirepass", "devredis"]
+
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    ports: ["127.0.0.1:8081:80"]
+    command: ["--model-id", "BAAI/bge-base-en-v1.5", "--auto-truncate"]
+    volumes: [embedding_models:/data]
+
+volumes:
+  db_data:
+  embedding_models:

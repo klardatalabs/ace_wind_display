@@ -1,138 +1,217 @@
 # Weston Wind
 
-*Live wind. Local energy. A turbine you can talk to.*
+**Live wind. Local energy. A turbine you can talk to.**
 
-Weston Wind is the public face of the **ACE community wind turbine** in Lawrence Weston, Bristol
-(Enercon E-115 EP3, 4.2 MW): three storytelling hoarding screens with a native Three.js turbine,
-a private phone chat ("Ask Ace") opened from a QR code, a public website, a developer portal and an
-operator console with a wind simulator.
+Weston Wind is the public display platform for the ACE community wind turbine in Lawrence Weston, Bristol: an Enercon E-115 EP3 (4.2 MW) owned by its community through Ambition Community Energy. It turns the turbine's live telemetry into storytelling screens for public hoardings, a private phone chat that answers questions about the turbine, a public website, and a developer portal with open data.
 
-Built for the WeDoWind "ACE Wind Turbine Public Display" open-data challenge (see [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)).
+The platform is built on the turbine's open data: the [ACE Live API](https://ace-api.duckdns.org/docs) and the [ACE Wind Turbine Data archive on Zenodo](https://doi.org/10.5281/zenodo.22662372).
+
+## Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [The Ask Ace agent](#the-ask-ace-agent)
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+- [Configuration](#configuration)
+- [Scripts](#scripts)
+- [API](#api)
+- [Deployment](#deployment)
+- [Project structure](#project-structure)
+- [Data and attribution](#data-and-attribution)
+
+## Features
 
 | Route | What it is |
 | --- | --- |
-| `/` | Website: live figures, how it works, the screens, a scroll-driven "look inside", day in the life |
-| `/site` | Cesium view of the ACE turbine at its real coordinates with Google Photorealistic 3D Tiles |
-| `/developers` | Developer portal: live endpoint explorer, code samples, open-data downloads |
-| `/screen/students` | Hoarding screen: kid-friendly story told over the live 3D place |
-| `/screen/community` | Hoarding screen: the community story (homes powered, this week, since 2023) |
-| `/screen/college` | Hoarding screen: spec, power curve, tip-speed ratio, generator, open data |
-| `/ask/:screen` | Phone chat opened from each screen's QR code (no login) |
+| `/` | Website: live figures, how the turbine works, the screens and the story of the project |
+| `/screen/students` | Hoarding screen for children: a cartoon guide, height and speed comparisons, the energy journey, the build story on a climb up the tower, the town that owns it |
+| `/screen/community` | Hoarding screen for residents: the turbine over the real Lawrence Weston scan, the live real-world view, where the power goes and what it means locally |
+| `/screen/college` | Hoarding screen for students of engineering and data: specification, power curve, X-ray climb through the machine, the energy path to the grid |
+| `/screen/story` | "Follow the Energy": a continuous journey from the wind to a home |
+| `/screen/live` | Live explorer: the turbine at its real coordinates, inspectable room by room |
+| `/ask/:screen` | Ask Ace: a private phone chat opened from each screen's QR code, no login |
+| `/developers` | Developer portal: endpoint explorer, code samples, how to connect to the screens, instant CSV downloads |
 
-## The hoarding screens
+Highlights:
 
-- **Native Three.js** turbine from `assets/source/ace-turbine.blend` (exported, meshopt-compressed to
-  `frontend/public/models/ace-turbine.glb`), plus a procedural interior: ladder, service lift,
-  platforms, cable loop, converter cabinets, yaw ring and drives, copper stator coils.
-- **Live**: the rotor turns at exactly the rpm the API reports (eased like a heavy rotor), and the
-  nacelle yaws to the live bearing.
-- **Look inside**: one value `U` (0 → 1) drives four effects at once:
-  section cutaway (clipping plane with a solid cap), exploded view (front halves slide out
-  `3.5 m × U`), ghost / x-ray (`opacity = 1 − 0.92 U`, depth write off) and a camera fly-in that docks
-  in the machine room or at the tower base.
-- **Story loop**: chapters with live copy and camera moves advance on their own (GSAP). Touching the
-  screen or a phone command pauses the loop so the visitor stays in control.
-- Drag to orbit, pinch / wheel to zoom, double-tap to look inside, tap any item to read about it.
+- **Live, not looped.** The 3D rotor turns at the rpm the turbine reports and the nacelle follows the live bearing. Captions, panels and charts are filled from live data, steadied so figures drift rather than flicker.
+- **Real place, real time.** The sun sits where it really is over Bristol, and cloud, rain and haze follow the weather at the site.
+- **Phones in the loop.** Scanning a screen's QR code opens a chat that belongs to that screen. A visitor can ask the screen to play one of a fixed set of animations; nothing a visitor types is ever shown on a screen.
+- **Built for kiosks.** Screens run unattended, recover their connection on their own, go full screen on the first interaction, and keep GPU use low (shaders compiled in parallel up front, a capped frame rate and pixel ratio).
+- **Open data.** Every dataset can be downloaded as CSV for any date range, without signing up.
 
-## Ask Ace — the phone chat
+## Architecture
 
-- Each browser tab gets an anonymous, **server-signed session token** (kept in `sessionStorage`).
-  History is stored per session id only, so two visitors never see each other's messages, and a
-  reload keeps the conversation.
-- Replies **stream** over Server-Sent Events. The agent calls tools for live status, history,
-  Tavily web search (the source for every non-live fact: the turbine, the project, the community, wind
-  energy), `show_photos` (Unsplash), and `show_on_big_screen`, which sends a fixed animation name (never text) to the screen the visitor scanned.
-- Works with Anthropic (Claude Haiku by default), OpenAI, Groq or any OpenAI-compatible
-  endpoint; without a key it answers from templates.
+![Architecture](docs/diagrams/architecture.png)
 
-## Running it
+- **Collectors** poll the ACE Live API, the weather and the Zenodo archive. Two run for resilience; a leader election ensures only one is active. Readings are stored in TimescaleDB and published to Redis.
+- **API instances** (three, behind an nginx load balancer) serve the REST API, push live state to every connected screen over WebSockets, stream the chat over Server-Sent Events, and stream CSV exports.
+- **Redis** carries live readings and screen commands between instances, and holds caches, rate limits and locks.
+- **TimescaleDB** stores the telemetry history and, with pgvector, the knowledge base the chat searches.
+
+The live path: ACE → collector → Redis pub/sub → every API instance → WebSocket → screens.
+
+## The Ask Ace agent
+
+![Ask Ace agent](docs/diagrams/agent.png)
+
+Each message is cleaned, locked (one reply at a time per session, so the transcript stays in order) and answered with the visitor's screen persona. The agent runs up to four rounds; in each, the model can call several tools in parallel:
+
+| Tool | Source |
+| --- | --- |
+| `get_live_status` | Live telemetry |
+| `get_generation_history` | Stored history and records |
+| `search_books` | Hybrid retrieval over the knowledge base: vector and full-text search merged with reciprocal-rank fusion |
+| `web_search` | Tavily |
+| `show_photos` | Unsplash, with photographer credits |
+| `show_on_big_screen` | A fixed animation on the visitor's screen |
+
+The answer streams to the phone as Server-Sent Events (`token`, `status`, `sources`, `action`, `done`) and the exchange is stored with its steps. Sessions are anonymous: the server mints a random id and signs it, so a session cannot be guessed or forged. Without a configured language model, a templated fallback answers using the same tools.
+
+The knowledge base is built from documents in `ingestion/`: text is extracted and cleaned, split into passages, embedded with a local text-embeddings server and stored with a full-text index.
+
+## Tech stack
+
+![Tech stack](docs/diagrams/tech-stack.png)
+
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 24
+- Docker, for the local database, Redis and embeddings services
+
+### Run locally
 
 ```bash
-npm run setup          # installs the server and the frontend
-cp .env.example .env   # add your keys (never commit .env)
-npm run build          # builds the React app into frontend/dist
-npm start              # http://localhost:4100
+git clone <repository-url>
+cd ace_wind_display
+
+npm run setup                                # server and frontend dependencies
+cp .env.example .env                         # then fill in the values you need
+docker compose -f compose.dev.yaml up -d     # TimescaleDB, Redis, embeddings
+
+npm run dev                                  # migrations, collector and API on :4100
+npm run dev:web                              # the website with hot reload on :5173
 ```
 
-Development with hot reload: `npm run dev` (API on :4100) and `npm run dev:web` (Vite on :5173,
-proxying `/api` and `/ws`).
+Open `http://localhost:5173`. The Vite dev server proxies `/api` and `/ws` to the API.
 
-## Real-world 3D site
-
-The landing page has an opt-in site explorer; `/site` opens the larger view. Cesium streams Google Photorealistic 3D Tiles and loads `frontend/public/models/ace-turbine.glb` as a separate model. The guided `/screen/:screen` experience continues to use Three.js.
-
-To enable the map without setting up Google billing, configure `VITE_CESIUM_ION_TOKEN` in the root `.env`. Enable Google Photorealistic 3D Tiles for the Cesium ion account and create a token with the required geocode and asset access. Restart Vite after changing it. Cesium's Community plan currently includes 1,000 Google Photorealistic 3D Tiles root requests per month and is limited to personal, non-commercial use. Check Cesium's [current pricing and licensing](https://cesium.com/platform/cesium-ion/pricing/) for your site's eligibility and usage.
-
-An optional direct Google connection uses `VITE_GOOGLE_MAP_TILES_API_KEY` instead. That requires a Google Cloud project with billing, the Map Tiles API enabled, and a browser key restricted to your development and production website origins. Browser `VITE_*` values are public, so restrict keys in the provider console. Keep Google's map credits visible.
-
-`VITE_SITE_LAT` and `VITE_SITE_LON` default to `51.5378881, -2.6740022`, the [mapped ACE foundation](https://www.openstreetmap.org/node/14249020525). Docker passes these settings into the frontend build; rebuild after changing them. The viewer samples terrain near that point and uses the median height for the foundation. If terrain does not give a reliable height, set a surveyed **ellipsoid height in metres** as `VITE_TURBINE_GROUND_HEIGHT_M`. `VITE_TURBINE_HEIGHT_OFFSET_M` adjusts that ground height; `VITE_TURBINE_HEADING_DEG` and `VITE_TURBINE_SCALE` control orientation and physical size. Verify placement against the live site before public launch. The viewer cuts captured turbines from Google's 3D mesh where polygon clipping is supported, retaining satellite terrain underneath.
-
-Kiosk PC (one per hoarding):
+To serve the production build from the API instead:
 
 ```bash
-chromium --kiosk --noerrdialogs --disable-session-crashed-bubble --incognito http://localhost:4100/screen/community
+npm run build
+npm start                                    # http://localhost:4100
 ```
 
-Set `PUBLIC_ORIGIN` to the public URL so the QR codes point phones at the right place.
+### Knowledge base
 
-## The place, the story and the walk-through
+Place PDF or DOCX documents in `ingestion/`, then:
 
-Every hoarding shows the same procedural 3D place around the turbine: terrain and shore, estate,
-industrial units, a solar farm, pylons, hedges and woodland. The estate, units, solar farm and
-pylons are **illustrations** (tapping them says so), not a survey.
-
-- **Real time**: the sun is where it really is over Bristol (`frontend/src/three/environment.js`),
-  and clouds, rain and haze follow OpenWeather at the site (`OPENWEATHER_API_KEY`). Windows light
-  up at night in proportion to the homes the turbine is powering.
-- **Story**: each screen plays chapters (`frontend/src/content/screens.js`): camera moves, drawn
-  measurements, wind streamlines, a day time-lapse, and live figures that hang off the part of the
-  scene they describe (blade tip, nacelle, homes).
-- **Walk inside**: a first-person climb through the tower door, up the ladder and through the hatch
-  into the machine room. A phone can start it and scrub it with a slider ("Walk inside").
-- **Tap anything** (the blades, nacelle, tower, track, estate, the sky) for a description card; "Ask
-  Ace more" fetches a fuller answer with photos through the chatbot.
-
-## Chat sources
-
-Ace answers live questions from the turbine's own data tools. Facts about the turbine, the project
-and the area come from a **web search** (Tavily, `TAVILY_API_KEY`), not from local documents, and
-photos come from **Unsplash** (`UNSPLASH_ACCESS_KEY`), always with the photographer's credit.
-
-## Demo and simulation API
-
-There is no admin page. For demos and testing, `/api/admin/*` can still drive every screen
-(protect it with `ADMIN_TOKEN`, or leave `NODE_ENV` unset for local use): simulate wind speed and
-bearing, apply presets, force the time of day, cloud, rain and fog (`/api/admin/environment`),
-and send commands to a connected screen. `npm run check:api` tests every endpoint.
-
-## Project layout
-
-```
-server/            Express API, WebSocket hub, chat agent, data jobs
-  chat/            sessions, history store, agent loop, LLM providers, tools, personas
-  routes/          state, history, datasets, chat (SSE), screens, environment, photos, admin (demo API)
-shared/            constants, impact maths and turbine physics used by server and frontend
-frontend/          Vite + React + Tailwind v4 + GSAP
-  src/three/       TurbineScene, camera rig, world (terrain, trees, buildings), sky, walk, hotspots
-  src/pages/       landing, developers, screens, ask
-assets/source/     the turbine in .blend / .glb / .fbx / .obj
-scripts/           GLB export, Zenodo ingest, landing-page 3D stills (render-stills.mjs)
+```bash
+npm run knowledge -- ingest                  # extract, split, embed and store
+npm run knowledge -- search "how does pitch control limit power"
 ```
 
-The 3D stills on the landing page are rendered from the real scene with
-`npm run render:stills` (server running, Playwright installed).
+## Configuration
 
-## Maintained TimescaleDB history
+All configuration is read from environment variables; `.env.example` lists every one with a description. In production the API refuses to start without the required values.
 
-See [HISTORY_RUNBOOK.md](docs/HISTORY_RUNBOOK.md) for the data requirements,
-canonical table, API/monthly Zenodo ingestion, CSV/Grafana, backup/restore,
-presentation-safe migration and rollback.
+| Variable | Purpose |
+| --- | --- |
+| `PUBLIC_ORIGIN` | Public origin of the site, used in the screens' QR codes (required in production) |
+| `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` | TimescaleDB connection |
+| `REDIS_URL` / `REDIS_PASSWORD` | Redis connection |
+| `CHAT_SESSION_SECRET` | Signs chat session tokens (required in production) |
+| `ANTHROPIC_API_KEY` | Claude through Anthropic's OpenAI-compatible endpoint |
+| `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | Any other OpenAI-compatible model endpoint |
+| `EMBEDDING_BASE_URL`, `EMBEDDING_MODEL` | Embeddings server for the knowledge base |
+| `OPENWEATHER_API_KEY` | Weather at the site |
+| `TAVILY_API_KEY` | Web search in the chat (optional) |
+| `UNSPLASH_ACCESS_KEY` | Photos in the chat (optional) |
+| `VITE_CESIUM_ION_TOKEN` / `VITE_GOOGLE_MAP_TILES_API_KEY` | Real-world 3D view, built into the website |
 
-`HISTORY_BACKEND=legacy` preserves existing readers until acceptance after the
-28 October 2026 presentation. The explicit canonical migration does not run on
-startup and does not destroy the legacy tables. Never reset an existing Docker
-volume to upgrade. `scripts/ingest_zenodo.py` is a legacy SQLite utility;
-`npm run history:zenodo` maintains canonical archive imports.
+`VITE_*` values are public once built into the website: restrict those keys to your site's origins in the provider's console.
 
-Data: [ACE API](https://ace-api.duckdns.org/docs) and
-[ACE Wind Turbine Data on Zenodo](https://doi.org/10.5281/zenodo.22662372), CC-BY-4.0.
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run setup` | Install server and frontend dependencies |
+| `npm run dev` | Migrations, collector and one API instance in a single process, restarting on change |
+| `npm run dev:web` | Vite dev server for the website |
+| `npm run build` | Build the website into `frontend/dist` |
+| `npm start` | Run the single-process server |
+| `npm run start:api` / `npm run start:collector` | Run the API or the collector on its own, as in production |
+| `npm run db:migrate` | Apply database migrations |
+| `npm run knowledge` | Manage the knowledge base (`ingest`, `list`, `remove`, `search`) |
+| `npm run knowledge:eval` | Evaluate retrieval quality |
+| `npm test` | Server tests |
+| `npm run render:stills` | Render the website's 3D stills from the live scene |
+
+Frontend tests run with `node --test "frontend/src/**/*.test.mjs"`.
+
+## API
+
+Read endpoints are open and need no key. The developer portal at `/developers` documents every endpoint with a live explorer. The main ones:
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/state` | Latest turbine snapshot |
+| `WS /ws` | Live state and weather on every change; screens subscribe to receive animation commands |
+| `GET /api/history/daily`, `/power-curve`, `/records`, `/compare` | History and analysis |
+| `GET /api/datasets` | Open datasets and the dates each covers |
+| `GET /api/datasets/{id}.csv?from=YYYY-MM-DD&to=YYYY-MM-DD` | Instant CSV download |
+| `POST /api/chat/session`, `POST /api/chat/stream` | Ask Ace: a session, then a streamed reply |
+| `GET /api/screens`, `POST /api/screens/command` | Connected screens, and animations a chat session can trigger |
+
+### Connecting a display
+
+A hoarding is a web page. Open `/screen/<name>` on any display; it goes full screen on the first interaction. For a display that should start full screen untouched, use the browser's kiosk mode:
+
+```bash
+chromium --kiosk --noerrdialogs --incognito <public-origin>/screen/community
+```
+
+## Deployment
+
+`compose.yaml` defines the production stack: TimescaleDB, Redis, the embeddings server, a one-off migration job, two collectors, three API instances, the nginx load balancer and a backup job. Only the load balancer publishes a port, on localhost; a host web server terminates TLS in front of it (`deploy/nginx.contabo.conf` is an example).
+
+```bash
+# on the server, with a filled-in .env beside compose.yaml
+docker compose up -d
+```
+
+The application image is built from the `Dockerfile`; `IMAGE` and `IMAGE_TAG` in `.env` select which one the stack runs. Continuous integration (`.github/workflows/ci.yml`) runs the server tests against a real database, builds the website and runs the frontend tests.
+
+## Project structure
+
+```
+frontend/              React website, hoarding screens, phone chat and developer portal
+  src/pages/           landing, screens, ask, developers
+  src/three/           the 3D scene: turbine, world, camera, story rail, X-ray climb
+  src/cesium/          the real-world 3D view
+  src/content/         screen stories, build timeline, chat copy
+server/
+  api/                 Express app, routes, WebSocket hub, services
+  collector/           scheduled jobs: live polling, history sync, weather, stories, retention
+  chat/                Ask Ace: sessions, guard, personas, agent loop, tools, fallback
+  knowledge/           document extraction, chunking, ingestion and hybrid search
+  integrations/        ACE API, OpenWeather, Tavily, Unsplash, Zenodo, carbon intensity, LLMs
+  db/                  schema, migrations and repositories
+shared/                constants, physics and data definitions shared by server and website
+deploy/                nginx configuration
+docs/diagrams/         architecture, agent and tech-stack diagrams (PNG)
+assets/source/         the turbine model sources
+scripts/               model export, scan preparation, renders, database backup and restore
+```
+
+## Data and attribution
+
+Turbine data is published by Ambition Community Energy under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Cite it as:
+
+> Plumley, Charlie; Garrad, Andrew; Burke, Wilf; Jonsson, Christian; Smirthwaite, Andrew. *ACE Wind Turbine Data.* Zenodo. https://doi.org/10.5281/zenodo.22662372
+
+Weather data is from OpenWeather, regional grid data from National Grid ESO's Carbon Intensity API, and chat photographs from Unsplash, credited to their photographers. Photographs of the turbine and the community on the screens are by Ambition Community Energy.

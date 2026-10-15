@@ -5,7 +5,7 @@ import Icon from "../../../components/ui/Icon.jsx";
 export default function ChatHeader({ title, screenName, onReset, canReset }) {
   return (
     <header className="sticky top-0 z-20 border-b border-moss-100/70 bg-white/80 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-3 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-2xl items-center gap-3">
+      <div className="mx-auto flex max-w-3xl items-center gap-3">
         <TurbineMark className="size-11" />
         <div className="min-w-0 flex-1">
           <p className="font-display text-lg leading-tight font-semibold text-moss-950">{title}</p>

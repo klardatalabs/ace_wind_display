@@ -12,6 +12,20 @@ const storageKey = (screen) => `ww.chat.${screen}`;
 let nextId = 1;
 const id = () => `m${nextId++}`;
 
+// Saved answers come back with their steps' timings; shape them like the streamed ones.
+const savedSteps = (steps = []) =>
+  steps.map((s, i) => ({
+    id: `s${i}`,
+    round: s.round,
+    kind: s.kind,
+    status: s.succeeded === false ? "failed" : "done",
+    ms: s.startedAt && s.finishedAt ? new Date(s.finishedAt) - new Date(s.startedAt) : null,
+  }));
+
+// A step event either starts a step or finishes the one with the same id.
+const upsertStep = (steps = [], step) =>
+  steps.some((s) => s.id === step.id) ? steps.map((s) => (s.id === step.id ? { ...s, ...step } : s)) : [...steps, step];
+
 function readToken(screen) {
   try {
     return sessionStorage.getItem(storageKey(screen));
@@ -50,7 +64,7 @@ export function useChatSession(screen) {
       try {
         if (token.current) {
           const h = await api.chatHistory(token.current);
-          if (alive) setMessages(h.messages.map((m) => ({ id: id(), role: m.role, content: m.content, sources: m.sources, photos: m.photos })));
+          if (alive) setMessages(h.messages.map((m) => ({ id: id(), role: m.role, content: m.content, steps: savedSteps(m.steps), photos: m.photos })));
         } else {
           await mint();
         }
@@ -111,6 +125,7 @@ export function useChatSession(screen) {
         await readEventStream(res, (event, data) => {
           if (event === "token") patch(replyId, (m) => ({ content: m.content + data.t, statusText: null }));
           else if (event === "status") patch(replyId, () => ({ statusText: data.s }));
+          else if (event === "step") patch(replyId, (m) => ({ steps: upsertStep(m.steps, data) }));
           else if (event === "sources") patch(replyId, (m) => ({ sources: [...(m.sources || []), ...data.sources] }));
           else if (event === "photos") patch(replyId, (m) => ({ photos: [...(m.photos || []), ...data.photos] }));
           else if (event === "action") patch(replyId, (m) => ({ actions: [...(m.actions || []), data.action] }));
@@ -142,18 +157,5 @@ export function useChatSession(screen) {
     setStatus("ready");
   }, [mint]);
 
-  /** Ask the big screen this chat belongs to to animate. */
-  const remote = useCallback(
-    async (action, value) => {
-      try {
-        const t = token.current || (await mint());
-        return await api.screenCommand(t, action, value);
-      } catch (err) {
-        return { ok: false, reason: err.data?.reason || err.message };
-      }
-    },
-    [mint]
-  );
-
-  return { messages, status, send, stop, reset, remote };
+  return { messages, status, send, stop, reset };
 }

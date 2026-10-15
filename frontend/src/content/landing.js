@@ -14,7 +14,7 @@ export const HERO = {
 export const LOOP_STEPS = [
   { key: "wind", icon: "wind", title: "Wind arrives", body: "Air rolling in off the Severn Estuary pushes on three 56-metre blades." },
   { key: "blades", icon: "fan", title: "Blades turn", body: "Lift spins the rotor — slowly, but the blade tips can pass 150 mph." },
-  { key: "generator", icon: "microchip", title: "Generator hums", body: "No gearbox: the hub turns a giant ring of magnets past copper coils." },
+  { key: "generator", icon: "microchip", title: "Generator hums", body: "No gearbox: the hub turns a giant ring of electromagnets past copper coils." },
   { key: "grid", icon: "plug", title: "Grid carries it", body: "A converter and transformer tidy the power up and send it into the grid." },
   { key: "homes", icon: "home", title: "Homes light up", body: "Clean electricity reaches homes — and the income stays in Lawrence Weston." },
 ];

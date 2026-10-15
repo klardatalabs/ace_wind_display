@@ -10,6 +10,7 @@ import { applySiteEnvironment } from "../../cesium/siteEnvironment.js";
 import ConditionsLine from "../live/ConditionsLine.jsx";
 import { useSiteConditions } from "../../hooks/useSiteConditions.js";
 import TurbineDetails from "./TurbineDetails.jsx";
+import { londonHourToDate } from "@shared/time.js";
 import Icon from "../ui/Icon.jsx";
 import "./siteViewer.css";
 
@@ -41,7 +42,10 @@ function turbineFootprint(lon, lat, radiusM = 62) {
   return new Cesium.ClippingPolygon({ positions: points });
 }
 
-export default function SiteCesiumViewer({ className = "", screenMode = false, controllerRef, onPick, onReady, active = true }) {
+// `hoarding`: an unattended big screen. No buttons, markers or panels (the screen has its
+// own), just the real place, the turbine and a slow orbit. `hour` (London, 0-24) shows
+// that time of day instead of now, for a time-lapse; null follows the real clock.
+export default function SiteCesiumViewer({ className = "", screenMode = false, hoarding = false, controllerRef, onPick, onReady, active = true, hour = null }) {
   const rootRef = useRef(null);
   const cameraRef = useRef(null);
   const selectionRef = useRef(null);
@@ -55,6 +59,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
   const [message, setMessage] = useState("");
   const conditions = useSiteConditions();
   const viewerRef = useRef(null);
+  const environmentRef = useRef(null);
+  const [envReady, setEnvReady] = useState(false);
   const callbacksRef = useRef({ screenMode, onPick, onReady, active });
   callbacksRef.current = { screenMode, onPick, onReady, active };
 
@@ -71,6 +77,11 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
     selectionRef.current?.setSelected(true);
     cameraRef.current?.focus();
   }, []);
+
+  // A time-lapse moves the sun and sky through the day; otherwise they follow the real clock.
+  useEffect(() => {
+    environmentRef.current?.setTime?.(hour == null ? null : londonHourToDate(hour));
+  }, [hour, envReady]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -113,6 +124,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
     let stopAnimation;
     let stopEnvironment;
     let selection;
+    let whiteShader;
+    let stopReady;
 
     async function init() {
       setStatus("loading");
@@ -129,7 +142,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
         const terrainProvider = Cesium.createWorldTerrainAsync();
         viewer = new Cesium.Viewer(rootRef.current, {
           animation: false, baseLayerPicker: false, fullscreenButton: false,
-          geocoder: Cesium.IonGeocodeProviderType.GOOGLE, homeButton: false, infoBox: false,
+          // No geocoder: its Knockout bindings compile with eval, which the CSP blocks.
+          geocoder: false, homeButton: false, infoBox: false,
           navigationHelpButton: false, sceneModePicker: false, selectionIndicator: false, timeline: false,
           baseLayer: Cesium.ImageryLayer.fromWorldImagery({ style: Cesium.IonWorldImageryStyle.AERIAL }),
           terrain: new Cesium.Terrain(terrainProvider),
@@ -165,12 +179,16 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
         if (cancelled) { model.destroy(); return; }
         viewer.scene.primitives.add(model);
         if (screenMode) {
-          model.customShader = new Cesium.CustomShader({ fragmentShaderText: "void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) { material.diffuse = vec3(1.0); material.specular = vec3(0.04); material.roughness = 0.65; material.emissive = vec3(0.12); }" });
+          whiteShader = new Cesium.CustomShader({ fragmentShaderText: "void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) { material.diffuse = vec3(1.0); material.specular = vec3(0.04); material.roughness = 0.65; material.emissive = vec3(0.12); }" });
+          model.customShader = whiteShader;
         }
         stopAnimation = animateTurbine(viewer.scene, model);
         stopEnvironment = applySiteEnvironment(viewer, tileset);
+        environmentRef.current = stopEnvironment;
+        setEnvReady(true);
         camera = createSiteCamera(viewer, groundHeight, model);
         cameraRef.current = camera;
+        if (hoarding) camera.orbit(true);
         selection = createSiteSelection(viewer, model, { marker: () => markerRef.current, onSelect: selectTurbine });
         selectionRef.current = selection;
         if (controllerRef) controllerRef.current = {
@@ -182,7 +200,12 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
         if (import.meta.env.DEV && new URLSearchParams(location.search).has("debug")) window.__liveMap = { viewer, model };
         setStatus("ready");
         viewer.useDefaultRenderLoop = callbacksRef.current.active;
-        callbacksRef.current.onReady?.();
+        if (model.ready) callbacksRef.current.onReady?.();
+        else stopReady = model.readyEvent.addEventListener(() => {
+          stopReady?.();
+          stopReady = null;
+          if (!cancelled) callbacksRef.current.onReady?.();
+        });
       } catch (error) {
         console.error("[site-viewer] initialization failed", error);
         if (!cancelled) {
@@ -199,6 +222,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
       window.clearTimeout(start);
       stopAnimation?.();
       stopEnvironment?.();
+      environmentRef.current = null;
+      stopReady?.();
       selection?.dispose();
       selectionRef.current = null;
       camera?.dispose();
@@ -207,14 +232,15 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, c
       if (controllerRef) controllerRef.current = null;
       if (window.__liveMap?.viewer === viewer) delete window.__liveMap;
       if (viewer && !viewer.isDestroyed()) viewer.destroy();
+      if (whiteShader && !whiteShader.isDestroyed()) whiteShader.destroy();
     };
-  }, [attempt, config, selectTurbine, screenMode, controllerRef]);
+  }, [attempt, config, selectTurbine, screenMode, hoarding, controllerRef]);
 
   return (
     <div className={`site-viewer relative overflow-hidden bg-moss-950 ${selected ? "has-selection" : ""} ${className}`} data-lenis-prevent>
       <div className="site-scene">
         <div ref={rootRef} className="absolute inset-0" aria-label="Interactive 3D location of the ACE wind turbine" />
-        {status === "ready" && !screenMode && (
+        {status === "ready" && !screenMode && !hoarding && (
           <>
             <ConditionsLine conditions={conditions} className="site-conditions" />
             <button ref={markerRef} type="button" className="site-turbine-marker" hidden={selected}

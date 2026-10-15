@@ -76,12 +76,12 @@ export default function CodeSamples({ origin }) {
   const sample = list.find((s) => s.id === active);
   return (
     <section className="px-6 py-20 md:px-12 xl:px-36">
-      <div className="mx-auto grid max-w-[1280px] gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+      <div className="mx-auto grid max-w-[1280px] grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <SectionHeading eyebrow="Quick start" title="A few lines to go live.">
           Read endpoints are open. Chat sessions are anonymous and private to whoever holds the token.
         </SectionHeading>
         <div>
-          <div className="mb-3 flex gap-2" role="tablist">
+          <div className="mb-3 flex flex-wrap gap-2" role="tablist">
             {list.map((s) => (
               <button
                 key={s.id}

@@ -70,6 +70,19 @@ export async function streamChat({ messages, tools, onText, signal }) {
   }
 }
 
+/**
+ * One whole reply, not streamed, for background jobs. `maxTokens` must leave room for the
+ * model's thinking, which counts towards it.
+ * @returns {Promise<string>}
+ */
+export async function completeChat({ messages, maxTokens = 8_000, signal }) {
+  if (!chatClient) throw new Error("No language model is configured");
+  const reply = await chatClient.chat.completions.create({ model: config.llm.model, messages, max_tokens: maxTokens }, { signal: signal ?? AbortSignal.timeout(120_000) });
+  const choice = reply.choices?.[0];
+  if (choice?.finish_reason === "length") throw new Error("The reply was cut off at the token limit");
+  return choice?.message?.content ?? "";
+}
+
 /** Embeds a search query (with the model's query instruction, if it has one). */
 export async function embedQuery(text) {
   const [vector] = await embed([`${config.embeddings.queryPrefix}${text}`]);

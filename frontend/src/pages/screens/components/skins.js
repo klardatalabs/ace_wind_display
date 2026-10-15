@@ -30,4 +30,25 @@ export const SKINS = {
     card: "bg-moss-950/60 ring-1 ring-moss-300/25 backdrop-blur-xl shadow-[0_0_40px_rgb(119_192_154/0.12)]",
     pillTone: "light",
   },
+  // Community and college: white text straight on the real scene (with a shadow, for any
+  // light), and cards like the students' screen, solid white with dark ink (card* classes).
+  cards: {
+    dark: true,
+    text: "text-white [text-shadow:0_1px_12px_rgb(0_0_0/0.7)]",
+    muted: "text-white/85 [text-shadow:0_1px_12px_rgb(0_0_0/0.7)]",
+    accent: "text-moss-200 [text-shadow:0_1px_12px_rgb(0_0_0/0.7)]",
+    scrim: "bg-gradient-to-r from-black/50 via-black/20 to-transparent",
+    scrimBottom: "bg-gradient-to-t from-black/35 to-transparent",
+    card: "bg-white/85 ring-1 ring-moss-100 shadow-[0_20px_60px_rgb(10_21_29/0.12)]",
+    cardText: "text-moss-950",
+    cardMuted: "text-moss-900/70",
+    cardAccent: "text-moss-600",
+    pillTone: "light",
+  },
 };
+
+/** The skin for what sits inside a card: a skin's card* ink where it has one. */
+export function cardSkinOf(skin) {
+  if (!skin.cardText) return skin;
+  return { ...skin, dark: false, text: skin.cardText, muted: skin.cardMuted, accent: skin.cardAccent };
+}

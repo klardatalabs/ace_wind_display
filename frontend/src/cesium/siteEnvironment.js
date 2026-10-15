@@ -55,7 +55,8 @@ export function siteGrade(elevationDeg, { cloud, rain, fog }) {
 
 /**
  * Drives the viewer from the real clock and the real weather. `tileset` is optional (it is
- * missing when clipping isn't supported). Returns a cleanup function.
+ * missing when clipping isn't supported). Returns a cleanup function, with `setTime(date)`
+ * on it to show another moment (a time-lapse) instead of now; `setTime(null)` returns to now.
  */
 export function applySiteEnvironment(viewer, tileset) {
   const { scene, clock } = viewer;
@@ -83,8 +84,10 @@ export function applySiteEnvironment(viewer, tileset) {
     })
   );
 
+  let shown = null; // a Date to show instead of now
+
   function update() {
-    const elevationDeg = (sunPosition(new Date(), SITE_COORDS.lat, SITE_COORDS.lon).elevation * 180) / Math.PI;
+    const elevationDeg = (sunPosition(shown ?? new Date(), SITE_COORDS.lat, SITE_COORDS.lon).elevation * 180) / Math.PI;
     const look = weatherLook(realWeather(useEnvironmentStore.getState().environment));
     const grade = siteGrade(elevationDeg, look);
     uniforms.brightness = grade.brightness;
@@ -100,9 +103,17 @@ export function applySiteEnvironment(viewer, tileset) {
   update();
   const timer = setInterval(update, REFRESH_MS);
   const unsubscribe = useEnvironmentStore.subscribe(update);
-  return () => {
+  const stop = () => {
     clearInterval(timer);
     unsubscribe();
     if (!scene.isDestroyed()) scene.postProcessStages.remove(stage);
   };
+  stop.setTime = (date) => {
+    shown = date;
+    // The sun, the sky and the turbine's shadow follow the clock.
+    clock.shouldAnimate = !date;
+    clock.currentTime = Cesium.JulianDate.fromDate(date ?? new Date());
+    update();
+  };
+  return stop;
 }

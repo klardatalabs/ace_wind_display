@@ -1,5 +1,5 @@
-// Homes powered right now, drawn as houses that light up: one house = 500 homes, out of
-// the 12,000 the turbine can supply at full output.
+// Homes powered right now, drawn as houses that light up one after another: one house = 500
+// homes, out of the 12,000 the turbine can supply at full output.
 
 import Icon from "../../../components/ui/Icon.jsx";
 
@@ -15,7 +15,8 @@ export default function HomesGrid({ homes, skin }) {
           <Icon
             key={i}
             name="home"
-            className={`size-[4.2vmin] transition-[color,opacity,transform] duration-700 ${i < lit ? "scale-100 text-amber-300 opacity-100 drop-shadow-[0_0_8px_rgb(252_211_77/0.8)]" : `scale-90 opacity-30 ${skin.text}`}`}
+            className={`size-[4.2vmin] transition-[color,opacity,transform] duration-700 ${i < lit ? "house-on scale-100 text-amber-300 opacity-100 drop-shadow-[0_0_8px_rgb(252_211_77/0.8)]" : `scale-90 opacity-30 ${skin.text}`}`}
+            style={i < lit ? { animationDelay: `${0.4 + i * 0.12}s` } : undefined}
           />
         ))}
       </div>

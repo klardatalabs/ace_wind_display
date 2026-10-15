@@ -15,3 +15,6 @@ export const cupsOfTea = (kwh) => Math.round(Math.max(0, kwh) / 0.03);
 
 /** Phone charges from kWh: ~0.015 kWh per full smartphone charge. */
 export const phoneCharges = (kwh) => Math.round(Math.max(0, kwh) / 0.015);
+
+/** Electric-car miles from kWh: a typical EV uses ~0.3 kWh a mile. */
+export const evMiles = (kwh) => Math.round(Math.max(0, kwh) / 0.3);

@@ -16,6 +16,7 @@ import { refreshWeather, restoreWeather } from "./jobs/weather.js";
 import { syncHistory } from "./jobs/history.js";
 import { importArchive } from "./jobs/zenodo.js";
 import { applyRetention } from "./jobs/retention.js";
+import { writeStories } from "./jobs/stories.js";
 import { failAbandonedRuns } from "../db/repositories/jobs.js";
 import { weatherEnabled } from "../integrations/openWeather.js";
 
@@ -34,6 +35,8 @@ async function startJobs() {
     every("history", config.ace.historySyncMs, syncHistory, { initialDelayMs: 10_000 }),
     every("zenodo", config.ace.zenodoCheckMs, importArchive, { initialDelayMs: 60_000, maxBackoffMs: 6 * 3_600_000 }),
     every("retention", 24 * 3_600_000, applyRetention, { initialDelayMs: 120_000 }),
+    // Fresh words for the screens' stories: a few model calls an hour, whatever the traffic.
+    every("stories", 45 * 60_000, writeStories, { initialDelayMs: 30_000, maxBackoffMs: 3 * 3_600_000 }),
     ...(weatherEnabled() ? [every("weather", config.weather.refreshMs, refreshWeather, { maxBackoffMs: 30 * 60_000 })] : []),
   ];
   log.info("collector jobs started", { jobs: stopJobs.length });

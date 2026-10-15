@@ -8,6 +8,7 @@ const PAUSE_AFTER_VISITOR_MS = 25_000;
 
 export function useStoryLoop(chapters, sceneRef, rail = false) {
   const [index, setIndex] = useState(0);
+  const [loop, setLoop] = useState(0); // times the story has come round (picks the words)
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
   const [fade, setFade] = useState(0);
@@ -64,7 +65,10 @@ export function useStoryLoop(chapters, sceneRef, rail = false) {
       }
       if (paused) setPaused(false);
       const p = (now - started.current) / (chapters[index].seconds * 1000);
-      if (p >= 1) setIndex((i) => (i + 1) % chapters.length);
+      if (p >= 1) {
+        if (index + 1 === chapters.length) setLoop((l) => l + 1);
+        setIndex((index + 1) % chapters.length);
+      }
       else setProgress(p);
     }, 100);
     return () => clearInterval(id);
@@ -87,5 +91,5 @@ export function useStoryLoop(chapters, sceneRef, rail = false) {
     [runAction, rail]
   );
 
-  return { index, chapter: chapters[index], progress, paused, fade, railState, goTo, yieldTo };
+  return { index, loop, chapter: chapters[index], progress, paused, fade, railState, goTo, yieldTo };
 }

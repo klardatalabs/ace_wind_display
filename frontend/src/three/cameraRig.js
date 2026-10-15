@@ -13,6 +13,8 @@ export const SHOTS = {
   overview: { pos: v(320, 130, 450), target: v(0, 62, 0) },
   hero: { pos: v(175, 42, 255), target: v(0, 72, 0) },
   low: { pos: v(48, 3, 78), target: v(0, 66, 0) },
+  // High over the estate side: the turbine with Lawrence Weston spread out behind it.
+  aerial: { pos: v(-330, 170, 380), target: v(0, 50, -40) },
   base: { pos: v(9, 5, 17), target: v(0, 9, 0) },
   towerInside: { pos: v(0.2, 2.4, 0.9), target: v(0, 70, -0.4) },
   tower: { pos: v(14, 52, 34), target: v(0, 50, 0) },
@@ -172,9 +174,18 @@ export class CameraRig {
       this.camera.lookAt(this.target);
       return;
     }
-    const sway = inside ? 0.02 : 0.05 * this.swayAmount;
-    // Walking keeps the eye on the clear aisle; drag changes the look direction.
-    const yaw = this.getYaw() + (this.walk ? 0 : Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04);
+    const sway = inside ? 0.01 : 0.02 * this.swayAmount;
+    // The camera keeps the turbine facing it by following the nacelle, but the live wind
+    // direction is noisy: shifts under ~10° are ignored and bigger ones are followed slowly,
+    // so the whole view never swings back and forth with the data.
+    const nacelle = this.getYaw();
+    if (this.viewYaw === undefined) this.viewYaw = nacelle;
+    const off = Math.atan2(Math.sin(nacelle - this.viewYaw), Math.cos(nacelle - this.viewYaw));
+    if (Math.abs(off) > 0.17) this.viewYaw += off * Math.min(1, dt * 0.12);
+    // Walking keeps the eye on the clear aisle; drag changes the look direction. Inside, the
+    // walk follows the nacelle's true heading, not the smoothed view: the ladder, hatch and
+    // machine room turn with it, and even a few degrees off puts the eye inside a wall.
+    const yaw = this.walk ? nacelle : this.viewYaw + Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04;
 
     if (this.walk) {
       // first person: follow the path, with a slow drift back to centre after looking around
@@ -183,7 +194,7 @@ export class CameraRig {
         this.walk.lookPitch *= 1 - Math.min(1, dt * 0.8);
       }
       walkAt(this.walk.s, this._eye, this._look);
-      const bob = Math.sin(this.walk.s * 420) * 0.025; // rung by rung
+      const bob = Math.sin(this.walk.s * 420) * 0.008; // rung by rung, barely felt
       this._eye.y += bob;
       this._look.sub(this._eye);
       this._look.applyAxisAngle(THREE.Object3D.DEFAULT_UP, this.walk.lookYaw);
@@ -209,7 +220,7 @@ export class CameraRig {
     this._world.y = Math.max(this._world.y, inside ? this._world.y : 1.5);
 
     this._world.applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
-    this._world.y += Math.sin(this.time * 0.17) * (inside ? 0.05 : 0.8) + this.parallax.y * (inside ? 0.1 : 3);
+    this._world.y += Math.sin(this.time * 0.17) * (inside ? 0.03 : 0.3) + this.parallax.y * (inside ? 0.1 : 3);
     this._worldTarget.copy(this.target).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
     this.camera.position.copy(this._world);
     this.camera.lookAt(this._worldTarget);

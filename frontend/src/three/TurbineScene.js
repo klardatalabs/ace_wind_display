@@ -10,9 +10,11 @@ import { splitShell } from "./splitShell.js";
 import { buildInteriors, buildWalkHatch } from "./interiors.js";
 import { LookInside } from "./lookInside.js";
 import { CameraRig, SHOTS } from "./cameraRig.js";
-import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS } from "./themes.js";
+import { roleOf, createMaterial, addOutline, addEdges, CAP_COLORS, XRAY, isDrawnTheme, drawnColours } from "./themes.js";
+import { XRAY_STOPS, buildFoundation, xrayAnchors, lightParts, clearLit } from "./xrayClimb.js";
 import { createSky } from "./sky.js";
 import { buildWorld } from "./world/index.js";
+import { loadSiteSplat } from "./splat.js";
 import { markBands, applyBands, blinkAviationLight } from "./accents.js";
 import { sunPosition, sunDirection, skyState, nightReadability } from "./environment.js";
 import { createWeatherFx } from "./fx.js";
@@ -22,6 +24,9 @@ import { StoryRail } from "./storyRail.js";
 import { resolveHotspot } from "./hotspots.js";
 import { ExplorerNavigation } from "./explorerNavigation.js";
 import { londonHourToDate } from "@shared/time.js";
+
+// The X-ray climb's stops fly like any other named shot.
+for (const stop of XRAY_STOPS) SHOTS[`xray-${stop.id}`] = stop.shot;
 
 // The camera shots are composed for the turbine facing this bearing (the prevailing
 // south-westerly). The model's yaw is the live nacelle bearing relative to it.
@@ -47,18 +52,24 @@ export class TurbineScene {
    * @param {boolean} [options.interactive]  drag to orbit, pinch / wheel to zoom, double-tap to open
    * @param {number} [options.frameShift]     on wide screens, push the subject this fraction of the width to the right (room for text)
    * @param {boolean} [options.storyRail]     opt into the continuous energy journey
+   * @param {boolean} [options.storyTour]     build the energy journey to play as one chapter (the "tour" action)
+   * @param {boolean} [options.scan]          fade the real Lawrence Weston scan in around the turbine (realistic look)
+   * @param {number} [options.maxFps]         draw at most this many frames a second (unattended screens save GPU)
+   * @param {number} [options.maxPixelRatio]  cap on device pixels per CSS pixel
    * @param {(u: number) => void} [options.onLookInside]
    * @param {(pick: { id: string, x: number, y: number } | null) => void} [options.onPick]  something was tapped (id of its description card), or null
    * @param {(s: number, height: number) => void} [options.onWalk]  progress 0..1 and metres climbed during the walk
    * @param {() => void} [options.onReady]
    * @param {(err: Error) => void} [options.onError]
    */
-  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
+  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, storyTour = false, scan = false, maxFps = 0, maxPixelRatio = 1.75, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
     this.canvas = canvas;
     this.frameShift = frameShift;
     this.theme = theme;
     this.storyRailEnabled = storyRail;
+    this.storyTourEnabled = storyTour && !storyRail && !explorer;
     this.explorerEnabled = explorer;
+    this.scanEnabled = scan && !explorer;
     this.callbacks = { onLookInside, onReady, onError, onWalk, onPick, onViewChange };
     this.live = { rpm: 0, yaw: 0 };
     this.shown = { rpm: 0, yaw: 0 }; // eased toward live, so jumps in the data look mechanical
@@ -69,7 +80,13 @@ export class TurbineScene {
     this.disposed = false;
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, storyRail ? 1 : 1.75));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, storyRail ? 1 : maxPixelRatio));
+    this.frameInterval = maxFps > 0 ? 1000 / maxFps : 0;
+    this.lastFrameAt = -Infinity;
+    // Nothing is drawn until every material's GPU program has compiled (see #compileAll):
+    // drawing first would compile them one at a time on the main thread, freezing the page
+    // for many seconds on integrated graphics.
+    this.warming = true;
     this.renderer.localClippingEnabled = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = true;
@@ -120,7 +137,7 @@ export class TurbineScene {
     this.#observeSize();
     if (interactive && !explorer) this.#bindPointer();
     this.timer = new THREE.Timer();
-    this.renderer.setAnimationLoop(() => this.#tick());
+    this.renderer.setAnimationLoop((now) => this.#tick(now));
   }
 
   // ---------------------------------------------------------------- setup
@@ -173,12 +190,15 @@ export class TurbineScene {
       }
 
       const shells = [splitShell(nodes.tower), splitShell(nodes.towerBands), splitShell(nodes.nacelleShell)];
-      const interiors = buildInteriors(nodes, this.towerPivot);
+      const interiors = buildInteriors(nodes, this.towerPivot, { explorer: this.explorerEnabled });
       this.lift = interiors.lift;
       this.labels = interiors.labels;
       this.nacelleLights = interiors.nacelleLights;
       this.walkHatch = buildWalkHatch(nodes);
       this.interiors = interiors;
+      // Piles and pad under the tower, drawn only in the X-ray.
+      this.foundation = buildFoundation();
+      this.towerPivot.add(this.foundation);
 
       nodes.yaw.add(this.fx.wind);
       this.annotations = buildAnnotations(this.towerPivot, nodes.yaw);
@@ -201,20 +221,73 @@ export class TurbineScene {
         stack: anchor(root, "stack", this.world.stackTop.x, this.world.stackTop.y, this.world.stackTop.z),
       };
       for (const [name, obj] of Object.entries(this.annotations.anchors)) this.anchors[`dim${name[0].toUpperCase()}${name.slice(1)}`] = obj;
+      Object.assign(this.anchors, xrayAnchors(this.towerPivot, nodes.yaw, interiors.lift));
 
       this.aviationLights = meshesOf(root).filter((m) => m.userData.materialName === "M_Aviation_Light");
       this.applyTheme(this.theme);
       root.updateMatrixWorld(true);
       this.lookInside = new LookInside(shells, (u) => this.callbacks.onLookInside?.(u));
       if (this.storyRailEnabled) this.story = new StoryRail(this, interiors);
+      else if (this.storyTourEnabled) this.tour = new StoryRail(this, interiors, { autoplay: false });
 
       if (this.explorerEnabled) this.explorer = new ExplorerNavigation(this);
+      await this.#compileAll();
+      if (this.disposed) return;
       this.callbacks.onReady?.({});
       // Opening move: drift from the wide establishing shot into the hero framing.
       if (!this.story && !this.explorerEnabled) this.rig.flyTo("hero", { duration: 5, ease: "power2.inOut" });
+      // The turbine is up; the real surroundings stream in behind it.
+      if (this.scanEnabled && this.theme === "realistic") this.#loadScan();
     } catch (err) {
       console.error("[3d] failed to load turbine", err);
+      this.warming = false;
       this.callbacks.onError?.(err);
+    }
+  }
+
+  /**
+   * Compiles every material in the scene (hidden interiors too) in parallel, through
+   * KHR_parallel_shader_compile, and only then lets frames draw. The environment map goes
+   * on first, since whether a material has one changes the program it needs.
+   */
+  async #compileAll() {
+    if (!this.envMap) this.#applyEnvironment(this.timer.getElapsed());
+    const done = this.renderer.compileAsync(this.scene, this.camera).catch((err) => console.warn("[3d] shader warm-up failed", err));
+    // A driver that never reports back shouldn't keep the scene hidden.
+    await Promise.race([done, new Promise((resolve) => setTimeout(resolve, 20_000))]);
+    this.warming = false;
+  }
+
+  async #loadScan() {
+    try {
+      const { splat, spark } = await loadSiteSplat(this.renderer, this.scene);
+      if (this.disposed) return splat.dispose?.();
+      this.splat = splat;
+      this.spark = spark;
+      // Fades in from here on; #updateScan decides how much of it to show each frame.
+    } catch (err) {
+      // No scan is fine: the generated landscape stays.
+      console.warn("[3d] the Lawrence Weston scan didn't load", err);
+    }
+  }
+
+  /**
+   * The real scan stays round the turbine on every shot (softer close to the ground, but
+   * real), and steps aside only while the turbine is opened up to look inside. Whichever is
+   * showing, the generated scenery or the scan, the other steps aside.
+   */
+  #updateScan(dt) {
+    const splat = this.splat;
+    if (!splat) return;
+    // The energy journey follows the generated route, so the scan steps aside while it plays.
+    const want = this.theme === "realistic" && (this.lookInside?.u ?? 0) < 0.2 && !this.tour?.active ? 1 : 0;
+    splat.opacity += (want - splat.opacity) * (1 - Math.exp(-dt * 1.6));
+    if (Math.abs(want - splat.opacity) < 0.005) splat.opacity = want;
+    splat.visible = splat.opacity > 0.01;
+    const scan = splat.opacity > 0.6;
+    if (scan !== this.scanShown) {
+      this.scanShown = scan;
+      this.world.setScan?.(scan);
     }
   }
 
@@ -348,13 +421,16 @@ export class TurbineScene {
       if (whiteExterior) mesh.material.color.set(0xffffff);
       if (mesh.material.isMeshStandardMaterial) mesh.material.envMapIntensity = whiteExterior ? .4 : .9;
       if (!this.explorerEnabled) applyBands(mesh, theme);
-      mesh.castShadow = theme !== "blueprint" && !mesh.userData.neighbour;
+      mesh.castShadow = !isDrawnTheme(theme) && !mesh.userData.neighbour;
 
       const plain = !mesh.isInstancedMesh && !mesh.userData.part;
       if (theme === "cartoon" && plain) addOutline(mesh, mesh.userData.neighbour ? 0.002 : 0.0035);
-      if (theme === "blueprint" && plain) addEdges(mesh);
+      if (isDrawnTheme(theme) && plain) addEdges(mesh, drawnColours(theme).line, theme === "xray" ? 0.7 : 0.9);
     }
+    if (this.nodes) clearLit(this.nodes.root);
+    if (this.foundation) this.foundation.visible = theme === "xray";
 
+    this.setXray?.(isDrawnTheme(theme));
     this.lookInside?.setTheme(theme);
     this.lookInside?.rebind();
     this.walkHatch?.(Boolean(this.rig.walk));
@@ -442,8 +518,10 @@ export class TurbineScene {
 
     if (!this.scene.fog) this.scene.fog = new THREE.Fog(0xffffff, 100, 3000);
     this.scene.fog.color.copy(sky.horizon);
-    this.scene.fog.near = sky.fogNear;
-    this.scene.fog.far = sky.fogFar;
+    // The cartoon look keeps the weather's haze light, so the houses never melt into mist.
+    const clear = this.theme === "cartoon";
+    this.scene.fog.near = clear ? Math.max(sky.fogNear, 400) : sky.fogNear;
+    this.scene.fog.far = clear ? Math.max(sky.fogFar, 2400) : sky.fogFar;
     this.renderer.toneMappingExposure = 0.92 + 0.25 * (1 - sky.day);
 
     this.scene.environmentIntensity = (this.envBase ?? 1) * (1 - 0.92 * inside);
@@ -479,6 +557,9 @@ export class TurbineScene {
       if (chapter != null) this.story.seekChapter(chapter);
       return;
     }
+    if (action !== "xray_climb") this.endXrayClimb();
+    if (action === "tour") return this.tour?.start(value ?? {});
+    this.tour?.stop();
     const token = ++this.commandToken;
     const still = () => token === this.commandToken && !this.disposed;
     // anything but a walk command takes the visitor back out of the turbine first
@@ -493,6 +574,8 @@ export class TurbineScene {
       }
       case "walk_stop":
         return this.stopWalk();
+      case "xray_climb":
+        return this.#xrayClimb(still);
       case "look_inside": {
         // Camera fly-in: approach the nacelle from wherever we are, then dock inside.
         this.lookInside.open(3.2);
@@ -528,6 +611,50 @@ export class TurbineScene {
       default:
         if (action in SHOTS) await this.rig.flyTo(action);
     }
+  }
+
+  // ---------------------------------------------------------------- the X-ray climb
+
+  /**
+   * College's "Go inside": the turbine turns see-through and the camera climbs from the piles
+   * to the hub (three/xrayClimb.js), lighting up the parts at each stop. `xrayClimbState.stop`
+   * says which stop it's at, for the captions and labels.
+   */
+  async #xrayClimb(still) {
+    if (this.lookInside.u > 0.02) this.lookInside.close(0.8);
+    if (!this.xrayClimbState) this.xrayClimbState = { stop: 0, from: this.theme };
+    this.applyTheme("xray");
+    for (let i = 0; i < XRAY_STOPS.length; i++) {
+      if (!still()) return;
+      const stop = XRAY_STOPS[i];
+      this.xrayClimbState.stop = i;
+      lightParts(this.nodes.root, stop.lit, XRAY.glow);
+      await this.rig.flyTo(`xray-${stop.id}`, { duration: stop.fly });
+      if (!still()) return;
+      // Hold, circling slowly round what's being explained.
+      const rig = this.rig;
+      const offset = rig.pos.clone().sub(rig.target);
+      const turn = { a: 0 };
+      await new Promise((resolve) => {
+        this.xrayDrift = gsap.to(turn, {
+          a: stop.drift,
+          duration: stop.hold,
+          ease: "sine.inOut",
+          onUpdate: () => rig.pos.copy(offset).applyAxisAngle(THREE.Object3D.DEFAULT_UP, turn.a).add(rig.target),
+          onComplete: resolve,
+          onInterrupt: resolve,
+        });
+      });
+    }
+  }
+
+  /** Back to the screen's own look when the climb is over. */
+  endXrayClimb() {
+    if (!this.xrayClimbState) return;
+    this.xrayDrift?.kill();
+    const { from } = this.xrayClimbState;
+    this.xrayClimbState = null;
+    this.applyTheme(from);
   }
 
   // ---------------------------------------------------------------- walking through the turbine
@@ -668,6 +795,8 @@ export class TurbineScene {
    * @param {{ action?: string, value?: number, annotations?: string[], wind?: boolean, lapse?: [number, number, number] }} stage
    */
   applyStage(stage = {}) {
+    if (stage.action !== "tour") this.tour?.stop();
+    if (stage.action !== "xray_climb") this.endXrayClimb?.();
     this.windViz = stage.wind ? 1 : 0;
     if (stage.lapse) {
       const [from, to, seconds] = stage.lapse;
@@ -691,10 +820,35 @@ export class TurbineScene {
     this.tagEls = map;
   }
 
+  /**
+   * Card sizes and the screen areas cards must not cover (captions, panels, the QR...:
+   * anything marked data-keepout), in canvas pixels. Layout reads are slow, so this runs
+   * every few frames, before any of the frame's writes.
+   */
+  #measureTagLayout() {
+    const origin = this.canvas.getBoundingClientRect();
+    this.tagSizes = new Map();
+    for (const [id, el] of this.tagEls) {
+      const card = el.firstElementChild?.firstElementChild;
+      if (card) this.tagSizes.set(id, { w: card.offsetWidth, h: card.offsetHeight });
+    }
+    this.keepouts = [...document.querySelectorAll("[data-keepout]")]
+      .map((node) => node.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.height > 0)
+      .map((r) => ({ x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height }));
+  }
+
   #updateTags() {
     if (!this.tagEls.size || !this.size) return;
+    this.tagFrame = (this.tagFrame ?? 0) + 1;
+    if (this.tagFrame % 10 === 1 || !this.tagSizes) this.#measureTagLayout();
     const v = new THREE.Vector3();
     const shown = new Set();
+    // Cards hang above their anchor point. One that would cover the story's text or another
+    // card (earlier tags win) fades out until there's room, with a little slack so it
+    // doesn't flicker at the edge.
+    const placed = [];
+    const overlaps = (a, b, pad) => a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad;
     for (const def of this.tagDefs) {
       const el = this.tagEls.get(def.id);
       const obj = this.anchors[def.anchor];
@@ -703,9 +857,18 @@ export class TurbineScene {
       obj.getWorldPosition(v);
       const dist = v.distanceTo(this.camera.position);
       v.project(this.camera);
-      const visible = v.z < 1 && Math.abs(v.x) < 1.02 && Math.abs(v.y) < 1.02 && dist > 3 && !this.rig.walk;
+      let visible = v.z < 1 && Math.abs(v.x) < 1.02 && Math.abs(v.y) < 1.02 && dist > 3 && !this.rig.walk;
+      const x = (v.x * 0.5 + 0.5) * this.size.w;
+      const y = (-v.y * 0.5 + 0.5) * this.size.h;
+      const size = this.tagSizes.get(def.id);
+      if (visible && size) {
+        const box = { x: x - size.w / 2, y: y - size.h, w: size.w, h: size.h };
+        const pad = el.dataset.on === "1" ? 0 : 16;
+        if ([...this.keepouts, ...placed].some((r) => overlaps(box, r, pad))) visible = false;
+        else placed.push(box);
+      }
       el.dataset.on = visible ? "1" : "0";
-      if (visible) el.style.transform = `translate3d(${((v.x * 0.5 + 0.5) * this.size.w).toFixed(1)}px, ${((-v.y * 0.5 + 0.5) * this.size.h).toFixed(1)}px, 0)`;
+      if (visible) el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
     }
     // the marker for the tapped thing
     const marker = this.tagEls.get("__pick");
@@ -767,8 +930,53 @@ export class TurbineScene {
 
   // ---------------------------------------------------------------- frame
 
-  #tick() {
+  /** Skip drawing while something else covers the whole screen (the live real-world view). */
+  /**
+   * The blueprint look as an X-ray: no landscape or sky, just the line-drawn turbine on an
+   * engineering grid over deep navy, so its structure is the only thing to look at.
+   */
+  setXray(on) {
+    this.xray = on;
+    this.world.group.visible = !on;
+    this.sky.visible = !on;
+    const colours = drawnColours(this.theme);
+    if (on && this.xrayGrid && this.xrayGrid.userData.theme !== this.theme) {
+      this.scene.remove(this.xrayGrid);
+      this.xrayGrid.traverse((o) => (o.geometry?.dispose(), o.material?.dispose?.()));
+      this.xrayGrid = null;
+    }
+    if (on && !this.xrayGrid) {
+      const grid = new THREE.Group();
+      grid.name = "XrayGrid";
+      grid.userData.theme = this.theme;
+      const major = new THREE.GridHelper(2400, 48, colours.lineDim, colours.lineDim);
+      const minor = new THREE.GridHelper(2400, 240, colours.paperLight, colours.paperLight);
+      for (const [g, opacity] of [[major, 0.55], [minor, 0.35]]) {
+        g.material.transparent = true;
+        g.material.opacity = opacity;
+        g.material.depthWrite = false;
+        grid.add(g);
+      }
+      minor.position.y = -0.05;
+      this.xrayGrid = grid;
+      this.scene.add(grid);
+    }
+    if (this.xrayGrid) this.xrayGrid.visible = on;
+    this.scene.background = on ? new THREE.Color(colours.paper) : null;
+    this.envDirty = true;
+  }
+
+  setPaused(paused) {
+    this.paused = paused;
+  }
+
+  #tick(now) {
+    // Skip display refreshes until the next frame is due (2 ms slack for vsync jitter); the
+    // timer then spans the skipped ones, so the rotor still turns at the true rpm.
+    if (this.frameInterval && now - this.lastFrameAt < this.frameInterval - 2) return;
+    this.lastFrameAt = now;
     this.timer.update();
+    if (this.paused) return;
     // Real elapsed time drives the rotor, so on a slow device it still turns at the true
     // rpm (it just looks choppier); camera motion uses a clamped step to avoid lurches.
     const realDt = Math.min(this.timer.getDelta(), 1);
@@ -794,17 +1002,27 @@ export class TurbineScene {
       }
       if (this.lift && this.lookInside) {
         // The service lift climbs the tower while the cutaway is open.
-        const k = (Math.sin(t * 0.07) * 0.5 + 0.5) * this.lookInside.u;
+        const k = (Math.sin(t * 0.07) * 0.5 + 0.5) * Math.max(this.lookInside.u, this.xrayClimbState ? 1 : 0);
         this.lift.position.y = 3 + k * 82;
       }
       blinkAviationLight(this.aviationLights, t, this.theme);
       this.lookInside?.updatePlanes();
       if (this.rig.walk) this.walkHatch?.(true, this.rig.walk.s > 0.93);
+      this.#updateScan(realDt);
+      // The scan has the neighbouring turbine in it already, and the X-ray is about this
+      // machine alone.
+      if (this.neighbour) this.neighbour.visible = !this.scanShown && this.theme !== "xray";
     }
 
     this.envClock += dt;
     if (this.envDirty || this.timeOverride || this.serverHour || this.envClock > 0.5) {
       this.#applyEnvironment(t);
+      // X-ray: the grid fades into the navy instead of the day's haze.
+      if (this.xray && this.scene.fog) {
+        this.scene.fog.color.set(drawnColours(this.theme).paper);
+        this.scene.fog.near = 300;
+        this.scene.fog.far = 1600;
+      }
       this.envDirty = false;
       this.envClock = 0;
     }
@@ -813,6 +1031,7 @@ export class TurbineScene {
     this.fx.update({ time: t, camera: this.camera, rain: this.env.rain, windMs: this.env.windMs, windVec: this._windVec ?? new THREE.Vector2(1, 0), windViz: this.windViz, dt });
 
     this.story?.update(realDt);
+    this.tour?.update(realDt);
     if (this.explorer) this.explorer.update(dt);
     else this.rig.update(dt);
     if (Boolean(this.rig.walk) !== this.walkFraming) {
@@ -831,6 +1050,7 @@ export class TurbineScene {
     this.sky.position.copy(this.camera.position);
     this.#updateLabels();
     this.#updateTags();
+    if (this.warming) return;
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -838,10 +1058,13 @@ export class TurbineScene {
     this.disposed = true;
     this.explorer?.dispose();
     this.story?.dispose();
+    this.tour?.dispose();
     this.renderer.setAnimationLoop(null);
     this.resizeObserver?.disconnect();
     this.unbindPointer?.();
     gsap.killTweensOf(this);
+    this.splat?.dispose?.();
+    this.spark?.dispose?.();
     if (this.lookInside) gsap.killTweensOf(this.lookInside);
     this.rig._tween?.kill();
     this.scene.traverse((o) => {

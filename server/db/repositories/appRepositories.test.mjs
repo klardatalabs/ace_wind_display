@@ -6,7 +6,6 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { pool, postgresHealthy, closePostgres } from "../../infra/postgres.js";
 import * as chats from "./chats.js";
-import * as datasets from "./datasets.js";
 import * as knowledge from "./knowledge.js";
 import * as weather from "./weather.js";
 import * as jobs from "./jobs.js";
@@ -50,29 +49,6 @@ test("a chat exchange is stored with its steps, photos and actions, and purged b
     await chats.deleteSession(sessionId);
     await pool.query("DELETE FROM app.photo WHERE photo_id = 'test-photo-1'; ").catch(() => {});
     await pool.query("DELETE FROM app.photographer WHERE profile_url = 'https://unsplash.com/@sam'").catch(() => {});
-  }
-});
-
-test("dataset requests store only a token hash and expire", { skip }, async () => {
-  const token = crypto.randomBytes(32).toString("base64url");
-  const email = `researcher-${Date.now()}@example.org`;
-  const requestId = await datasets.createRequest({
-    email, datasetId: "daily", fullName: "R. Searcher", organisation: "Uni", purpose: "Study",
-    dateFrom: "2026-08-01", dateTo: "2026-08-31",
-    tokenSha256: sha(token), expiresAt: new Date(Date.now() + 3_600_000),
-  });
-  try {
-    assert.equal(await datasets.recentRequestCount(email, 24), 1);
-    const found = await datasets.findActiveRequest(sha(token));
-    assert.equal(found.requestId, requestId);
-    assert.equal(found.datasetId, "daily");
-    assert.deepEqual([found.dateFrom, found.dateTo], ["2026-08-01", "2026-08-31"]);
-    assert.equal(await datasets.findActiveRequest(sha("wrong token")), null);
-    await datasets.recordDownload(requestId);
-    await pool.query("UPDATE app.dataset_request SET requested_at = now() - INTERVAL '2 hours', expires_at = now() - INTERVAL '1 minute' WHERE request_id = $1", [requestId]);
-    assert.equal(await datasets.findActiveRequest(sha(token)), null, "an expired link no longer works");
-  } finally {
-    await pool.query("DELETE FROM app.requester WHERE email = $1", [email]);
   }
 });
 

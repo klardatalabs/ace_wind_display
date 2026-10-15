@@ -1,0 +1,134 @@
+# Production stack (deployed to /opt/weston-wind by .github/workflows/deploy.yml).
+#
+#   host nginx (TLS) -> lb (nginx) -> api x3 -> Redis (pub/sub, cache, limits) + TimescaleDB
+#                                   collector x2 (one active, one standby) -> ACE / OpenWeather / Zenodo
+#
+# Images are built by GitHub Actions; IMAGE_TAG selects the commit. Secrets live in .env
+# on the server only. Only the load balancer has a port, and only on localhost.
+
+name: weston-wind
+
+x-app: &app
+  image: ${IMAGE:-ghcr.io/klardatalabs/ace_wind_display}:${IMAGE_TAG:-latest}
+  env_file: .env
+  environment:
+    PGHOST: db
+    PGPORT: "5432"
+    REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    DATA_DIR: /data
+  init: true
+  restart: unless-stopped
+  volumes:
+    - app_data:/data
+  logging: &logging
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  db:
+    image: timescale/timescaledb-ha:pg17
+    restart: unless-stopped
+    shm_size: 512mb
+    environment:
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE}
+    volumes:
+      - db_data:/home/postgres/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lfu"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    logging: *logging
+
+  # Local embedding model for the knowledge base (no API key, no per-call cost).
+  embeddings:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
+    restart: unless-stopped
+    command: ["--model-id", "BAAI/bge-base-en-v1.5", "--auto-truncate"]
+    volumes:
+      - embedding_models:/data
+    logging: *logging
+
+  migrate:
+    <<: *app
+    command: ["node", "server/bin/migrate.js"]
+    restart: "no"
+    healthcheck: { disable: true }
+    depends_on:
+      db: { condition: service_healthy }
+
+  collector:
+    <<: *app
+    command: ["node", "server/bin/collector.js"]
+    deploy: { replicas: 2 }
+    healthcheck: { disable: true }
+    stop_grace_period: 20s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  api:
+    <<: *app
+    command: ["node", "server/bin/api.js"]
+    deploy: { replicas: 3 }
+    stop_grace_period: 20s
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      embeddings: { condition: service_started }
+
+  lb:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4100:80"
+    volumes:
+      - ./deploy/lb/nginx.conf:/etc/nginx/nginx.conf:ro
+      - lb_cache:/var/cache/nginx
+    depends_on:
+      api: { condition: service_healthy }
+    logging: *logging
+
+  backup:
+    image: timescale/timescaledb-ha:pg17
+    restart: unless-stopped
+    entrypoint: ["sh", "/scripts/db-backup.sh"]
+    command: ["loop"]
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ${PGDATABASE}
+      BACKUP_COPY_OFFHOST: "0"
+    volumes:
+      - ./scripts/db-backup.sh:/scripts/db-backup.sh:ro
+      - db_backups:/backups
+    depends_on:
+      db: { condition: service_healthy }
+    logging: *logging
+
+volumes:
+  db_data:
+  redis_data:
+  app_data:
+  embedding_models:
+  lb_cache:
+  db_backups:

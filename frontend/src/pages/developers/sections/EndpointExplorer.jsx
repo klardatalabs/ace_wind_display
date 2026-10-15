@@ -38,7 +38,7 @@ function Row({ e }) {
     <li className="rounded-2xl bg-white p-4 ring-1 ring-moss-100 transition hover:ring-moss-200">
       <div className="flex flex-wrap items-center gap-3">
         <span className={`w-16 rounded-lg py-1 text-center font-mono text-xs font-semibold ${METHOD_STYLE[e.method]}`}>{e.method}</span>
-        <code className="font-mono text-sm text-moss-950">{e.path}</code>
+        <code className="font-mono text-sm break-all text-moss-950">{e.path}</code>
         {e.tryIt && (
           <button type="button" onClick={run} disabled={loading} className="ml-auto flex items-center gap-1.5 rounded-full bg-moss-50 px-3 py-1 text-xs font-medium text-moss-800 ring-1 ring-moss-100 hover:bg-moss-100 disabled:opacity-60">
             <Icon name="play" className={`size-3.5 ${loading ? "animate-pulse" : ""}`} />

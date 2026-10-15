@@ -20,6 +20,8 @@ import { datasetRoutes } from "./routes/datasets.js";
 import { chatRoutes } from "./routes/chat.js";
 import { photoRoutes } from "./routes/photos.js";
 import { healthRoutes } from "./routes/health.js";
+import { storyRoutes } from "./routes/stories.js";
+import { gridRoutes } from "./routes/grid.js";
 
 const log = logger("api.http");
 const FRONTEND = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "frontend", "dist");
@@ -29,10 +31,11 @@ const contentSecurityPolicy = {
     defaultSrc: ["'self'"],
     scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
     workerSrc: ["'self'", "blob:"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
+    // Satoshi, the headline font, comes from Fontshare (frontend/index.html).
+    styleSrc: ["'self'", "'unsafe-inline'", "https://api.fontshare.com"],
     imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://*.googleapis.com", "https://*.cesium.com"],
     connectSrc: ["'self'", "https://*.googleapis.com", "https://*.cesium.com", "https://*.virtualearth.net"],
-    fontSrc: ["'self'", "data:"],
+    fontSrc: ["'self'", "data:", "https://cdn.fontshare.com"],
     objectSrc: ["'none'"],
     frameAncestors: ["'self'"],
     baseUri: ["'self'"],
@@ -67,6 +70,8 @@ export function createApp() {
   app.use("/api/datasets", datasetRoutes);
   app.use("/api/chat", chatRoutes);
   app.use("/api/photos", photoRoutes);
+  app.use("/api/stories", storyRoutes);
+  app.use("/api/grid", gridRoutes);
   app.use("/api", () => {
     throw notFound();
   });
@@ -77,7 +82,10 @@ export function createApp() {
         index: false,
         setHeaders(res, file) {
           const fingerprinted = file.includes(`${path.sep}assets${path.sep}`);
-          res.set("Cache-Control", fingerprinted ? "public, max-age=31536000, immutable" : "public, max-age=3600");
+          // The big 3D files (turbine model, scan, Cesium's workers) change rarely: screens keep
+          // them a week and refresh them in the background.
+          const heavy = [`${path.sep}models${path.sep}`, `${path.sep}scenes${path.sep}`, `${path.sep}cesiumStatic${path.sep}`].some((dir) => file.includes(dir));
+          res.set("Cache-Control", fingerprinted ? "public, max-age=31536000, immutable" : heavy ? "public, max-age=604800, stale-while-revalidate=86400" : "public, max-age=3600");
         },
       })
     );

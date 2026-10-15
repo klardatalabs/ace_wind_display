@@ -19,13 +19,13 @@ export default function LiveExplorerPage() {
   const inside = view.location !== "outside";
   const choices = !inside ? OUTSIDE_PARTS : view.location === "tower" ? TOWER_PARTS : NACELLE_PARTS;
 
-  const onPick = useCallback((part) => { setPick(part?.id ?? null); setPartsOpen(false); }, []);
-  const onViewChange = useCallback((next) => setView(previous => previous.location === next.location && Math.abs(previous.height - next.height) < .15 ? previous : next), []);
+  const onPick = useCallback((part) => { setPick(part ?? null); setPartsOpen(false); }, []);
+  const onViewChange = useCallback((next) => setView(previous => previous.location === next.location ? previous : next), []);
   const onReady = useCallback(() => setReady(true), []);
   const closeCard = useCallback(() => {
     setPick(null);
     mapControllerRef.current?.cancel();
-    if (sceneRef.current?.explorer) { sceneRef.current.explorer.selected = null; sceneRef.current.explorer.cancel(); }
+    if (sceneRef.current?.explorer) { sceneRef.current.explorer.clearSelection(); sceneRef.current.explorer.cancel(); }
     requestAnimationFrame(() => {
       if (sceneRef.current) sceneRef.current.canvas.focus({ preventScroll: true });
       else mapControllerRef.current?.focusCanvas();
@@ -100,7 +100,7 @@ export default function LiveExplorerPage() {
           {document.fullscreenEnabled && <button className="explorer-icon-button" type="button" title={fullscreen ? "Exit fullscreen" : "Fullscreen"} aria-label={fullscreen ? "Exit fullscreen" : "Fullscreen"} onClick={toggleFullscreen}><span aria-hidden="true">⛶</span></button>}
         </div>
         <div className="explorer-actions explorer-glass">
-          <button type="button" disabled={!ready && !inside} onClick={() => setPartsOpen(!partsOpen)} aria-expanded={partsOpen} aria-controls="explorer-parts"><Icon name="layers" className="size-4" />Explore parts</button>
+          <button type="button" disabled={!ready && !inside} onClick={() => { sceneRef.current?.explorer?.stopMovement(); setPartsOpen(!partsOpen); }} aria-expanded={partsOpen} aria-controls="explorer-parts"><Icon name="layers" className="size-4" />Explore parts</button>
           <span className="explorer-action-divider" />
           {inside ? <button type="button" onClick={() => enter("outside")}><Icon name="globe" className="size-4" />Outside</button> : <button type="button" onClick={() => enter("tower")}><Icon name="cube" className="size-4" />Go inside</button>}
         </div>
@@ -109,15 +109,19 @@ export default function LiveExplorerPage() {
           {choices.map(id => <button key={id} type="button" onClick={() => choose(id)}>{EXPLORER_PARTS[id].title}<span aria-hidden="true">↗</span></button>)}
           {!inside && <button type="button" onClick={() => choose("turbine")}>About ACE<span aria-hidden="true">↗</span></button>}
         </div>}
-        {inside && <div className="explorer-interior-controls explorer-glass">
+        {inside && !partsOpen && <div className="explorer-interior-controls explorer-glass">
           <div className="explorer-room-switch" aria-label="Interior locations"><button type="button" aria-pressed={view.location === "tower"} onClick={() => enter("tower")}>Tower</button><button type="button" aria-pressed={view.location === "nacelle"} onClick={() => enter("nacelle")}>Machine room</button></div>
-          {view.location === "tower" && <label className="explorer-height-control"><span>Tower height <output>{Math.round(view.height)} m</output></span><input type="range" min="1.7" max="88" step=".1" value={view.height} onChange={event => sceneRef.current?.explorer?.setHeight(Number(event.target.value))} aria-label="Height inside tower" /></label>}
-          <div className="explorer-movement" aria-label="Move inside the turbine">{[["left", "←"], ["forward", "↑"], ["back", "↓"], ["right", "→"]].map(([direction, label]) => <button key={direction} className="explorer-icon-button" type="button" aria-label={`Move ${direction}`} onClick={() => sceneRef.current?.explorer?.step(direction)}>{label}</button>)}</div>
-          <p className="explorer-key-hint">Drag to look · W A S D to move · Q / E down / up</p>
+          <div className="explorer-movement" aria-label="Move inside the turbine">{[["left", "←"], ["forward", "↑"], ["right", "→"], ["down", "Down"], ["back", "↓"], ["up", "Up"]].map(([direction, label]) => <button key={direction} className="explorer-icon-button" type="button" aria-label={`Move ${direction}`}
+            onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); sceneRef.current?.explorer?.hold(direction, true); }}
+            onPointerUp={() => sceneRef.current?.explorer?.hold(direction, false)}
+            onPointerCancel={() => sceneRef.current?.explorer?.hold(direction, false)}
+            onLostPointerCapture={() => sceneRef.current?.explorer?.hold(direction, false)}
+            onClick={event => { if (event.detail === 0) sceneRef.current?.explorer?.step(direction); }}>{label}</button>)}</div>
+          <p className="explorer-key-hint">W A S D to move · E up / Q down · Shift to move faster</p>
         </div>}
         {fullscreenError && <p className="explorer-fullscreen-error" role="status">{fullscreenError}</p>}
       </>
-      {pick && <ExplorerPartCard partId={pick} inside={inside} onClose={closeCard} onEnter={enter} />}
+      {pick && <ExplorerPartCard partId={pick.id} selectionKey={pick.selectionKey} selectionLabel={pick.label} inside={inside} onClose={closeCard} onEnter={enter} />}
     </main>
   );
 }
