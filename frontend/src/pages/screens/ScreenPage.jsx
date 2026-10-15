@@ -278,7 +278,7 @@ function Hoarding({ screen }) {
         <span className="absolute -top-[0.6vmin] -left-[0.6vmin] block size-[1.2vmin] rounded-full bg-white shadow-[0_0_14px_rgb(255_255_255/0.9)]" />
       </div>
 
-      <ScreenTopBar skin={skin} screenName={screen.name} mood={data.mood} statusStale={data.statusStale} screenKey={screen.key} />
+      <ScreenTopBar skin={skin} screenName={screen.name} />
       <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20">
         <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={cardSkin} />
       </div>

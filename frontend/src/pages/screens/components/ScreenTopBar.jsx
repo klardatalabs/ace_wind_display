@@ -1,33 +1,92 @@
 import { useEffect, useState } from "react";
 import TurbineMark from "../../../components/brand/TurbineMark.jsx";
 import LiveBadge from "../../../components/live/LiveBadge.jsx";
-import MoodPill from "./MoodPill.jsx";
 
-/** Full screen on and off, as on the live view; hidden where the browser can't do it. */
-function FullscreenButton({ skin }) {
+// After this long without the mouse moving, the pointer and the exit button hide.
+const IDLE_MS = 3000;
+
+/**
+ * Full screen, as on the live view. Browsers only allow full screen after a click, tap or
+ * key press, so the screen goes full screen on the first one anywhere (for a kiosk that
+ * should start full screen untouched, run the browser in kiosk mode: see the developer
+ * page). In full screen the mouse pointer hides when still; moving it shows an exit button.
+ * Hidden where the browser can't do full screen.
+ */
+function FullscreenControl({ skin }) {
   const [on, setOn] = useState(() => Boolean(document.fullscreenElement));
+  const [awake, setAwake] = useState(true);
+
   useEffect(() => {
     const update = () => setOn(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", update);
-    return () => document.removeEventListener("fullscreenchange", update);
+    if (!document.fullscreenEnabled) return () => document.removeEventListener("fullscreenchange", update);
+    // The first interaction anywhere goes full screen; leaving it later is respected.
+    const enter = () => !document.fullscreenElement && document.documentElement.requestFullscreen().catch(() => {});
+    window.addEventListener("pointerdown", enter, { once: true });
+    window.addEventListener("keydown", enter, { once: true });
+    return () => {
+      document.removeEventListener("fullscreenchange", update);
+      window.removeEventListener("pointerdown", enter);
+      window.removeEventListener("keydown", enter);
+    };
   }, []);
+
+  // The pointer and the exit button show while the mouse moves, and hide when it rests.
+  useEffect(() => {
+    let timer;
+    const wake = () => {
+      setAwake(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setAwake(false), IDLE_MS);
+    };
+    wake();
+    window.addEventListener("pointermove", wake);
+    window.addEventListener("pointerdown", wake);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointermove", wake);
+      window.removeEventListener("pointerdown", wake);
+    };
+  }, []);
+  useEffect(() => {
+    document.documentElement.style.cursor = on && !awake ? "none" : "";
+    return () => (document.documentElement.style.cursor = "");
+  }, [on, awake]);
+
   if (!document.fullscreenEnabled) return null;
-  const toggle = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});
+  const glass = skin.dark ? "bg-white/10 text-white ring-white/25" : "bg-white/70 text-moss-900 ring-moss-200";
+  // (Stop the press reaching the "first interaction" listener, which would toggle it twice.)
+  const press = (e) => e.stopPropagation();
+  if (on) {
+    return (
+      <button
+        type="button"
+        onPointerDown={press}
+        onClick={() => document.exitFullscreen().catch(() => {})}
+        className={`pointer-events-auto flex cursor-pointer items-center gap-[0.8vmin] rounded-full px-[1.6vmin] py-[0.7vmin] text-[clamp(12px,1.5vmin,30px)] font-medium ring-1 backdrop-blur-md transition duration-300 hover:scale-105 active:scale-95 ${glass} ${awake ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      >
+        <span aria-hidden="true">✕</span>
+        Exit full screen
+      </button>
+    );
+  }
   return (
     <button
       type="button"
-      onClick={toggle}
-      title={on ? "Exit full screen" : "Full screen"}
-      aria-label={on ? "Exit full screen" : "Full screen"}
-      className={`pointer-events-auto grid size-[clamp(30px,3.6vmin,72px)] place-items-center rounded-full text-[clamp(14px,1.9vmin,38px)] ring-1 backdrop-blur-md transition hover:scale-105 active:scale-95 ${on ? "opacity-40 hover:opacity-100" : ""} ${skin.dark ? "bg-white/10 text-white ring-white/25" : "bg-white/70 text-moss-900 ring-moss-200"}`}
+      onPointerDown={press}
+      onClick={() => document.documentElement.requestFullscreen().catch(() => {})}
+      title="Full screen"
+      aria-label="Full screen"
+      className={`pointer-events-auto grid size-[clamp(30px,3.6vmin,72px)] cursor-pointer place-items-center rounded-full text-[clamp(14px,1.9vmin,38px)] ring-1 backdrop-blur-md transition hover:scale-105 active:scale-95 ${glass}`}
     >
       <span aria-hidden="true">⛶</span>
     </button>
   );
 }
 
-// The time of day is shown once, in the weather chip below this bar.
-export default function ScreenTopBar({ skin, screenName, mood, statusStale = false, screenKey }) {
+// The time of day is shown once, in the weather chip below this bar; the top right keeps
+// just the live badge and the full-screen button (no status pill).
+export default function ScreenTopBar({ skin, screenName }) {
   return (
     <header data-keepout className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-6 p-[2.2vmin]">
       <div className="flex items-center gap-[1.2vmin]">
@@ -40,9 +99,8 @@ export default function ScreenTopBar({ skin, screenName, mood, statusStale = fal
         </div>
       </div>
       <div className="flex items-center gap-[1vmin]">
-        <MoodPill mood={mood} stale={statusStale} screenKey={screenKey} skin={skin} />
         <LiveBadge tone={skin.dark ? "dark" : "light"} className="px-[1.4vmin]! py-[0.6vmin]! text-[clamp(11px,1.3vmin,24px)]!" />
-        <FullscreenButton skin={skin} />
+        <FullscreenControl skin={skin} />
       </div>
     </header>
   );

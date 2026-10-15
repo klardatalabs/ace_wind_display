@@ -95,6 +95,10 @@ export default function ScreensSection({ origin }) {
                   </li>
                 ))}
               </ul>
+              <p className="mt-3 text-sm leading-relaxed text-moss-900/75">
+                A screen goes full screen on the first click, tap or key press. To start a display full screen with no click at all, open it in the browser's kiosk mode:
+              </p>
+              <CodeBlock title="kiosk" code={`chrome --kiosk ${origin}/screen/community`} />
             </div>
             <div>
               <h3 className="font-display text-xl font-semibold text-moss-950">Animations a phone can trigger</h3>
