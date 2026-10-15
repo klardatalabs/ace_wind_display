@@ -74,9 +74,12 @@ export function buildWorld() {
    * little under the scan's own ground; what remains frames it out to the horizon.
    */
   const SCAN_SINK = 4;
+  const WATER_LEVEL = water.mesh.position.y;
   const setScan = (on) => {
     for (const part of [trees.group, estate.group, industrial.group, solar.group, pylons.group]) part.visible = !on;
-    terrain.mesh.position.y = water.mesh.position.y = on ? -SCAN_SINK : 0;
+    // Sink both by the same amount, so the water keeps its level just under the land.
+    terrain.mesh.position.y = on ? -SCAN_SINK : 0;
+    water.mesh.position.y = WATER_LEVEL - (on ? SCAN_SINK : 0);
   };
 
   return { group, update, tick, setScan, groundHeight: terrainHeight, stackTop: industrial.stackTop, estate, pylons, stats: { trees: trees.count, houses: estate.houseCount } };

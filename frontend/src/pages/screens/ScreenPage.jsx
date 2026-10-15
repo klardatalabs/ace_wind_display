@@ -187,7 +187,7 @@ function Hoarding({ screen }) {
     ? { ...story.chapter, ...tourChapter(tourBeat.beat, tourBeat.i) }
     : xrayId
       ? { ...story.chapter, ...tourChapter(XRAY_COPY[screen.key][xrayId], `xray-${xrayId}`) }
-      : resolveChapter(story.chapter, story.loop, data, generated);
+      : resolveChapter(story.chapter, story.chapter.cycle ? story.loop * 3 + Math.min(2, Math.floor(story.progress * 3)) : story.loop, data, generated);
   const showQr = screen.rail || story.index === screen.chapters.length - 1;
   const captionChapter = story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
   const panel = chapter.panel;
@@ -221,9 +221,9 @@ function Hoarding({ screen }) {
   const onLiveReady = useCallback(() => setLiveReady(true), []);
   // A chapter told over photos softens the 3D view behind them.
   const soft = chapter.backdrop === "soft" && !walking;
-  // Once the live view has faded in over it, or the view has softened, the 3D scene can
-  // stop drawing until it's needed again.
-  const resting = showLive || soft;
+  // Once the live view has faded in over it, the 3D scene can stop drawing until it's
+  // needed again. (A softened view keeps moving: frozen, it read as the story stopping.)
+  const resting = showLive;
   useEffect(() => {
     if (!resting) return sceneRef.current?.setPaused?.(false);
     const id = setTimeout(() => sceneRef.current?.setPaused?.(true), soft ? 2600 : 1200);
@@ -245,7 +245,7 @@ function Hoarding({ screen }) {
       <div
         className="absolute inset-0 transition-[filter,scale] duration-1000"
         onPointerDown={onTouch}
-        style={screen.rail ? { filter: `blur(${story.railState?.blur ?? 0}px)` } : soft ? { filter: "blur(10px) saturate(1.1)", scale: "1.04" } : undefined}
+        style={screen.rail ? { filter: `blur(${story.railState?.blur ?? 0}px)` } : soft ? { filter: "blur(4px) saturate(1.1)", scale: "1.02" } : undefined}
       >
         {/* The chapter gust softens this layer for a moment (ChapterGust). */}
         <div ref={gustLayer} className="size-full">
@@ -303,7 +303,8 @@ function Hoarding({ screen }) {
               <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={cardSkin} bubble />
             </main>
           ) : noCaption ? null : (
-            <main data-keepout className={`pointer-events-none absolute z-10 flex flex-col portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin] landscape:left-[4vmin] ${xrayId ? "landscape:bottom-[15vmin]" : "landscape:bottom-[23vmin]"} ${screen.captionCard ? `rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] ${cardSkin.card}` : ""}`}>
+            // In a card, the card fades in with its words, so it never shows empty.
+            <main key={screen.captionCard ? captionChapter.id : undefined} data-keepout className={`${screen.captionCard ? "caption-card-in" : ""} pointer-events-none absolute z-10 flex flex-col portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin] landscape:left-[4vmin] ${xrayId ? "landscape:bottom-[15vmin]" : "landscape:bottom-[23vmin]"} ${screen.captionCard ? `rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] ${cardSkin.card}` : ""}`}>
               {chapter.day ? (
                 <DayStory audience={screen.key} elapsedS={elapsedS} skin={screen.captionCard ? cardSkin : skin} compact={Boolean(screen.captionCard)} />
               ) : (
@@ -369,7 +370,7 @@ function Hoarding({ screen }) {
       </footer>
       {Transition && <Transition index={story.index} label={story.chapter.label} total={screen.chapters.length} layerRef={gustLayer} />}
       {screen.mascot && (
-        <div className="absolute top-[16vmin] right-[3vmin] z-20">
+        <div className="absolute top-[24vmin] right-[3vmin] z-20">
           <QrCard
             keepout={showQr}
             large

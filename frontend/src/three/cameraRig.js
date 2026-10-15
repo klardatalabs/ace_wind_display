@@ -182,8 +182,10 @@ export class CameraRig {
     if (this.viewYaw === undefined) this.viewYaw = nacelle;
     const off = Math.atan2(Math.sin(nacelle - this.viewYaw), Math.cos(nacelle - this.viewYaw));
     if (Math.abs(off) > 0.17) this.viewYaw += off * Math.min(1, dt * 0.12);
-    // Walking keeps the eye on the clear aisle; drag changes the look direction.
-    const yaw = this.viewYaw + (this.walk ? 0 : Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04);
+    // Walking keeps the eye on the clear aisle; drag changes the look direction. Inside, the
+    // walk follows the nacelle's true heading, not the smoothed view: the ladder, hatch and
+    // machine room turn with it, and even a few degrees off puts the eye inside a wall.
+    const yaw = this.walk ? nacelle : this.viewYaw + Math.sin(this.time * 0.11) * sway + this.parallax.x * 0.04;
 
     if (this.walk) {
       // first person: follow the path, with a slow drift back to centre after looking around

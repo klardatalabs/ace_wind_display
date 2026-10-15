@@ -109,7 +109,7 @@ const CHAPTERS = {
   walk: { id: "walk", label: "Go inside", seconds: 50, stage: { action: "walk_start", value: 44 }, walk: true },
   day: { id: "day", label: "A day here", seconds: 24, stage: { action: "overview", lapse: [5, 22, 21] }, day: true },
   ask: { id: "ask", label: "Ask me", seconds: 14, stage: { action: "hero" }, ask: true },
-  town: { id: "town", label: "Our town", seconds: 22, stage: { action: "aerial" } },
+  town: { id: "town", label: "Our town", seconds: 16, stage: { action: "aerial" } },
   // Shashi's energy journey (three/storyRail.js) played once through: wind to a home.
   power: { id: "power", label: "Follow my power", seconds: STORY_SECONDS, stage: { action: "tour" }, tour: true },
 };
@@ -224,8 +224,10 @@ export const SCREENS = {
           ],
         },
         town: {
-          // The real photos are the scene here; the 3D view softens and rests behind them.
+          // The real photos are the scene here; the 3D view softens behind them, and the
+          // caption steps through all its lines while they're up.
           backdrop: "soft",
+          cycle: true,
           panel: "town",
           copy: [
             { eyebrow: "This town owns me", line: "I belong to everyone in Lawrence Weston.", sub: "Neighbours dreamed me up and made me happen. No shareholders, just the community." },

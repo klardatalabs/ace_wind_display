@@ -390,3 +390,8 @@
 @keyframes spec-row { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
 .spec-row { animation: spec-row 0.45s steps(12) both; }
 @media (prefers-reduced-motion: reduce) { .house-on, .spec-row { animation: none; } }
+
+/* A caption card fades in with its words (pages/screens/ScreenPage.jsx). */
+@keyframes caption-card-in { from { opacity: 0; transform: translateY(1.2vmin); } to { opacity: 1; transform: none; } }
+.caption-card-in { animation: caption-card-in 0.45s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .caption-card-in { animation: none; } }

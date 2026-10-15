@@ -35,7 +35,7 @@ export default function ChapterPostcard({ index, label, total }) {
   return (
     <div ref={root} className="pointer-events-none invisible absolute inset-0 z-30 opacity-0" aria-hidden="true">
       <div className="card-wash absolute inset-0 bg-amber-100" />
-      <div className="postcard absolute bottom-[14vmin] left-[6vmin] flex items-center gap-[2.4vmin] rounded-[1.4vmin] bg-white p-[1.4vmin] pr-[3.4vmin] shadow-[0_24px_70px_rgb(10_21_29/0.35)]">
+      <div className="postcard absolute top-[30vh] left-1/2 -ml-[22vmin] flex items-center gap-[2.4vmin] rounded-[1.4vmin] bg-white p-[1.4vmin] pr-[3.4vmin] shadow-[0_24px_70px_rgb(10_21_29/0.35)]">
         <img src={PHOTOS[index % PHOTOS.length]} alt="" className="h-[16vmin] w-[24vmin] rounded-[0.8vmin] object-cover" />
         <div className="flex flex-col gap-[0.8vmin] text-moss-950">
           <p className="text-[clamp(11px,1.6vmin,30px)] font-semibold tracking-[0.16em] text-moss-600 uppercase">

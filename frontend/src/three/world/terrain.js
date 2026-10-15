@@ -175,9 +175,12 @@ for (int i = 1; i < ${MAX_PTS}; i++) {
 }
 albedo = mix(albedo, vec3(0.34, 0.3, 0.24) * (0.85 + 0.3 * n3), (1.0 - smoothstep(2.0, 3.0, td)) * 0.95);
 
-// the turbine pad: compacted gravel round the base
-float pad = 1.0 - smoothstep(27.0, 40.0, length(wp));
-albedo = mix(albedo, vec3(0.3, 0.285, 0.26) * (0.8 + 0.4 * n3 + 0.2 * n4), pad);
+// the turbine pad: crushed stone round the base, fine-grained, with a crisp, slightly
+// irregular edge (broad noise here would read as fog lying on the ground)
+float padR = length(wp) + (wwNoise(wp * 0.15) - 0.5) * 3.0;
+float pad = 1.0 - smoothstep(24.0, 26.0, padR);
+vec3 stone = vec3(0.47, 0.44, 0.39) * (0.9 + 0.12 * wwNoise(wp * 6.0) + 0.06 * wwNoise(wp * 19.0)) * (0.95 + 0.05 * n2);
+albedo = mix(albedo, stone, pad);
 
 // mud flats seaward of the sea wall (the wall's foot is ~25 m inland of the shoreline)
 float shoreD = wp.x - wwShoreX(wp.y);
