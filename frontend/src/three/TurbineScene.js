@@ -557,7 +557,7 @@ export class TurbineScene {
       if (chapter != null) this.story.seekChapter(chapter);
       return;
     }
-    if (action !== "xray_climb") this.#endXrayClimb();
+    if (action !== "xray_climb") this.endXrayClimb();
     if (action === "tour") return this.tour?.start(value ?? {});
     this.tour?.stop();
     const token = ++this.commandToken;
@@ -649,7 +649,7 @@ export class TurbineScene {
   }
 
   /** Back to the screen's own look when the climb is over. */
-  #endXrayClimb() {
+  endXrayClimb() {
     if (!this.xrayClimbState) return;
     this.xrayDrift?.kill();
     const { from } = this.xrayClimbState;
@@ -796,7 +796,7 @@ export class TurbineScene {
    */
   applyStage(stage = {}) {
     if (stage.action !== "tour") this.tour?.stop();
-    if (stage.action !== "xray_climb") this.#endXrayClimb();
+    if (stage.action !== "xray_climb") this.endXrayClimb?.();
     this.windViz = stage.wind ? 1 : 0;
     if (stage.lapse) {
       const [from, to, seconds] = stage.lapse;
