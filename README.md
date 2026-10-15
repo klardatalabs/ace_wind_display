@@ -75,7 +75,6 @@ The knowledge base is built from documents in `ingestion/`: text is extracted an
 
 ![Tech stack](docs/diagrams/tech-stack.png)
 
-The diagram sources are in `docs/diagrams/*.excalidraw` and can be edited in [Excalidraw](https://excalidraw.com).
 
 ## Getting started
 
@@ -204,7 +203,7 @@ server/
   db/                  schema, migrations and repositories
 shared/                constants, physics and data definitions shared by server and website
 deploy/                nginx configuration
-docs/diagrams/         architecture, agent and tech-stack diagrams
+docs/diagrams/         architecture, agent and tech-stack diagrams (PNG)
 assets/source/         the turbine model sources
 scripts/               model export, scan preparation, renders, database backup and restore
 ```
