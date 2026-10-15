@@ -9,11 +9,19 @@ const mph = (ms) => ms * 2.23694;
 const POINTS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
 const compassName = (deg) => POINTS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
 
+/** "Good morning" / "Good afternoon" / "Good evening", by the clock in Bristol. */
+function greeting() {
+  const hour = Number(new Date().toLocaleString("en-GB", { hour: "numeric", hour12: false, timeZone: "Europe/London" }));
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+}
+
 /** Display text for every placeholder a sentence may use (see shared/stories.js). */
 export function storyValues(d) {
   return {
+    greeting: greeting(),
     power: `${d.power.value} ${d.power.unit}`,
-    homes: formatInt(d.homes),
+    // "about 1,810 homes" reads the same as 1,814 and doesn't tick from one caption to the next
+    homes: formatInt(d.homes >= 200 ? Math.round(d.homes / 10) * 10 : d.homes),
     wind: `${Math.round(mph(d.windSpeed))} mph`,
     windFrom: compassName(d.windDir ?? 0),
     rpm: `${d.rotorRpm.toFixed(1)} rpm`,
@@ -27,6 +35,12 @@ export function storyValues(d) {
     bladeLength: "56 m",
     rated: "4.2 MW",
   };
+}
+
+/** One stop of the energy journey (content/screens.js TOUR_BEATS) as a caption chapter. */
+export function tourChapter(beat, index) {
+  const fill = (text) => (d) => fillStory(text, storyValues(d));
+  return { id: `tour-${index}`, eyebrow: beat.eyebrow, line: fill(beat.line), sub: fill(beat.sub) };
 }
 
 /** Below this the turbine reads as becalmed, and "now" uses its calm words. */

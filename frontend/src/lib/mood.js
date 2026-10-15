@@ -22,11 +22,11 @@ export function classifyMood(state) {
 /** One-line status in each screen's voice. */
 export const MOOD_LINES = {
   students: {
-    connecting: "Waking up the turbine…",
-    fault: "Quick pit stop — engineers are checking on me!",
+    connecting: "Hello! Just waking up…",
+    fault: "I've paused for a safety check.",
     maintenance: "Check-up time! My hi-vis crew is visiting.",
-    storm: "WHOA, gale! Blades turned sideways to stay safe.",
-    curtailed: "The grid's full, so I'm sharing nicely.",
+    storm: "Whoa, what a gale! I'm turning my blades to stay safe.",
+    curtailed: "The grid asked me to slow down, so I'm making a bit less.",
     calm: "Shh… nap time. Waiting for a breeze.",
     starting: "Ooh, I feel a breeze — starting up!",
     generating: "Spinning and making clean power!",

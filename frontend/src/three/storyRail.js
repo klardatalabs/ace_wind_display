@@ -18,10 +18,16 @@ function glowTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-/** Opt-in cinematic director. Existing screen shots and geometry are left alone. */
+/**
+ * Opt-in cinematic director. Existing screen shots and geometry are left alone.
+ * With `autoplay` (the story screen) it runs from the start and loops for good. Without it
+ * (a "tour": one chapter of another screen's story) it rests until start(), plays once
+ * through, and stop() hands the camera and everything it touched back.
+ */
 export class StoryRail {
-  constructor(scene, interiors) {
+  constructor(scene, interiors, { autoplay = true } = {}) {
     this.scene = scene;
+    this.active = autoplay;
     this.interiors = interiors;
     this.time = 0;
     this.eye = v(0, 0, 0);
@@ -39,7 +45,7 @@ export class StoryRail {
       const time = Number(params.get("storyTime"));
       if (Number.isFinite(time)) { this.time = THREE.MathUtils.clamp(time, 0, STORY_SECONDS - 0.001); this.frozen = true; }
     }
-    scene.rig.returnAfter = 3;
+    if (autoplay) scene.rig.returnAfter = 3;
     this.group = new THREE.Group();
     this.group.name = "StoryEnergy";
     scene.scene.add(this.group);
@@ -56,7 +62,41 @@ export class StoryRail {
     this.buildPaths();
     this.buildGenerator();
     this.buildBranches();
-    this.update(0);
+    if (this.active) this.update(0);
+    else this.#rest();
+  }
+
+  /** Plays the journey from the start, as one chapter of another story. */
+  start() {
+    this.active = true;
+    this.savedReturnAfter = this.scene.rig.returnAfter;
+    this.scene.rig.returnAfter = 3;
+    this.seek(0);
+  }
+
+  /** Ends a tour: the scene and the camera go back to how the screen's own story left them. */
+  stop() {
+    if (!this.active) return;
+    this.active = false;
+    this.scene.rig.returnAfter = this.savedReturnAfter ?? this.scene.rig.returnAfter;
+    this.#rest();
+    Object.assign(this.scene.rig, { rail: false, railInside: false });
+    this.scene.rig.jumpTo("overview");
+  }
+
+  /** Everything the journey shows, hidden; everything it hides, shown. */
+  #rest() {
+    const scene = this.scene;
+    this.home.group.visible = false;
+    this.group.visible = false;
+    scene.world.group.visible = scene.nodes.root.visible = true;
+    scene.neighbour.visible = this.neighbourVisible;
+    this.magnetRing.visible = this.coilGlow.visible = false;
+    scene.nodes.generatorRotor.visible = true;
+    for (const cover of this.generatorCover) cover.visible = true;
+    scene.lookInside.u = 0;
+    scene.lookInside.apply();
+    scene.windViz = 0;
   }
 
   buildPaths() {
@@ -241,6 +281,7 @@ export class StoryRail {
   }
 
   update(dt) {
+    if (!this.active) return;
     if (dt > 0) {
       this.frameCount++;
       this.frameSeconds += dt;

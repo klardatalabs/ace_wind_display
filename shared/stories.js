@@ -15,6 +15,7 @@ export const GENERATED_CHAPTERS = ["hello", "now", "walk", "ask"];
 
 /** The figures a sentence may use, as {name}. Filled on the screen; see fillStory. */
 export const STORY_PLACEHOLDERS = {
+  greeting: "'Good morning', 'Good afternoon' or 'Good evening', for the time in Bristol",
   power: "what the turbine is making right now, e.g. '1.8 MW'",
   homes: "homes' worth of electricity right now, e.g. '640'",
   wind: "wind speed now, e.g. '14 mph'",

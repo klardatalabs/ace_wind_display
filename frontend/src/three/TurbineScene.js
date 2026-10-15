@@ -48,6 +48,7 @@ export class TurbineScene {
    * @param {boolean} [options.interactive]  drag to orbit, pinch / wheel to zoom, double-tap to open
    * @param {number} [options.frameShift]     on wide screens, push the subject this fraction of the width to the right (room for text)
    * @param {boolean} [options.storyRail]     opt into the continuous energy journey
+   * @param {boolean} [options.storyTour]     build the energy journey to play as one chapter (the "tour" action)
    * @param {boolean} [options.scan]          fade the real Lawrence Weston scan in around the turbine (realistic look)
    * @param {number} [options.maxFps]         draw at most this many frames a second (unattended screens save GPU)
    * @param {number} [options.maxPixelRatio]  cap on device pixels per CSS pixel
@@ -57,11 +58,12 @@ export class TurbineScene {
    * @param {() => void} [options.onReady]
    * @param {(err: Error) => void} [options.onError]
    */
-  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, scan = false, maxFps = 0, maxPixelRatio = 1.75, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
+  constructor(canvas, { theme = "realistic", interactive = true, explorer = false, frameShift = 0, storyRail = false, storyTour = false, scan = false, maxFps = 0, maxPixelRatio = 1.75, onLookInside, onWalk, onPick, onViewChange, onReady, onError } = {}) {
     this.canvas = canvas;
     this.frameShift = frameShift;
     this.theme = theme;
     this.storyRailEnabled = storyRail;
+    this.storyTourEnabled = storyTour && !storyRail && !explorer;
     this.explorerEnabled = explorer;
     this.scanEnabled = scan && !explorer;
     this.callbacks = { onLookInside, onReady, onError, onWalk, onPick, onViewChange };
@@ -218,6 +220,7 @@ export class TurbineScene {
       root.updateMatrixWorld(true);
       this.lookInside = new LookInside(shells, (u) => this.callbacks.onLookInside?.(u));
       if (this.storyRailEnabled) this.story = new StoryRail(this, interiors);
+      else if (this.storyTourEnabled) this.tour = new StoryRail(this, interiors, { autoplay: false });
 
       if (this.explorerEnabled) this.explorer = new ExplorerNavigation(this);
       await this.#compileAll();
@@ -506,8 +509,10 @@ export class TurbineScene {
 
     if (!this.scene.fog) this.scene.fog = new THREE.Fog(0xffffff, 100, 3000);
     this.scene.fog.color.copy(sky.horizon);
-    this.scene.fog.near = sky.fogNear;
-    this.scene.fog.far = sky.fogFar;
+    // The cartoon look keeps the weather's haze light, so the houses never melt into mist.
+    const clear = this.theme === "cartoon";
+    this.scene.fog.near = clear ? Math.max(sky.fogNear, 400) : sky.fogNear;
+    this.scene.fog.far = clear ? Math.max(sky.fogFar, 2400) : sky.fogFar;
     this.renderer.toneMappingExposure = 0.92 + 0.25 * (1 - sky.day);
 
     this.scene.environmentIntensity = (this.envBase ?? 1) * (1 - 0.92 * inside);
@@ -543,6 +548,8 @@ export class TurbineScene {
       if (chapter != null) this.story.seekChapter(chapter);
       return;
     }
+    if (action === "tour") return this.tour?.start();
+    this.tour?.stop();
     const token = ++this.commandToken;
     const still = () => token === this.commandToken && !this.disposed;
     // anything but a walk command takes the visitor back out of the turbine first
@@ -732,6 +739,7 @@ export class TurbineScene {
    * @param {{ action?: string, value?: number, annotations?: string[], wind?: boolean, lapse?: [number, number, number] }} stage
    */
   applyStage(stage = {}) {
+    if (stage.action !== "tour") this.tour?.stop();
     this.windViz = stage.wind ? 1 : 0;
     if (stage.lapse) {
       const [from, to, seconds] = stage.lapse;
@@ -956,6 +964,7 @@ export class TurbineScene {
     this.fx.update({ time: t, camera: this.camera, rain: this.env.rain, windMs: this.env.windMs, windVec: this._windVec ?? new THREE.Vector2(1, 0), windViz: this.windViz, dt });
 
     this.story?.update(realDt);
+    this.tour?.update(realDt);
     if (this.explorer) this.explorer.update(dt);
     else this.rig.update(dt);
     if (Boolean(this.rig.walk) !== this.walkFraming) {
@@ -982,6 +991,7 @@ export class TurbineScene {
     this.disposed = true;
     this.explorer?.dispose();
     this.story?.dispose();
+    this.tour?.dispose();
     this.renderer.setAnimationLoop(null);
     this.resizeObserver?.disconnect();
     this.unbindPointer?.();

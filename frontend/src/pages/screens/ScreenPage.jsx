@@ -8,14 +8,14 @@ import { Link, useParams } from "react-router";
 import TurbineCanvas from "../../components/three/TurbineCanvas.jsx";
 import StepPills from "../../components/ui/StepPills.jsx";
 import Icon from "../../components/ui/Icon.jsx";
-import { SCREENS, SCREEN_KEYS, TAGS } from "../../content/screens.js";
+import { SCREENS, SCREEN_KEYS, TAGS, TOUR_BEATS } from "../../content/screens.js";
 import { subscribeScreen } from "../../realtime/liveSocket.js";
 import { useEnvironmentStore } from "../../store/useEnvironmentStore.js";
 import { sunPosition } from "../../three/environment.js";
 import { useScreenData } from "./useScreenData.js";
 import { useStoryLoop } from "./useStoryLoop.js";
 import { useGeneratedStories } from "./useGeneratedStories.js";
-import { resolveChapter } from "../../content/storyCopy.js";
+import { resolveChapter, tourChapter } from "../../content/storyCopy.js";
 import { SKINS } from "./components/skins.js";
 import ScreenTopBar from "./components/ScreenTopBar.jsx";
 import CinematicCaption from "./components/CinematicCaption.jsx";
@@ -34,6 +34,7 @@ import AceMascot from "./components/AceMascot.jsx";
 import HeightPanel from "./components/HeightPanel.jsx";
 import SpeedPanel from "./components/SpeedPanel.jsx";
 import TownPanel from "./components/TownPanel.jsx";
+import AskBubbles from "./components/AskBubbles.jsx";
 
 // The real-world view (Cesium + Google 3D tiles) is big, so it loads after the 3D scene.
 const SiteCesiumViewer = lazy(() => import("../../components/cesium/SiteCesiumViewer.jsx"));
@@ -44,6 +45,23 @@ const IDLE_CLOSE_MS = 30_000;
 const SCREEN_MAX_FPS = 30;
 // Hoarding panels are viewed from a few metres away, so extra pixel density buys nothing.
 const SCREEN_MAX_PIXEL_RATIO = 1.25;
+
+/** While a tour chapter plays, which stop of the energy journey it's at and how faded the view is. */
+function useTourState(sceneRef, on) {
+  const [state, setState] = useState({ index: 0, fade: 0 });
+  useEffect(() => {
+    if (!on) return undefined;
+    setState({ index: 0, fade: 1 }); // each time round, start from the first stop
+    const id = setInterval(() => {
+      const tour = sceneRef.current?.tour;
+      if (!tour?.active) return;
+      const { index, fade } = tour.getState();
+      setState((s) => (s.index === index && Math.abs(s.fade - fade) < 0.02 ? s : { index, fade }));
+    }, 120);
+    return () => clearInterval(id);
+  }, [sceneRef, on]);
+  return on ? state : null;
+}
 
 /** Keeps a kiosk display from sleeping (where the browser allows it). */
 function useWakeLock() {
@@ -129,7 +147,8 @@ function Hoarding({ screen }) {
   // Step pills are sized for laptops; scale them up on big hoarding panels.
   const pillZoom = Math.min(2.4, Math.max(1, Math.min(window.innerWidth, window.innerHeight) / 900));
   const generated = useGeneratedStories(screen.key);
-  const chapter = resolveChapter(story.chapter, story.loop, data, generated);
+  const tour = useTourState(sceneRef, Boolean(story.chapter.tour));
+  const chapter = tour ? { ...story.chapter, ...tourChapter(TOUR_BEATS[tour.index], tour.index) } : resolveChapter(story.chapter, story.loop, data, generated);
   const showQr = screen.rail || story.index === screen.chapters.length - 1;
   const captionChapter = story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
   const panel = chapter.panel;
@@ -149,12 +168,16 @@ function Hoarding({ screen }) {
   const showLive = chapter.live && liveReady && !walking;
   const liveActive = liveChapter >= 0 && (story.index === liveChapter || story.index === (liveChapter - 1 + screen.chapters.length) % screen.chapters.length);
   const onLiveReady = useCallback(() => setLiveReady(true), []);
-  // Once the live view has faded in over it, the 3D scene can stop drawing until it's back.
+  // A chapter told over photos softens the 3D view behind them.
+  const soft = chapter.backdrop === "soft" && !walking;
+  // Once the live view has faded in over it, or the view has softened, the 3D scene can
+  // stop drawing until it's needed again.
+  const resting = showLive || soft;
   useEffect(() => {
-    if (!showLive) return sceneRef.current?.setPaused?.(false);
-    const id = setTimeout(() => sceneRef.current?.setPaused?.(true), 1200);
+    if (!resting) return sceneRef.current?.setPaused?.(false);
+    const id = setTimeout(() => sceneRef.current?.setPaused?.(true), soft ? 2600 : 1200);
     return () => clearTimeout(id);
-  }, [showLive]);
+  }, [resting, soft]);
 
   const ctx = useMemo(() => {
     const now = new Date();
@@ -168,8 +191,12 @@ function Hoarding({ screen }) {
 
   return (
     <div className={`relative h-dvh w-screen overflow-hidden select-none ${skin.dark ? "bg-moss-950" : "bg-moss-50"}`}>
-      <div className="absolute inset-0" onPointerDown={onTouch} style={screen.rail ? { filter: `blur(${story.railState?.blur ?? 0}px)` } : undefined}>
-        <TurbineCanvas theme={screen.theme} scan={Boolean(screen.scan)} maxFps={SCREEN_MAX_FPS} maxPixelRatio={SCREEN_MAX_PIXEL_RATIO} sceneRef={sceneRef} frameShift={screen.mascot ? 0 : 0.1} storyRail={screen.rail} onWalk={onWalk} onPick={screen.rail ? onPick : undefined} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
+      <div
+        className="absolute inset-0 transition-[filter,scale] duration-1000"
+        onPointerDown={onTouch}
+        style={screen.rail ? { filter: `blur(${story.railState?.blur ?? 0}px)` } : soft ? { filter: "blur(10px) saturate(1.1)", scale: "1.04" } : undefined}
+      >
+        <TurbineCanvas theme={screen.theme} scan={Boolean(screen.scan)} storyTour={Boolean(screen.tour)} maxFps={SCREEN_MAX_FPS} maxPixelRatio={SCREEN_MAX_PIXEL_RATIO} sceneRef={sceneRef} frameShift={screen.mascot ? 0 : 0.1} storyRail={screen.rail} onWalk={onWalk} onPick={screen.rail ? onPick : undefined} tags={tagDefs} tagRefs={tagRefs} className="size-full" />
       </div>
       {liveMounted && (
         <div className={`absolute inset-0 transition-opacity duration-1000 ${showLive ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!showLive}>
@@ -179,10 +206,12 @@ function Hoarding({ screen }) {
         </div>
       )}
       {screen.rail && <div className="pointer-events-none absolute inset-0 bg-moss-950" style={{ opacity: story.fade }} />}
+      {tour && <div className="pointer-events-none absolute inset-0 bg-moss-950" style={{ opacity: tour.fade }} />}
       {screen.rail && story.railState && new URLSearchParams(window.location.search).has("debug") && <output hidden data-story-state>{JSON.stringify(story.railState)}</output>}
 
-      <div className={`pointer-events-none absolute inset-x-0 bottom-0 ${screen.mascot ? "h-[20vh]" : "h-[46vh]"} ${skin.scrimBottom}`} />
-      <div className={`pointer-events-none absolute inset-x-0 top-0 h-[18vh] bg-gradient-to-b ${skin.dark ? "from-black/40" : "from-white/50"} to-transparent`} />
+      {/* Ace's words sit on their own card, so the students screen keeps its scene clear of haze. */}
+      {!screen.mascot && <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-[46vh] ${skin.scrimBottom}`} />}
+      <div className={`pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b to-transparent ${screen.mascot ? "h-[12vh] from-white/30" : `h-[18vh] ${skin.dark ? "from-black/40" : "from-white/50"}`}`} />
 
       {!walking && !showLive && <DataTags ids={tagIds} data={data} tagRefs={tagRefs} skin={skin} />}
       <div
@@ -201,17 +230,23 @@ function Hoarding({ screen }) {
       </div>
       <RemoteToast event={toast} skin={skin} />
 
+      {/* Ace stands in the bottom-left corner the whole time (in a hard hat for the climb),
+          and the middle of the screen stays clear for the turbine. */}
+      {screen.mascot && (
+        <div data-keepout className={`pointer-events-none absolute bottom-[1vmin] left-0 z-10 transition-[height] duration-700 ${walking ? "h-[24vmin]" : "h-[46vmin] portrait:h-[30vmin]"}`}>
+          <AceMascot mood={data.mood} windMs={data.windSpeed} rpm={data.rotorRpm} wave={Boolean(chapter.ask) || story.chapter.id === "hello"} hat={walking} className="h-full" />
+        </div>
+      )}
+
       {walking ? (
         <WalkHud walk={walk} skin={skin} timeline={Boolean(screen.walkTimeline)} />
       ) : (
         <>
           {screen.mascot ? (
-            // Ace tells the story in a speech bubble, so the words never sit on the busy scene.
-            <main data-keepout className="pointer-events-none absolute z-10 flex items-end gap-[2.4vmin] landscape:bottom-[13vmin] landscape:left-[2vmin] portrait:inset-x-0 portrait:bottom-[30vmin] portrait:flex-col portrait:items-center portrait:px-[4vmin]">
-              <AceMascot mood={data.mood} windMs={data.windSpeed} rpm={data.rotorRpm} wave={Boolean(chapter.ask)} className="h-[44vmin] shrink-0 portrait:h-[28vmin]" />
-              <div className={`ace-bubble mb-[6vmin] rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] portrait:mb-0 ${skin.card}`}>
-                <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} bubble />
-              </div>
+            // Ace's words, in a speech bubble in the bottom-right corner, never on the busy scene.
+            // (On "Ask me", example questions pop up beside Ace too.)
+            <main data-keepout className={`ace-bubble pointer-events-none absolute right-[3vmin] bottom-[3vmin] z-10 rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] portrait:inset-x-[4vmin] portrait:bottom-[34vmin] ${skin.card}`}>
+              <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={skin} bubble />
             </main>
           ) : (
             <main data-keepout className="pointer-events-none absolute z-10 flex flex-col landscape:bottom-[23vmin] landscape:left-[4vmin] portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin]">
@@ -223,6 +258,7 @@ function Hoarding({ screen }) {
             </main>
           )}
 
+          {screen.mascot && chapter.ask && <AskBubbles key={story.loop} />}
           {!pick && chapter.viz === "homes" && (
             <aside data-keepout className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:top-[16vmin] portrait:right-[3vmin]">
               <HomesGrid homes={data.homes} skin={skin} />
@@ -244,14 +280,15 @@ function Hoarding({ screen }) {
       {/* Tap cards only on the story rail; the hoarding screens just tell their story. */}
       {screen.rail && <HotspotCard pick={pick} ctx={ctx} screenKey={screen.key} skin={skin} onClose={closePick} />}
 
-      <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-[3vmin] p-[3vmin] portrait:flex-col portrait:items-center">
+      <footer className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-[3vmin] p-[3vmin] portrait:flex-col portrait:items-center ${screen.mascot ? "landscape:pl-[31vmin]" : ""}`}>
         <div data-keepout className="pointer-events-auto flex flex-col gap-[1.4vmin] portrait:items-center">
           <StepPills
             steps={screen.chapters.map((c) => c.label)}
             index={story.index}
             progress={story.progress}
             onSelect={story.goTo}
-            tone={skin.pillTone}
+            // Inside the dark tower, light pills even on the light students look.
+            tone={walking && !skin.dark ? "light" : skin.pillTone}
             className="origin-bottom-left justify-start!"
             style={{ zoom: pillZoom }}
           />
@@ -260,8 +297,9 @@ function Hoarding({ screen }) {
             {screen.rail ? "Follow the glow · tap a chapter to jump · drag to look around" : story.paused ? "You're in control. The story resumes shortly." : "Drag to look around"}
           </p>
         </div>
-        {/* The QR waits for the story's last chapter, so the opening shows the turbine alone. */}
-        <QrCard
+        {/* The QR waits for the story's last chapter, so the opening shows the turbine alone.
+            On the students screen it goes top-right, clear of Ace's speech bubble. */}
+        {!screen.mascot && <QrCard
           keepout={showQr}
           large={chapter.ask}
           screenKey={screen.key}
@@ -269,8 +307,21 @@ function Hoarding({ screen }) {
           hint={screen.askHint}
           skin={skin}
           className={`transition-[opacity,translate,scale] duration-700 ease-out ${showQr ? "pointer-events-auto opacity-100" : "pointer-events-none translate-y-[2vmin] opacity-0"}`}
-        />
+        />}
       </footer>
+      {screen.mascot && (
+        <div className="absolute top-[16vmin] right-[3vmin] z-20">
+          <QrCard
+            keepout={showQr}
+            large
+            screenKey={screen.key}
+            label={screen.askLabel}
+            hint={screen.askHint}
+            skin={skin}
+            className={`transition-[opacity,translate,scale] duration-700 ease-out ${showQr ? "pointer-events-auto scale-100 opacity-100" : "pointer-events-none scale-90 opacity-0"}`}
+          />
+        </div>
+      )}
     </div>
   );
 }

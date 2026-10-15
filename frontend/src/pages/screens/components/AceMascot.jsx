@@ -85,8 +85,9 @@ function Mouth({ face }) {
  * @param {number} props.windMs   live wind speed
  * @param {number} props.rpm      live rotor speed
  * @param {boolean} [props.wave]  a friendly wiggle (the "Ask me" chapter)
+ * @param {boolean} [props.hat]   a hard hat on (climbing the tower)
  */
-export default function AceMascot({ mood, windMs, rpm, wave = false, className = "" }) {
+export default function AceMascot({ mood, windMs, rpm, wave = false, hat = false, className = "" }) {
   const face = aceFace(mood, windMs);
   const rotor = useRotor(rpm);
   const lean = face === "storm" ? -7 : face === "windy" ? -Math.min(10, (windMs - 10) * 0.7) : 0;
@@ -145,7 +146,7 @@ export default function AceMascot({ mood, windMs, rpm, wave = false, className =
             <Eyes face={face} />
             <Mouth face={face} />
           </g>
-          {face === "hardhat" && (
+          {(face === "hardhat" || hat) && (
             <g transform="translate(250 190)">
               <path d="M-40,8 Q-40,-30 0,-32 Q40,-30 40,8 Z" fill="#fbbf24" stroke={INK} strokeWidth="5" strokeLinejoin="round" />
               <rect x="-50" y="4" width="100" height="12" rx="6" fill="#f59e0b" stroke={INK} strokeWidth="5" />

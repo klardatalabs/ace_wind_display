@@ -66,7 +66,8 @@ export const CAP_COLORS = { cartoon: 0xf7b267, realistic: 0xe9b872, blueprint: 0
 
 /** Fallback sky for themes without a live environment (the blueprint look is a fixed drawing). */
 export const ENVIRONMENTS = {
-  cartoon: { skyTop: 0x4aa8f0, skyBottom: 0xd6efff, fog: 0xd6efff, fogNear: 260, fogFar: 1100, exposure: 1.05 },
+  // Fog only far off, so the houses and the estuary stay crisp on the students screen.
+  cartoon: { skyTop: 0x4aa8f0, skyBottom: 0xd6efff, fog: 0xd6efff, fogNear: 700, fogFar: 2800, exposure: 1.05 },
   realistic: { skyTop: 0x5a95d6, skyBottom: 0xcfe0ee, fog: 0xcfdbe4, fogNear: 400, fogFar: 2800, exposure: 1.0 },
   blueprint: { skyTop: BLUEPRINT.paper, skyBottom: BLUEPRINT.paperLight, fog: BLUEPRINT.paper, fogNear: 200, fogFar: 900, exposure: 1.0 },
 };

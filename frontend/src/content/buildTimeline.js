@@ -15,5 +15,5 @@ export const BUILD_TIMELINE = [
   { id: "blades", year: 2023, when: "February 2023", title: "Here come the blades", text: "Police escorted the giant blades along the roads to the site.", photo: "/images/ace/blade-delivery.webp" },
   { id: "assembly", year: 2023, when: "February 2023", title: "Up in four days", text: "The tower, the machine room and the rotor went up in four days. The three blades went on the week after.", photo: "/images/ace/blades-attached.webp" },
   { id: "testing", year: 2023, when: "March 2023", title: "Testing, testing", text: "Engineers checked every part to make sure it all worked." },
-  { id: "running", year: 2023, when: "May 2023", title: "Ace is running!", text: "Nearly eight years after the idea, the turbine was fully working. And now you're standing in its machine room.", photo: "/images/ace/in-operation.webp" },
+  { id: "running", year: 2023, when: "May 2023", title: "Ace is running!", text: "Nearly eight years after the idea, the turbine was fully working. You're in its machine room, 92 m up, and the blade tips reach 150 m!", photo: "/images/ace/in-operation.webp" },
 ];

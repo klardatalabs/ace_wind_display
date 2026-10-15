@@ -8,8 +8,13 @@ import { useRef } from "react";
 import { gsap, useGSAP } from "../../../lib/gsap.js";
 import { prefersReducedMotion } from "../../../hooks/useReducedMotion.js";
 
-export default function CinematicCaption({ chapter, data, skin, instant = false, bubble = false }) {
+export default function CinematicCaption({ chapter, data: live, skin, instant = false, bubble = false }) {
   const root = useRef(null);
+  // A caption keeps the figures it opened with, so no number changes mid-sentence; the
+  // next caption brings the latest ones.
+  const opened = useRef(null);
+  if (!opened.current && live.ready) opened.current = live;
+  const data = opened.current ?? live;
   const words = chapter.line(data).split(" ");
 
   useGSAP(

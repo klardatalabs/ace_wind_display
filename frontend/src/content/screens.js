@@ -8,6 +8,7 @@
 
 import { formatInt, compassPoint } from "../lib/format.js";
 import { STORY_CHAPTERS } from "@shared/stories.js";
+import { STORY_SECONDS } from "../three/storyTimeline.ts";
 
 const mph = (ms) => ms * 2.23694;
 
@@ -57,8 +58,26 @@ const CHAPTERS = {
   walk: { id: "walk", label: "Go inside", seconds: 50, stage: { action: "walk_start", value: 44 }, walk: true },
   day: { id: "day", label: "A day here", seconds: 24, stage: { action: "overview", lapse: [5, 22, 21] }, day: true },
   ask: { id: "ask", label: "Ask me", seconds: 14, stage: { action: "hero" }, ask: true },
-  town: { id: "town", label: "Our town", seconds: 18, stage: { action: "aerial" } },
+  town: { id: "town", label: "Our town", seconds: 22, stage: { action: "aerial" } },
+  // Shashi's energy journey (three/storyRail.js) played once through: wind to a home.
+  power: { id: "power", label: "Follow my power", seconds: STORY_SECONDS, stage: { action: "tour" }, tour: true },
 };
+
+/**
+ * Ace's words for each stop of the energy journey (the beats of three/storyTimeline.ts),
+ * after the "Follow the Energy" story screen, in the students' voice.
+ */
+export const TOUR_BEATS = [
+  { eyebrow: "Follow my power", line: "It all starts with the wind pushing my blades.", sub: "The stronger the wind, the more power I can catch, right up to my full {rated}." },
+  { eyebrow: "Inside my head", line: "Magnets whizz past copper coils. Zap!", sub: "That makes electricity flow. I don't need a gearbox: my blades turn the generator directly." },
+  { eyebrow: "Next stop", line: "Down to the converter at the bottom of my tower.", sub: "It gets my electricity ready for the grid, which beats fifty times every second." },
+  { eyebrow: "Going down", line: "Down the cables inside my tower we go.", sub: "Thick power cables hang beside the ladder and the lift, all the way to the ground." },
+  { eyebrow: "The transformer", line: "The transformer gives my power a big push.", sub: "It raises the voltage, so electricity can travel a long way without wasting much." },
+  { eyebrow: "Along the lines", line: "Now it zooms along the power lines.", sub: "This glow shows the idea of power travelling through the shared grid. It isn't the exact real cable." },
+  { eyebrow: "Our streets", line: "Right now I'm making enough for {homes} homes.", sub: "That's how many homes' worth of electricity I'm making this second, not a count of real houses." },
+  { eyebrow: "Into a home", line: "From the street into a home.", sub: "Through the fuse box and the wires in the wall to a socket. This home is a made-up example." },
+  { eyebrow: "Your game", line: "Low battery? Plug in. Play on!", sub: "A laptop starts charging from the socket. It's a pretend charge, sped up so you can see it." },
+];
 
 /**
  * One screen's story: the shared chapters with this screen's tags, extras and words.
@@ -77,6 +96,8 @@ export const SCREENS = {
     askHint: "Point your phone camera here",
     // Ace, a cartoon of the turbine, tells the story in a speech bubble (components/AceMascot.jsx).
     mascot: true,
+    // The scene also builds Shashi's energy journey, for the "Follow my power" chapter.
+    tour: true,
     // The climb up the tower tells how the turbine was built (content/buildTimeline.js).
     walkTimeline: true,
     chapters: story(
@@ -86,7 +107,7 @@ export const SCREENS = {
           stage: { action: "hero" },
           panel: "height",
           copy: [
-            { eyebrow: "Hi there!", line: "I'm Ace, the giant on your doorstep.", sub: "I'm taller than Big Ben, and I belong to the people of Lawrence Weston." },
+            { eyebrow: "{greeting}!", line: "I'm Ace, the giant on your doorstep.", sub: "I'm taller than Big Ben, and I belong to the people of Lawrence Weston." },
             { eyebrow: "Look up!", line: "Taller than Big Ben. Powered by wind.", sub: "From the ground to the tip of my blade is {tipHeight}. That's about 34 double-decker buses stacked up!" },
             { eyebrow: "Meet Ace", line: "A wind turbine that belongs to a whole town.", sub: "People here made me happen together, and what I earn helps the neighbourhood." },
           ],
@@ -95,11 +116,13 @@ export const SCREENS = {
           // The real-world map is for grown-ups; here the race panel tells the live story,
           // and the screen never has to load the map.
           live: false,
+          // The wind itself, streaming into the blades from where it's really blowing.
+          stage: { wind: true },
           panel: "race",
           copy: {
             working: [
               { eyebrow: "Zoom!", line: "My blade tips are flying round at {tip}.", sub: "Each blade is {bladeLength} long, about as long as two blue whales nose to tail." },
-              { eyebrow: "Feel that wind?", line: "A {wind} wind is spinning me right now.", sub: "It's blowing from the {windFrom}, and it's pushing my blades round." },
+              { eyebrow: "Feel that wind?", line: "A {wind} wind is spinning me right now.", sub: "See the streaks? That's the wind from the {windFrom}, pushing my blades round." },
               { eyebrow: "Power up!", line: "I'm making {power} of electricity right now.", sub: "That's enough for {homes} homes, right this second. Every turn of my blades counts." },
             ],
             calm: [
@@ -118,11 +141,13 @@ export const SCREENS = {
           ],
         },
         town: {
+          // The real photos are the scene here; the 3D view softens and rests behind them.
+          backdrop: "soft",
           panel: "town",
           copy: [
             { eyebrow: "This town owns me", line: "I belong to everyone in Lawrence Weston.", sub: "Neighbours dreamed me up and made me happen. No shareholders, just the community." },
             { eyebrow: "Our money, our town", line: "When I sell electricity, the town wins.", sub: "The money I make goes back into Lawrence Weston, to help the neighbourhood." },
-            { eyebrow: "Opening day", line: "A man in a top hat cut my ribbon!", sub: "A Brunel lookalike opened me. Brunel was Bristol's most famous engineer." },
+            { eyebrow: "Opening day", line: "A man in a top hat cut my ribbon!", sub: "A Brunel lookalike opened me. Brunel designed Bristol's Clifton Suspension Bridge." },
           ],
         },
         ask: {
@@ -133,7 +158,7 @@ export const SCREENS = {
           ],
         },
       },
-      ["hello", "now", "walk", "town", "ask"]
+      ["hello", "now", "power", "walk", "town", "ask"]
     ),
   },
 

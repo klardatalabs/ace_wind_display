@@ -16,7 +16,7 @@ export default function HeightPanel({ skin }) {
   return (
     <figure className={`flex flex-col gap-[1vmin] rounded-[2.4vmin] p-[2vmin] ${skin.card}`}>
       <p className={`text-[clamp(12px,1.8vmin,34px)] font-semibold tracking-[0.12em] uppercase ${skin.accent}`}>How tall am I?</p>
-      <svg viewBox="0 0 370 350" className="block h-[40vmin] w-auto" aria-hidden="true">
+      <svg viewBox="0 0 370 350" className="block h-[34vmin] w-auto" aria-hidden="true">
         {/* Buses, stacked */}
         {Array.from({ length: BUSES }, (_, i) => (
           <g key={i} className="grow-up" style={{ animationDelay: `${0.4 + i * 0.07}s`, transformBox: "fill-box" }}>

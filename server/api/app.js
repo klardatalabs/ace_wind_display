@@ -30,10 +30,11 @@ const contentSecurityPolicy = {
     defaultSrc: ["'self'"],
     scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
     workerSrc: ["'self'", "blob:"],
-    styleSrc: ["'self'", "'unsafe-inline'"],
+    // Satoshi, the headline font, comes from Fontshare (frontend/index.html).
+    styleSrc: ["'self'", "'unsafe-inline'", "https://api.fontshare.com"],
     imgSrc: ["'self'", "data:", "blob:", "https://images.unsplash.com", "https://*.googleapis.com", "https://*.cesium.com"],
     connectSrc: ["'self'", "https://*.googleapis.com", "https://*.cesium.com", "https://*.virtualearth.net"],
-    fontSrc: ["'self'", "data:"],
+    fontSrc: ["'self'", "data:", "https://cdn.fontshare.com"],
     objectSrc: ["'none'"],
     frameAncestors: ["'self'"],
     baseUri: ["'self'"],
