@@ -51,7 +51,7 @@ const CHAPTER_BRIEFS = {
 const SCREEN_CHAPTER_BRIEFS = {
   students: {
     now: "Right now: shown over the 3D turbine beside a race of Ace's live blade-tip speed against fast things. Write 'working' variants (the turbine is generating) and 'calm' variants (too little wind to generate); never mention spinning or power in the calm ones.",
-    walk: "My story: the start of a climb up inside the tower; on the way up the screen tells how Ace was built, from the first idea to switching on. An invitation to climb through Ace's story. Give no dates or build details: they're shown on the way.",
+    walk: "My story: the start of a climb up inside the tower; on the way up the screen tells how Ace was built, from the first idea to switching on. A short, simple invitation to climb through Ace's story; keep every part well under its limit. Give no dates or build details: they're shown on the way.",
   },
 };
 
