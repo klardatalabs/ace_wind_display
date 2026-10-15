@@ -69,7 +69,7 @@ export default function ExplorerCanvas({ sceneRef, onPick, onViewChange, onReady
           <div>
             <span className="explorer-loading-mark" aria-hidden="true">↗</span>
             <h1>{status === "error" ? "The 3D explorer could not load" : "Getting ACE ready"}</h1>
-            <p>{status === "error" ? message || "Try reloading the view." : "Preparing the turbine, landscape, and interior."}</p>
+            <p>{status === "error" ? message || "Try reloading the view." : "Preparing the turbine interior."}</p>
           </div>
         </div>
       )}

@@ -5,6 +5,8 @@
 // returned for the HUD.
 
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { inspectable } from "./inspection.js";
 
 export const TOWER_TOP = 88.6;
 // The tower tapers from ~2.32 m radius at the base to ~1.6 m under the nacelle.
@@ -34,7 +36,27 @@ function cylinder(r, h, kind, hotspot) {
   return m;
 }
 
-function buildTower() {
+function cabinetBody(width, height) {
+  const cabinet = new THREE.Group();
+  cabinet.add(box(width, height, .7, "cabinet", "cabinet"));
+  const door = box(width - .11, height - .16, .035, "metal", "cabinet");
+  door.position.z = .37;
+  cabinet.add(door);
+  const display = box(.3, .22, .04, "dark", "cabinet");
+  display.position.set(-.1, height * .26, .405);
+  cabinet.add(display);
+  const handle = box(.035, .3, .05, "dark", "cabinet");
+  handle.position.set(width * .32, .15, .42);
+  cabinet.add(handle);
+  for (let vent = 0; vent < 5; vent++) {
+    const slat = box(width * .6, .025, .04, "dark", "cabinet");
+    slat.position.set(0, -height * .28 + vent * .09, .405);
+    cabinet.add(slat);
+  }
+  return cabinet;
+}
+
+function buildTower(explorer) {
   const g = new THREE.Group();
   g.name = "TowerInterior";
 
@@ -44,7 +66,10 @@ function buildTower() {
     r.position.set(x, (TOWER_TOP + 1) / 2, -1.55);
     return r;
   });
-  g.add(...rails);
+  const ladder = inspectable(new THREE.Group(), "ladder", "tower", { continuous: true });
+  ladder.name = "AccessLadder";
+  ladder.add(...rails);
+  g.add(ladder);
   const rungCount = Math.floor((TOWER_TOP - 2) / 0.6);
   const rungs = part(new THREE.InstancedMesh(geo.box, null, rungCount), "metal", "ladder");
   const m = new THREE.Matrix4();
@@ -52,7 +77,7 @@ function buildTower() {
     m.compose(new THREE.Vector3(0, 1.4 + i * 0.6, -1.55), new THREE.Quaternion(), new THREE.Vector3(0.64, 0.05, 0.05));
     rungs.setMatrixAt(i, m);
   }
-  g.add(rungs);
+  ladder.add(rungs);
 
   // Platforms every ~22 m, each with a round hatch where the ladder comes through.
   for (let y = 22; y < TOWER_TOP; y += 22) {
@@ -66,6 +91,8 @@ function buildTower() {
     geometry.rotateX(Math.PI / 2); // lie flat; the shape's y becomes world z, the extrusion goes down
     const p = part(new THREE.Mesh(geometry, null), "metal", "platform");
     p.position.y = y;
+    p.name = `TowerPlatform_${y}`;
+    inspectable(p, "platform", "tower", { anchor: [0, 0, r * .65], label: "Tower landing" });
     g.add(p);
   }
 
@@ -100,31 +127,60 @@ function buildTower() {
     new THREE.Vector3(0.95, 25, 0.3),
     new THREE.Vector3(0.8, 3.2, 0.6),
   ]);
-  g.add(part(new THREE.Mesh(new THREE.TubeGeometry(cablePath, 80, 0.13, 8), null), "cable", "cable"));
+  const powerCable = part(new THREE.Mesh(new THREE.TubeGeometry(cablePath, 80, 0.13, 8), null), "cable", "cable");
+  inspectable(powerCable, "cable", "tower", { continuous: true });
+  g.add(powerCable);
 
   // Service lift (animated by the scene).
   const lift = new THREE.Group();
   lift.name = "ServiceLift";
-  const cage = box(0.9, 1.3, 0.9, "accent", "lift");
-  cage.position.y = 0.65;
-  lift.add(cage);
+  inspectable(lift, "lift", "tower");
+  if (explorer) {
+    const deck = box(.9, .1, .9, "metal", "lift");
+    lift.add(deck);
+    for (const x of [-.43, .43]) for (const z of [-.43, .43]) {
+      const post = box(.045, 1.8, .045, "metal", "lift");
+      post.position.set(x, .9, z);
+      lift.add(post);
+    }
+    for (const y of [.65, 1.2, 1.8]) {
+      const rail = box(.9, .045, .045, "metal", "lift");
+      rail.position.set(0, y, -.43);
+      lift.add(rail);
+      for (const x of [-.43, .43]) {
+        const side = box(.045, .045, .9, "metal", "lift");
+        side.position.set(x, y, 0);
+        lift.add(side);
+      }
+    }
+    const motor = box(.25, .35, .25, "dark", "lift");
+    motor.position.set(.25, 1.55, -.3);
+    lift.add(motor);
+  } else {
+    const cage = box(0.9, 1.3, 0.9, "accent", "lift");
+    cage.position.y = 0.65;
+    lift.add(cage);
+  }
   lift.position.set(-0.8, 6, -0.6);
   g.add(lift);
   const liftCable = box(0.03, TOWER_TOP - 2, 0.03, "metal", "lift");
   liftCable.position.set(-0.8, TOWER_TOP / 2 + 1, -0.6);
+  liftCable.userData.noPick = true;
   g.add(liftCable);
 
   // Converter cabinets at the tower base.
   [-1.1, -0.2, 0.7].forEach((x, i) => {
-    const c = box(0.8, 2, 0.7, "cabinet", "cabinet");
+    const c = explorer ? cabinetBody(.8, 2) : box(0.8, 2, 0.7, "cabinet", "cabinet");
     c.position.set(x, 1.6, -1.2 + Math.abs(i - 1) * 0.25);
+    c.name = `TowerConverter_${i + 1}`;
+    inspectable(c, "converter", "tower", { label: `Converter cabinet ${i + 1}` });
     g.add(c);
   });
 
   return { group: g, lift, cablePath };
 }
 
-function buildNacelle() {
+function buildNacelle(explorer) {
   const g = new THREE.Group();
   g.name = "NacelleInterior";
 
@@ -132,11 +188,13 @@ function buildNacelle() {
   const ring = part(new THREE.Mesh(new THREE.TorusGeometry(1.85, 0.16, 10, 48), null), "accent", "yaw");
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 0.35;
+  inspectable(ring, "yaw", "nacelle", { anchor: [-1.85, 0, 0] });
   g.add(ring);
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
     const drive = cylinder(0.22, 1.1, "accent", "yaw");
     drive.position.set(Math.cos(a) * 1.45, 0.95, Math.sin(a) * 1.45);
+    inspectable(drive, "yaw", "nacelle", { label: `Yaw drive ${i + 1}` });
     g.add(drive);
   }
 
@@ -144,11 +202,33 @@ function buildNacelle() {
   const axle = cylinder(0.55, 2.2, "metal", "mainshaft");
   axle.rotation.z = Math.PI / 2;
   axle.position.set(1.5, 3, 0);
-  g.add(axle);
+  const bearing = inspectable(new THREE.Group(), "mainshaft", "nacelle");
+  bearing.name = "MainBearingAssembly";
+  bearing.add(axle);
+  if (explorer) {
+    for (const x of [.5, 1.1]) {
+      const flange = part(new THREE.Mesh(new THREE.TorusGeometry(.68, .12, 10, 40), null), "metal", "mainshaft");
+      flange.rotation.y = Math.PI / 2;
+      flange.position.set(x, 3, 0);
+      bearing.add(flange);
+      for (let i = 0; i < 12; i++) {
+        const angle = i / 12 * Math.PI * 2;
+        const bolt = cylinder(.045, .1, "dark", "mainshaft");
+        bolt.rotation.z = Math.PI / 2;
+        bolt.position.set(x - .1, 3 + Math.cos(angle) * .68, Math.sin(angle) * .68);
+        bearing.add(bolt);
+      }
+    }
+    const pedestal = box(.8, .55, 1.25, "metal", "mainshaft");
+    pedestal.position.set(.8, 2.1, 0);
+    bearing.add(pedestal);
+  }
+  g.add(bearing);
 
   // Stator: a ring of copper coils just outside the rotating generator.
   const coilCount = 48;
-  const coils = part(new THREE.InstancedMesh(geo.box, null, coilCount), "copper", "stator");
+  const coilGeometry = explorer ? new RoundedBoxGeometry(1, 1, 1, 2, .12) : geo.box;
+  const coils = part(new THREE.InstancedMesh(coilGeometry, null, coilCount), "copper", "stator");
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   for (let i = 0; i < coilCount; i++) {
@@ -158,6 +238,7 @@ function buildNacelle() {
     coils.setMatrixAt(i, m);
   }
   g.add(coils);
+  inspectable(coils, "stator", "nacelle", { defaultInstance: 8, instanceLabel: "Winding" });
   g.userData.coils = coils;
 
   // Floor of the machine room, with the hatch down to the tower.
@@ -188,11 +269,38 @@ function buildNacelle() {
 
   // Cooling fans at the rear.
   [-0.9, 0.9].forEach((z) => {
-    const fan = cylinder(0.55, 0.25, "metal", "fans");
-    fan.rotation.z = Math.PI / 2;
-    fan.position.set(-7.4, 3.6, z);
+    const fan = inspectable(new THREE.Group(), "fans", "nacelle", { label: z < 0 ? "Cooling fan 1" : "Cooling fan 2" });
+    fan.position.set(explorer ? -6.4 : -7.4, 3.6, z);
+    const shroud = part(new THREE.Mesh(new THREE.TorusGeometry(.55, .07, 8, 32), null), "metal", "fans");
+    shroud.rotation.y = Math.PI / 2;
+    fan.add(shroud);
+    const hub = cylinder(.13, .23, "dark", "fans");
+    hub.rotation.z = Math.PI / 2;
+    fan.add(hub);
+    for (let i = 0; i < 5; i++) {
+      const angle = i / 5 * Math.PI * 2;
+      const blade = box(.05, .38, .17, "metal", "fans");
+      blade.rotation.x = -angle;
+      blade.position.set(0, Math.cos(angle) * .3, Math.sin(angle) * .3);
+      fan.add(blade);
+    }
+    for (const offset of [-.3, 0, .3]) {
+      const grille = box(.035, .035, .9, "dark", "fans");
+      grille.position.set(.16, offset, 0);
+      fan.add(grille);
+    }
     g.add(fan);
   });
+
+  if (explorer) {
+    // Replace the merged glTF cabinet mesh with separate, selectable equipment.
+    for (let i = 0; i < 3; i++) {
+      const cabinet = inspectable(cabinetBody(1, 2.5), "control", "nacelle", { label: `Control cabinet ${i + 1}` });
+      cabinet.name = `NacelleControl_${i + 1}`;
+      cabinet.position.set(-5.25 + i * 1.15, 1.75, -1.85);
+      g.add(cabinet);
+    }
+  }
 
   return g;
 }
@@ -201,11 +309,18 @@ function buildNacelle() {
  * @param {object} nodes from loadTurbine()
  * @param {THREE.Object3D} towerPivot  group that turns with the nacelle (holds tower halves)
  */
-export function buildInteriors(nodes, towerPivot) {
-  const tower = buildTower();
+export function buildInteriors(nodes, towerPivot, { explorer = false } = {}) {
+  const tower = buildTower(explorer);
   towerPivot.add(tower.group);
-  const nacelle = buildNacelle();
+  const nacelle = buildNacelle(explorer);
   nodes.yaw.add(nacelle);
+  if (explorer) {
+    inspectable(nodes.generatorRotor, "generator", "nacelle");
+    nodes.nacelleInternals.traverse(object => {
+      if (["ACE_NacelleInternals_1", "ACE_NacelleInternals_2", "ACE_NacelleInternals_4"].includes(object.name)) object.visible = false;
+      if (object.name === "ACE_NacelleInternals_3") inspectable(object, "yaw", "nacelle");
+    });
+  }
 
   const anchor = (parent, name, x, y, z) => {
     const o = new THREE.Object3D();

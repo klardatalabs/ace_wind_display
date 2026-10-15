@@ -4,7 +4,7 @@ import { useLiveStore } from "../../../store/useLiveStore.js";
 import { formatPower } from "../../../lib/format.js";
 import Icon from "../../../components/ui/Icon.jsx";
 
-export default function ExplorerPartCard({ partId, inside, onClose, onEnter }) {
+export default function ExplorerPartCard({ partId, selectionKey, selectionLabel, inside, onClose, onEnter }) {
   const part = EXPLORER_PARTS[partId];
   const closeRef = useRef(null);
   const state = useLiveStore(s => s.state);
@@ -12,7 +12,7 @@ export default function ExplorerPartCard({ partId, inside, onClose, onEnter }) {
   const [clock, setClock] = useState(Date.now);
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true });
-  }, [partId]);
+  }, [partId, selectionKey]);
   useEffect(() => {
     const interval = setInterval(() => setClock(Date.now()), 5000);
     return () => clearInterval(interval);
@@ -28,17 +28,18 @@ export default function ExplorerPartCard({ partId, inside, onClose, onEnter }) {
     rpm: ["Rotor speed", available && Number.isFinite(now?.rotorRpm) ? `${now.rotorRpm.toFixed(1)} rpm` : "—"],
     wind: ["Wind speed", available && Number.isFinite(now?.windSpeed) ? `${now.windSpeed.toFixed(1)} m/s` : "—"],
     bearing: ["Nacelle bearing", available && Number.isFinite(now?.nacelleDeg) ? `${Math.round(now.nacelleDeg)}°` : "—"],
-    power: ["Power output", available && Number.isFinite(now?.activePowerKw) ? Object.values(formatPower(Math.max(0, now.activePowerKw))).join(" ") : "—"],
+    power: ["Turbine output", available && Number.isFinite(now?.activePowerKw) ? Object.values(formatPower(Math.max(0, now.activePowerKw))).join(" ") : "—"],
   };
   const facts = [...part.facts, ...(part.metric ? [metrics[part.metric]] : partId === "turbine" ? [metrics.power, metrics.wind] : [])];
   const recorded = Number.isFinite(recordedAt) ? new Date(recordedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : null;
 
   return (
-    <aside className="explorer-part-card explorer-glass" aria-labelledby="explorer-part-title" key={partId}>
+    <aside className="explorer-part-card explorer-glass" aria-labelledby="explorer-part-title" key={selectionKey ?? partId}>
       <div className="explorer-card-heading">
         <div><p className="explorer-eyebrow">{part.area}</p><h2 id="explorer-part-title">{part.title}</h2></div>
         <button ref={closeRef} className="explorer-icon-button" type="button" aria-label="Close part information" onClick={onClose}><Icon name="close" className="size-5" /></button>
       </div>
+      {inside && selectionLabel && <p className="explorer-selection-label">{selectionLabel} · highlighted in the scene</p>}
       <p className="explorer-card-description">{part.description}</p>
       <div className="explorer-why"><h3>Why it matters</h3><p>{part.why}</p></div>
       {facts.length > 0 && <dl className="explorer-card-facts">{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
@@ -48,6 +49,7 @@ export default function ExplorerPartCard({ partId, inside, onClose, onEnter }) {
       <div className="explorer-card-source">
         <span>{inside ? "Illustrated interior" : "Real-world site · ACE turbine model"}</span>
         <a href={part.source.url} target="_blank" rel="noreferrer">{part.source.label} <span aria-hidden="true">↗</span></a>
+        {(part.reference || ["blade", "hub", "tower", "foundation"].includes(partId)) && <a href={part.reference?.url ?? "https://ambitioncommunityenergy.org/gallery/"} target="_blank" rel="noreferrer">{part.reference?.label ?? "See ACE construction photos"} <span aria-hidden="true">↗</span></a>}
       </div>
     </aside>
   );
