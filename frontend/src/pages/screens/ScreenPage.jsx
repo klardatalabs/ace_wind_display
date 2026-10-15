@@ -275,7 +275,7 @@ function Hoarding({ screen }) {
               {panel === "curve" && <PowerCurvePanel curve={data.curve} stale={data.curveStale} windSpeed={data.windSpeed} powerKw={data.powerKw} skin={skin} />}
               {panel === "daily" && <DailyBarsPanel daily={data.daily} stale={data.historyStale} skin={skin} />}
               {panel === "spec" && <SpecPanel skin={skin} />}
-              {panel === "height" && <HeightPanel skin={skin} />}
+              {panel === "height" && <HeightPanel skin={skin} rpm={data.rotorRpm} />}
               {panel === "race" && <SpeedPanel tipMph={data.tipMph} skin={skin} />}
               {panel === "town" && <TownPanel skin={skin} />}
             </aside>
