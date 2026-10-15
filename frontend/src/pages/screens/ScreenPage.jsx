@@ -193,7 +193,7 @@ function Hoarding({ screen }) {
   }, [data, weather]);
 
   return (
-    <div className={`relative h-dvh w-screen overflow-hidden select-none ${skin.dark ? "bg-moss-950" : "bg-moss-50"}`}>
+    <div className={`relative h-dvh w-screen overflow-hidden select-none ${skin.dark ? "bg-moss-950" : "bg-moss-50"} ${screen.mascot ? "kids-type" : ""}`}>
       <div
         className="absolute inset-0 transition-[filter,scale] duration-1000"
         onPointerDown={onTouch}

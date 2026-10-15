@@ -310,27 +310,32 @@
 }
 
 /* "Ask me" example chat (pages/screens/components/AskDemo.jsx). */
-@keyframes ask-finger {
-  0% { opacity: 0; transform: translate(4vmin, 6vmin) scale(1); }
-  35% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(0.7); }
-  65% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
+@keyframes ask-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-0.8vmin); } }
+.ask-float { animation: milestone-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both, ask-bob 3.6s ease-in-out infinite; }
+@keyframes ask-click { from { opacity: 0.9; transform: scale(0.3); } to { opacity: 0; transform: scale(1.6); } }
+.ask-click { animation: ask-click 0.6s ease-out forwards; }
+@keyframes ask-panel { from { opacity: 0; transform: translateY(2vmin) scale(0.96); } to { opacity: 1; transform: none; } }
+.ask-panel { transform-origin: top left; animation: ask-panel 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes ask-pop { from { opacity: 0; transform: translateY(1.2vmin) scale(0.96); } to { opacity: 1; transform: none; } }
+.ask-pop { animation: ask-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes ask-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.ask-shimmer {
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.75) 50%, transparent 70%) var(--color-moss-100);
+  background-size: 200% 100%;
+  animation: ask-shimmer 1s linear infinite;
 }
-.ask-finger { animation: ask-finger 1.4s ease-out both; }
-@keyframes ask-chip-tap {
-  0%, 30% { background: transparent; }
-  45%, 100% { background: var(--color-moss-100); color: var(--color-moss-950); }
-}
-.ask-chip-tap { animation: ask-chip-tap 1.4s ease-out both; }
-@keyframes ask-typing {
-  0% { opacity: 0; max-height: 0; padding-block: 0; }
-  12% { opacity: 1; max-height: 8vmin; padding-block: 1.4vmin; }
-  88% { opacity: 1; max-height: 8vmin; padding-block: 1.4vmin; }
-  100% { opacity: 0; max-height: 0; padding-block: 0; }
-}
-.ask-typing { overflow: hidden; animation: ask-typing 1.4s ease-in-out both; }
 @media (prefers-reduced-motion: reduce) {
-  .ask-finger, .ask-chip-tap { animation: none; }
-  .ask-typing { display: none; }
+  .ask-float, .ask-click, .ask-panel, .ask-pop, .ask-shimmer { animation: none; }
+}
+/* The example chat's photo: already decoded, it just fades and settles in (no delay, so it
+   can never be left invisible). */
+@keyframes ask-photo { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+.ask-photo { animation: ask-photo 0.45s ease-out; }
+@media (prefers-reduced-motion: reduce) { .ask-photo { animation: none; } }
+
+/* The students screen's rounder, friendlier type: Fredoka for headlines, Nunito for the rest. */
+.kids-type {
+  --font-display: "Fredoka Variable", "Nunito Variable", ui-rounded, system-ui, sans-serif;
+  --font-sans: "Nunito Variable", ui-rounded, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
