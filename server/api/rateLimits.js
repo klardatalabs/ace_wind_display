@@ -16,6 +16,4 @@ export const LIMITS = {
   screenWalkPerSession: { limit: 600, windowMs: MINUTE }, // the walk slider sends ~10 updates a second
   screenShowCooldown: { limit: 1, windowMs: 12_000 }, // per screen: one animation at a time
   datasetDownloadPerIp: { limit: 20, windowMs: HOUR },
-  datasetEmailPerIp: { limit: 5, windowMs: HOUR },
-  datasetEmailPerAddress: { limit: 3, windowMs: DAY },
 };

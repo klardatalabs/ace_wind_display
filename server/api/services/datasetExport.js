@@ -4,7 +4,7 @@
 
 import { once } from "node:events";
 import { pool } from "../../infra/postgres.js";
-import { londonDayStart } from "../../../shared/time.js";
+import { londonDayStart, londonDate } from "../../../shared/time.js";
 import { ATTRIBUTION_TEXT, LICENSE_URL } from "../../../shared/constants.js";
 import { DATASETS } from "../../../shared/datasets.js";
 import { SITE, ASSET } from "../../../shared/site.js";
@@ -123,4 +123,30 @@ export async function streamExport(res, datasetId, from, to) {
     client.release();
   }
   return dataset;
+}
+
+// Where each dataset's rows start and end, for the download form's date pickers.
+const COVERAGE_SQL = {
+  scada_10m: `SELECT min(observed_at) AS first, max(observed_at) AS last FROM ts.scada_10m WHERE asset_id = '${ASSET.id}'`,
+  daily: `SELECT min(day_start) AS first, max(day_start) AS last FROM ts.daily_summary WHERE asset_id = '${ASSET.id}'`,
+  minute: `SELECT min(bucket) AS first, max(bucket) AS last FROM ts.asset_minute WHERE asset_id = '${ASSET.id}'`,
+  status_events: `SELECT min(observed_at) AS first, max(observed_at) AS last FROM ts.status_event WHERE asset_id = '${ASSET.id}'`,
+  weather: `SELECT min(observed_at) AS first, max(observed_at) AS last FROM ts.weather_observation WHERE site_id = '${SITE.id}'`,
+};
+const COVERAGE_TTL_MS = 30 * 60_000;
+let coverageCache = null; // { at, value }
+
+/** { [datasetId]: { from, to } } as UK dates; null for a dataset with no rows. Cached. */
+export async function datasetCoverage() {
+  if (coverageCache && Date.now() - coverageCache.at < COVERAGE_TTL_MS) return coverageCache.value;
+  const entries = await Promise.all(
+    Object.entries(COVERAGE_SQL).map(async ([id, sql]) => {
+      const { rows } = await pool.query(sql);
+      const { first, last } = rows[0] ?? {};
+      return [id, first && last ? { from: londonDate(first), to: londonDate(last) } : null];
+    })
+  );
+  const value = Object.fromEntries(entries);
+  coverageCache = { at: Date.now(), value };
+  return value;
 }

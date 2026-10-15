@@ -256,6 +256,8 @@ export const SCREENS = {
     // Cards like the other screens, the caption in one too (components/skins.js).
     skin: "cards",
     captionCard: true,
+    // Side cards sit bottom-right, beside the caption, leaving the sky clear.
+    cardsBottom: true,
     askLabel: "Ask Ace",
     askHint: "Scan with your phone camera. No app, no login.",
     // The real Lawrence Weston scan around the turbine, in place of the generated scenery.
@@ -267,7 +269,6 @@ export const SCREENS = {
       hello: {
         stage: { action: "aerial" },
         tags: ["homes"],
-        viz: "homes",
         copy: [
           { eyebrow: "Lawrence Weston", line: "Our turbine. Our power.", sub: "Set up by residents through Ambition Community Energy. What it earns goes back into the neighbourhood." },
           { eyebrow: "Built by neighbours", line: "The tallest thing in Bristol belongs to us.", sub: "Residents dreamed it, fought for it and own it. At {tipHeight} it's one of England's tallest onshore turbines." },
@@ -316,6 +317,8 @@ export const SCREENS = {
     // Cards like the students' screen, the caption in one too (components/skins.js).
     skin: "cards",
     captionCard: true,
+    // Side cards (spec, power curve, the climb's route) sit bottom-right, beside the caption.
+    cardsBottom: true,
     // The generated scenery, not the scan: up close the scan breaks into half-drawn trees,
     // and the real place has its own chapters here (the live map).
     askLabel: "Ask Ace",
@@ -324,8 +327,8 @@ export const SCREENS = {
     chapters: story({
       power: { label: "Energy path", seconds: TOUR_END_AT + TOUR_ENDING_SECONDS, stage: { value: { endAt: TOUR_END_AT } }, ending: "data" },
       hello: {
-        stage: { action: "overview", annotations: ["height", "rotor"] },
-        tags: ["height", "rotor"],
+        // The spec card gives the heights; the scene shows the machine without dimension lines.
+        stage: { action: "overview" },
         panel: "spec",
         copy: [
           { eyebrow: "Enercon E-115 EP3", line: "Gearless, direct drive, {rated}.", sub: "Hub at about {hubHeight}, tip at {tipHeight}. Cut-in 2.5 m/s, rated 12.5 m/s, storm control above 28 m/s." },

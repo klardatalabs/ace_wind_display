@@ -15,7 +15,7 @@ export const config = {
 
   http: {
     port: env.int("PORT", 4100),
-    // Public origin used in QR codes and emailed links. Never derived from request headers.
+    // Public origin used in QR codes. Never derived from request headers.
     publicOrigin: env.string("PUBLIC_ORIGIN", production ? "" : "http://localhost:5173").replace(/\/$/, ""),
     // Express "trust proxy": by default trust the private hops (host nginx -> load balancer).
     trustProxy: env.string("TRUST_PROXY", "loopback, linklocal, uniquelocal"),
@@ -98,13 +98,6 @@ export const config = {
     screenCommandCooldownSec: 12,
   },
 
-  datasets: {
-    tokenSecret: env.string("DATASET_TOKEN_SECRET"),
-    linkTtlHours: env.int("DATASET_LINK_TTL_HOURS", 24),
-    resendApiKey: env.string("RESEND_API_KEY"),
-    emailFrom: env.string("DATASET_EMAIL_FROM", "ACE Wind Turbine <datasets@acewind.org>"),
-  },
-
   tavily: {
     apiKey: env.string("TAVILY_API_KEY"),
     baseUrl: env.string("TAVILY_BASE_URL", "https://api.tavily.com").replace(/\/$/, ""),
@@ -135,7 +128,6 @@ export function validateConfig(c = config) {
   if (c.embeddings.dimensions < 0 || c.embeddings.dimensions > 4000) problems.push("EMBEDDING_DIMENSIONS must be between 0 (native) and 4000");
   if (c.production) {
     secret("CHAT_SESSION_SECRET", c.chat.sessionSecret);
-    secret("DATASET_TOKEN_SECRET", c.datasets.tokenSecret);
     if (!c.postgres.password) problems.push("PGPASSWORD must be set");
     if (!/^https:\/\//.test(c.http.publicOrigin)) problems.push("PUBLIC_ORIGIN must be the site's https:// origin");
     if (!/^rediss?:\/\/[^@]*:[^@]+@/.test(c.redis.url)) problems.push("REDIS_URL must include the Redis password");
@@ -147,5 +139,4 @@ export function validateConfig(c = config) {
 // Development defaults so the app runs out of the box; production must set real secrets.
 if (!config.production) {
   config.chat.sessionSecret ||= "dev-only-chat-session-secret-change-me-0000";
-  config.datasets.tokenSecret ||= "dev-only-dataset-token-secret-change-me-000";
 }

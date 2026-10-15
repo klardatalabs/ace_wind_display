@@ -99,35 +99,6 @@ export const dataset = app.table("dataset", {
   maxRangeDays: integer("max_range_days").notNull(),
 });
 
-export const requester = app.table("requester", {
-  requesterId: bigint("requester_id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  email: text("email").notNull(),
-});
-
-export const datasetRequest = app.table("dataset_request", {
-  requestId: bigint("request_id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  requesterId: bigint("requester_id", { mode: "number" }).notNull().references(() => requester.requesterId, { onDelete: "cascade" }),
-  datasetId: text("dataset_id").notNull().references(() => dataset.datasetId),
-  fullName: text("full_name"),
-  organisation: text("organisation"),
-  purpose: text("purpose"),
-  dateFrom: date("date_from").notNull(),
-  dateTo: date("date_to").notNull(),
-  tokenSha256: bytea("token_sha256").notNull(),
-  requestedAt: timestamptz("requested_at").notNull().defaultNow(),
-  expiresAt: timestamptz("expires_at").notNull(),
-  emailedAt: timestamptz("emailed_at"),
-});
-
-export const datasetDownload = app.table(
-  "dataset_download",
-  {
-    requestId: bigint("request_id", { mode: "number" }).notNull().references(() => datasetRequest.requestId, { onDelete: "cascade" }),
-    downloadedAt: timestamptz("downloaded_at").notNull().defaultNow(),
-  },
-  (t) => [primaryKey({ columns: [t.requestId, t.downloadedAt] })]
-);
-
 export const job = app.table("job", {
   jobId: text("job_id").primaryKey(),
   description: text("description").notNull(),

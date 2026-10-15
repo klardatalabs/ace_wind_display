@@ -29,7 +29,7 @@ export default function DevHero({ origin }) {
             Build on a <i className="font-serif font-normal">real</i> wind turbine.
           </h1>
           <p className="dev-fade max-w-xl text-lg text-moss-900/70">
-            Live telemetry over WebSockets, history and power curves over REST, a streaming chat API, and the full SCADA dataset as open Parquet files. No key needed to read.
+            Live telemetry over WebSockets, history and power curves over REST, a streaming chat API, the big screens' live connection, and instant open-data downloads. No key needed to read.
           </p>
           <div className="dev-fade flex flex-wrap gap-3">
             <Button href="#endpoints" icon="arrowRight">

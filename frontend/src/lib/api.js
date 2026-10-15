@@ -34,8 +34,7 @@ export const api = {
   daily: (limit = 30) => request(`/api/history/daily?limit=${limit}`),
 
   // Open data
-  datasets: () => request("/api/datasets/list"),
-  requestDataset: (form) => request("/api/datasets/request", { method: "POST", body: form }),
+  datasets: () => request("/api/datasets"),
 
   // Ask Ace (anonymous, per-tab sessions; replies stream via ./sse.js)
   chatSession: (screen) => request("/api/chat/session", { method: "POST", body: { screen } }),
@@ -59,7 +58,7 @@ export const api = {
 /** Endpoint catalogue shown on the Developers page. */
 export const ENDPOINTS = [
   { group: "Live", method: "GET", path: "/api/state", about: "Latest turbine snapshot: power, wind, rotor rpm, nacelle bearing, today's energy, status flags.", tryIt: true },
-  { group: "Live", method: "WS", path: "/ws", about: "Pushes { type: 'state', state } on every change. Screens send { type: 'screen.subscribe', screen } to receive animation commands." },
+  { group: "Live", method: "WS", path: "/ws", about: "Pushes { type: 'state' } and { type: 'environment' } on every change. Big screens send { type: 'screen.subscribe', screen } to also receive { type: 'screen.command', action, value }." },
   { group: "Live", method: "GET", path: "/api/config", about: "Public origin used for the QR codes.", tryIt: true },
   { group: "History", method: "GET", path: "/api/history?hours=24", about: "Wind and power series for the last N hours (10-minute resolution up to 48 h, daily beyond).", tryIt: true },
   { group: "History", method: "GET", path: "/api/history/daily?limit=30", about: "Daily energy, wind and availability rollups.", tryIt: true },
@@ -68,8 +67,8 @@ export const ENDPOINTS = [
   { group: "History", method: "GET", path: "/api/history/power-curve", about: "Measured power curve binned by wind speed, with the theoretical curve alongside.", tryIt: true },
   { group: "History", method: "GET", path: "/api/history/health", about: "Stored coverage, freshness and maintenance outcomes.", tryIt: true },
   { group: "History", method: "GET", path: "/api/history/export?format=csv", about: "Stream the combined maintained history as CSV, with units, quality and provenance." },
-  { group: "Open data", method: "GET", path: "/api/datasets/list", about: "Downloadable Parquet datasets (CC-BY-4.0).", tryIt: true },
-  { group: "Open data", method: "POST", path: "/api/datasets/request", about: "Request a signed, time-limited download link for a dataset." },
+  { group: "Open data", method: "GET", path: "/api/datasets", about: "The open datasets (CC BY 4.0), the dates each covers, and the Zenodo archive.", tryIt: true },
+  { group: "Open data", method: "GET", path: "/api/datasets/scada_10m.csv?from=2026-10-01&to=2026-10-07", about: "Instant CSV download for a dataset and UK date range (inclusive); no sign-up." },
   { group: "Ask Ace", method: "POST", path: "/api/chat/session", about: "Mint an anonymous, signed session token for one browser tab ({ screen })." },
   { group: "Ask Ace", method: "POST", path: "/api/chat/stream", about: "Send { message }; the reply streams back as Server-Sent Events: token, status, sources, action, done, error." },
   { group: "Ask Ace", method: "GET", path: "/api/chat/history", about: "This session's own transcript (Bearer token), so a reload keeps the conversation." },

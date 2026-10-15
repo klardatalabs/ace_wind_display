@@ -16,12 +16,12 @@ const LOW = -22;
 const HIGH = 150;
 const at = (h) => `${(((HIGH - h) / (HIGH - LOW)) * 100).toFixed(2)}%`;
 
-export default function XrayRoute({ stop, skin }) {
+export default function XrayRoute({ stop, skin, place = "top-[16vmin]" }) {
   const current = XRAY_STOPS[stop] ?? XRAY_STOPS[0];
   // Lines and dots in the skin's ink, so they read on white paper as well as over a scene.
   const ink = skin.dark ? { line: "bg-white/60", track: "bg-white/25", dot: "bg-white/40" } : { line: "bg-moss-950/50", track: "bg-moss-950/15", dot: "bg-moss-950/30" };
   return (
-    <aside data-keepout className={`pointer-events-none absolute top-[16vmin] right-[3vmin] z-10 flex w-[min(24vw,420px)] flex-col gap-[2vmin] rounded-[2.4vmin] p-[2.2vmin] ${skin.card}`}>
+    <aside data-keepout className={`pointer-events-none absolute right-[3vmin] z-10 ${place} flex w-[min(24vw,420px)] flex-col gap-[2vmin] rounded-[2.4vmin] p-[2.2vmin] ${skin.card}`}>
       <div>
         <p className={`font-mono text-[clamp(10px,1.35vmin,26px)] tracking-[0.12em] uppercase ${skin.accent}`}>Technician's route · {stop + 1} of {XRAY_STOPS.length}</p>
         <p key={current.id} className={`milestone-in font-display text-[clamp(18px,3vmin,60px)] leading-tight font-semibold ${skin.text}`}>{NAMES[current.id]}</p>

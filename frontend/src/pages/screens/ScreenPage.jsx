@@ -316,14 +316,14 @@ function Hoarding({ screen }) {
           {!screen.rail && chapter.ask && <AskDemo key={story.loop} data={data} audience={screen.key} skin={cardSkin} side={askSide} startAt={story.loop} />}
           {tour?.ended && story.chapter.ending === "home" && <EveningAtHome data={data} skin={cardSkin} />}
           {tour?.ended && story.chapter.ending === "data" && <GridEnding data={data} skin={cardSkin} />}
-          {xrayStop != null && <XrayRoute stop={xrayStop} skin={cardSkin} />}
+          {xrayStop != null && <XrayRoute stop={xrayStop} skin={cardSkin} place={screen.cardsBottom ? "bottom-[13vmin]" : "top-[16vmin]"} />}
           {!pick && chapter.viz === "homes" && (
             <aside data-keepout className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:top-[16vmin] portrait:right-[3vmin]">
               <HomesGrid homes={data.homes} skin={cardSkin} />
             </aside>
           )}
           {!pick && panel && (
-            <aside data-keepout key={panel} className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:bottom-[34vmin] portrait:right-[3vmin]">
+            <aside data-keepout key={panel} className={`pointer-events-none absolute z-10 landscape:right-[3vmin] portrait:bottom-[34vmin] portrait:right-[3vmin] ${screen.cardsBottom ? "landscape:bottom-[13vmin]" : "landscape:top-[16vmin]"}`}>
               {panel === "curve" && <PowerCurvePanel curve={data.curve} stale={data.curveStale} windSpeed={data.windSpeed} powerKw={data.powerKw} skin={cardSkin} />}
               {panel === "daily" && <DailyBarsPanel daily={data.daily} stale={data.historyStale} skin={cardSkin} />}
               {panel === "spec" && <SpecPanel skin={cardSkin} />}
