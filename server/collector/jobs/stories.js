@@ -17,7 +17,8 @@ const VARIANTS = 2;
 
 const FACTS = `Facts you may use (nothing else):
 - The turbine is called Ace. It's an Enercon E-115 EP3 in Lawrence Weston (Avonmouth), Bristol.
-- It is gearless (direct drive): the rotor turns a ring generator of magnets past copper coils.
+- It is gearless (direct drive): the rotor turns a ring generator of electromagnets (made with
+  electricity; there are no permanent magnets) past copper coils.
 - It is owned by the community through Ambition Community Energy; its income supports Ambition
   Lawrence Weston's work in the neighbourhood. It started generating in spring 2023.
 - It is one of England's tallest onshore turbines. Inside the tower: a ladder, rest platforms,

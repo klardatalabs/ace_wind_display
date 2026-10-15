@@ -40,8 +40,10 @@ export const config = {
   ace: {
     baseUrl: env.string("ACE_API_BASE", "https://ace-api.duckdns.org").replace(/\/$/, ""),
     timeoutMs: env.int("ACE_TIMEOUT_MS", 10_000),
-    // ACE allows 1 s data to be read at most once a second.
-    livePollMs: env.int("ACE_LIVE_POLL_MS", 1_000),
+    // ACE allows 1 s data to be read at most once a second, but polling that fast it still
+    // turned away a few percent of requests (HTTP 429). The screens smooth live figures
+    // over ~20 s, so every 2 s loses nothing and is kinder to the community API.
+    livePollMs: env.int("ACE_LIVE_POLL_MS", 2_000),
     statusPollMs: env.int("ACE_STATUS_POLL_MS", 5_000),
     historySyncMs: env.int("HISTORY_SYNC_MS", 10 * 60_000),
     // Keep this many years of history (never earlier than commissioning). HISTORY_START, when

@@ -215,7 +215,7 @@ export function buildInteriors(nodes, towerPivot) {
     return o;
   };
   const labels = [
-    { id: "generator", text: "Ring generator", detail: "No gearbox — magnets pass copper coils", anchor: anchor(nodes.yaw, "lbl-gen", 2.4, 5.6, 1.2) },
+    { id: "generator", text: "Ring generator", detail: "No gearbox — electromagnets pass copper coils", anchor: anchor(nodes.yaw, "lbl-gen", 2.4, 5.6, 1.2) },
     { id: "hub", text: "Hub & blade pitch", detail: "Blades twist to catch or spill wind", anchor: anchor(nodes.yaw, "lbl-hub", 6.2, 3.2, 2.6) },
     { id: "cabinets", text: "Control cabinets", detail: "The turbine's brain", anchor: anchor(nodes.yaw, "lbl-cab", -4.2, 4.0, 1.5) },
     { id: "yaw", text: "Yaw drives", detail: "Turn the nacelle to face the wind", anchor: anchor(nodes.yaw, "lbl-yaw", 1.6, 0.6, 2.0) },

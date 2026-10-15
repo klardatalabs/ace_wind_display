@@ -69,7 +69,7 @@ const CHAPTERS = {
  */
 export const TOUR_BEATS = [
   { eyebrow: "Follow my power", line: "It all starts with the wind pushing my blades.", sub: "The stronger the wind, the more power I can catch, right up to my full {rated}." },
-  { eyebrow: "Inside my head", line: "Magnets whizz past copper coils. Zap!", sub: "That makes electricity flow. I don't need a gearbox: my blades turn the generator directly." },
+  { eyebrow: "Inside my head", line: "Magnets whizz past copper coils. Zap!", sub: "My magnets are electromagnets, made with electricity. As they pass the coils, more electricity flows. No gearbox needed!" },
   { eyebrow: "Next stop", line: "Down to the converter at the bottom of my tower.", sub: "It gets my electricity ready for the grid, which beats fifty times every second." },
   { eyebrow: "Going down", line: "Down the cables inside my tower we go.", sub: "Thick power cables hang beside the ladder and the lift, all the way to the ground." },
   { eyebrow: "The transformer", line: "The transformer gives my power a big push.", sub: "It raises the voltage, so electricity can travel a long way without wasting much." },
@@ -268,7 +268,7 @@ SCREENS.story = {
   askLabel: "Ask Ace", askHint: "Scan to explore the journey from wind to home",
   chapters: [
     { id: "wind", label: "Wind", seconds: 11, stage: {}, eyebrow: "01 · Avonmouth / Lawrence Weston, Bristol", line: () => "Local wind. Community power.", sub: () => "The blades turn the hub. Pitch helps them catch or spill wind; available wind power rises roughly as P ∝ v³ until rated output." },
-    { id: "generator", label: "Generator", seconds: 12, stage: {}, eyebrow: "02 · Motion into electricity", line: () => "Magnets pass copper coils. Current flows.", sub: () => "ACE's ring generator turns at blade speed. Direct drive — no gearbox. Watch the coils glow as the magnets pass." },
+    { id: "generator", label: "Generator", seconds: 12, stage: {}, eyebrow: "02 · Motion into electricity", line: () => "Magnets pass copper coils. Current flows.", sub: () => "ACE's ring generator turns at blade speed: electromagnets, no permanent magnets, and no gearbox. Watch the coils glow as they pass." },
     { id: "converter", label: "Converter", seconds: 7, stage: {}, eyebrow: "03 · Getting ready for the grid", line: () => "The next stop is the converter at the tower base.", sub: () => "The full-power converter decouples the variable-speed generator from the 50 Hz grid. First, the electricity travels down these cables." },
     { id: "tower", label: "Tower", seconds: 10, stage: {}, eyebrow: "04 · Follow the cable", line: () => "Down the tower. Into the converter.", sub: () => "Power cables hang beside the ladder and service lift, carrying electricity to the cabinets at the base." },
     { id: "transformer", label: "Transformer", seconds: 10, stage: {}, eyebrow: "05 · Into the network", line: () => "The transformer steps the voltage up.", sub: () => "Higher voltage helps power travel with less loss. From here, the supply joins the shared grid." },
