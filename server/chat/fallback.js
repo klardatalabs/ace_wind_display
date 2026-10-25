@@ -5,9 +5,11 @@
 
 import { runStep } from "./agent.js";
 import { photosEnabled } from "../integrations/unsplash.js";
+import { windSpeedScenario } from "./scenarios.js";
 
 const fmt = (n) => Number(n ?? 0).toLocaleString("en-GB");
 const INTENTS = [
+  { name: "scenario", test: /\bwhat if\b/i },
   { name: "screen", test: /\b(show|look inside|open (it|up)|zoom|x-?ray|cut ?away)\b/i },
   { name: "records", test: /record|best|highest|peak|most ever|all[- ]time/i },
   { name: "history", test: /yesterd|yday|last (night|24)|past (day|24 ?h)/i },
@@ -18,6 +20,9 @@ const INTENTS = [
 async function answerFor(intent, question, ctx) {
   const step = (name, args) => runStep({ name, args, round: 1, id: `fallback-${name}` }, ctx);
   switch (intent) {
+    case "scenario": {
+      return windSpeedScenario(question) ?? "Give me a percentage change in wind speed and I can calculate a simple what-if scenario. That won't be a prediction of my actual electricity output.";
+    }
     case "screen": {
       const r = await step("show_on_big_screen", { action: /close|shut/i.test(question) ? "close_inside" : "look_inside" });
       return r.ok ? "Look up at the big screen! 👀 I'm opening myself up so you can see my **generator**, **yaw drives** and the **ladder** inside my tower." : `I'd love to show you, but ${r.reason}`;
@@ -51,13 +56,14 @@ async function answerFor(intent, question, ctx) {
     }
     default: {
       const [books] = await Promise.all([
-        step("search_books", { query: question }),
+        step("search_research", { query: question }),
         photosEnabled() ? step("show_photos", { query: `wind turbine ${question}`.slice(0, 80), count: 3 }) : null,
       ]);
       const best = books?.passages?.[0];
       if (!best) return "That's a great question! I can't look it up right now; try asking about what I'm doing live.";
       const text = best.text.split("\n").slice(1).join(" ").trim() || best.text;
-      return `Here's what one of my books, *${best.book}*, says:\n\n> ${text.slice(0, 600)}${text.length > 600 ? "…" : ""}`;
+      const excerpt = text.split(/\s+/).slice(0, 20).join(" ");
+      return `One source I found is *${best.title}*${best.pages ? ` (${best.pages})` : ""}. Excerpt: “${excerpt}${excerpt.length < text.length ? "…" : ""}”${best.sourceUrl ? `\n\nSource: ${best.sourceUrl}` : ""}`;
     }
   }
 }

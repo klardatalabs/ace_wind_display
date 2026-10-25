@@ -3,6 +3,7 @@
 
 import { Router } from "express";
 import * as history from "../services/history.js";
+import { seasons } from "../services/seasons.js";
 import { badRequest } from "../../lib/errors.js";
 
 export const historyRoutes = Router();
@@ -25,6 +26,10 @@ historyRoutes.get("/records", async (_req, res) => {
 
 historyRoutes.get("/power-curve", async (_req, res) => {
   cacheable(res).json(await history.powerCurve());
+});
+
+historyRoutes.get("/seasons", async (_req, res) => {
+  res.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400").json(await seasons());
 });
 
 // ?mode=custom&start1=YYYY-MM-DD&end1=...&start2=...&end2=... (end dates exclusive), or this month vs last.

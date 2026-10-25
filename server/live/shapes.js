@@ -7,6 +7,7 @@ import { SITE } from "../../shared/site.js";
 export const STATE_KEY = "state";
 export const ENVIRONMENT_KEY = "environment";
 export const STORIES_KEY = "stories";
+export const NEWS_KEY = "news:latest";
 
 /** Frontend-facing shapes for the stored readings. */
 export const toNow = (site, turbine) => ({

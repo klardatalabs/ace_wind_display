@@ -23,14 +23,17 @@ export async function embeddingModel() {
 
 /**
  * @param {string} file
- * @param {{ title?: string, author?: string, onProgress?: (done: number, total: number) => void }} [options]
+ * @param {{ title?: string, author?: string, sourceUrl?: string, sourceType?: string, rightsNote?: string, onProgress?: (done: number, total: number) => void }} [options]
  * @returns {Promise<{ status: "ingested"|"skipped", documentId: number, title: string, passages?: number }>}
  */
-export async function ingestFile(file, { title, author, onProgress } = {}) {
+export async function ingestFile(file, { title, author, sourceUrl, sourceType, rightsNote, onProgress } = {}) {
   const doc = await extractDocument(file);
   const contentSha256 = crypto.createHash("sha256").update(doc.bytes).digest();
   const existing = await knowledge.findDocumentBySha256(contentSha256);
-  if (existing) return { status: "skipped", documentId: existing.id, title: existing.title };
+  if (existing) {
+    await knowledge.updateDocumentSource(existing.id, { sourceUrl, sourceType, rightsNote });
+    return { status: "skipped", documentId: existing.id, title: existing.title };
+  }
 
   const finalTitle = (title || doc.title || path.basename(file, path.extname(file)).replace(/[_-]+/g, " ")).slice(0, 300);
   const passages = chunkPages(cleanPages(doc.pages));
@@ -55,6 +58,9 @@ export async function ingestFile(file, { title, author, onProgress } = {}) {
       mediaType: doc.mediaType,
       byteSize: doc.bytes.length,
       pageCount: doc.pages.length,
+      sourceUrl: sourceUrl || null,
+      sourceType: sourceType || null,
+      rightsNote: rightsNote || null,
     },
     passages: passages.map((p, i) => ({
       position: p.position, pageStart: p.pageStart, pageEnd: p.pageEnd, content: passageContent(p), embedding: vectors[i],

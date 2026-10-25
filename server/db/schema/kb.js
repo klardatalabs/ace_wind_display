@@ -21,6 +21,9 @@ export const document = kb.table("document", {
   mediaType: text("media_type").notNull(),
   byteSize: bigint("byte_size", { mode: "number" }).notNull(),
   pageCount: integer("page_count"),
+  sourceUrl: text("source_url"),
+  sourceType: text("source_type"),
+  rightsNote: text("rights_note"),
   addedAt: timestamptz("added_at").notNull().defaultNow(),
 });
 

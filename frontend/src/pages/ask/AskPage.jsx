@@ -55,7 +55,7 @@ function Chat({ screen }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-gradient-to-b from-moss-25 to-moss-50">
-      <ChatHeader title={copy.title} screenName={screenName} onReset={reset} canReset={messages.length > 0} />
+      <ChatHeader title={copy.title} screenName={screenName} screen={screen} onReset={reset} canReset={messages.length > 0} />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pt-5 pb-4 md:gap-5 md:px-6 md:pt-8" aria-live="polite">
         <div className="flex items-end gap-2">

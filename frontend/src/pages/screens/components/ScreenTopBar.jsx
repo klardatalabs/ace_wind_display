@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import TurbineMark from "../../../components/brand/TurbineMark.jsx";
 import LiveBadge from "../../../components/live/LiveBadge.jsx";
+import { Link } from "react-router";
 
 // After this long without the mouse moving, the pointer and the exit button hide.
 const IDLE_MS = 3000;
 
 /**
  * Full screen, as on the live view. Browsers only allow full screen after a click, tap or
- * key press, so the screen goes full screen on the first one anywhere (for a kiosk that
+ * key press, so the screen goes full screen on the first scene interaction (for a kiosk that
  * should start full screen untouched, run the browser in kiosk mode: see the developer
  * page). In full screen the mouse pointer hides when still; moving it shows an exit button.
  * Hidden where the browser can't do full screen.
@@ -20,10 +21,16 @@ function FullscreenControl({ skin }) {
     const update = () => setOn(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", update);
     if (!document.fullscreenEnabled) return () => document.removeEventListener("fullscreenchange", update);
-    // The first interaction anywhere goes full screen; leaving it later is respected.
-    const enter = () => !document.fullscreenElement && document.documentElement.requestFullscreen().catch(() => {});
-    window.addEventListener("pointerdown", enter, { once: true });
-    window.addEventListener("keydown", enter, { once: true });
+    // Enter on the first interaction with the scene, not when following a control or link.
+    const enter = (event) => {
+      if (event.type === "keydown" && !["Enter", " "].includes(event.key)) return;
+      if (event.target?.closest?.("a, button")) return;
+      window.removeEventListener("pointerdown", enter);
+      window.removeEventListener("keydown", enter);
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    };
+    window.addEventListener("pointerdown", enter);
+    window.addEventListener("keydown", enter);
     return () => {
       document.removeEventListener("fullscreenchange", update);
       window.removeEventListener("pointerdown", enter);
@@ -86,9 +93,9 @@ function FullscreenControl({ skin }) {
 
 // The time of day is shown once, in the weather chip below this bar; the top right keeps
 // just the live badge and the full-screen button (no status pill).
-export default function ScreenTopBar({ skin, screenName }) {
+export default function ScreenTopBar({ skin, screenName, screenKey }) {
   return (
-    <header data-keepout className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-6 p-[2.2vmin]">
+    <header data-keepout className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-[2.2vmin] portrait:flex-col">
       <div className="flex items-center gap-[1.2vmin]">
         <TurbineMark className="size-[clamp(36px,4.6vmin,96px)]" />
         <div className="leading-tight">
@@ -98,7 +105,10 @@ export default function ScreenTopBar({ skin, screenName }) {
           <p className={`text-[clamp(11px,1.3vmin,24px)] font-medium ${skin.muted}`}>{screenName} screen · Lawrence Weston, Bristol</p>
         </div>
       </div>
-      <div className="flex items-center gap-[1vmin]">
+      <div className="flex flex-wrap items-center gap-[1vmin]">
+        {screenKey === "college" && <Link to="/screen/college/news" onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }} className={`pointer-events-auto rounded-full px-[1.4vmin] py-[0.6vmin] text-[clamp(12px,1.3vmin,24px)] ring-1 ${skin.dark ? "bg-white/10 text-white ring-white/25" : "bg-white/70 text-moss-900 ring-moss-200"}`}>News</Link>}
+        {screenKey === "college" && <Link to="/screen/college/seasons" onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }} className={`pointer-events-auto rounded-full px-[1.4vmin] py-[0.6vmin] text-[clamp(12px,1.3vmin,24px)] ring-1 ${skin.dark ? "bg-white/10 text-white ring-white/25" : "bg-white/70 text-moss-900 ring-moss-200"}`}>Seasons</Link>}
+        <Link to="/" onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }} className={`pointer-events-auto rounded-full px-[1.4vmin] py-[0.6vmin] text-[clamp(12px,1.3vmin,24px)] ring-1 ${skin.dark ? "bg-white/10 text-white ring-white/25" : "bg-white/70 text-moss-900 ring-moss-200"}`}>Home</Link>
         <LiveBadge tone={skin.dark ? "dark" : "light"} className="px-[1.4vmin]! py-[0.6vmin]! text-[clamp(11px,1.3vmin,24px)]!" />
         <FullscreenControl skin={skin} />
       </div>

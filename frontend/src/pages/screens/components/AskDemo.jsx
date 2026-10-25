@@ -79,6 +79,11 @@ const QUESTIONS = {
   ],
   college: [
     {
+      q: "What if the wind were 10% faster?",
+      a: () => "Assume the same air density and steady wind, with speed rising from 6 to 6.6 m/s. Available wind power scales roughly with speed cubed: 1.1³ = 1.331, or 33% more. ACE's electrical output would not necessarily rise that much; its power curve and control limits still matter. This is a scenario, not an observed result.",
+      source: { label: "NREL: Fundamentals of Wind Energy", url: "https://docs.nlr.gov/docs/fy23osti/84501.pdf" },
+    },
+    {
       q: "What's your capacity factor?",
       a: (d) =>
         d.capacityFactor > 0
@@ -96,6 +101,11 @@ const QUESTIONS = {
       a: () =>
         "The E-115 EP3 is direct drive. The rotor turns a large ring generator at blade speed, and electromagnets induce current in the stator coils. Fewer moving parts means less to wear out, and a full-power converter matches the output to the 50 Hz grid.",
       media: { photo: "/images/ace/blades-attached.webp" },
+    },
+    {
+      q: "What can a direct-drive patent teach us?",
+      a: () => "Patent US7109600B1 describes one direct-drive arrangement: the rotor drives a generator without a gearbox. It is an example of a design idea, not proof that ACE uses that patented design. Compare the claims and drawings with ACE's own turbine documentation before drawing that conclusion.",
+      source: { label: "Patent US7109600B1", url: "https://patents.google.com/patent/US7109600B1/en" },
     },
     {
       q: "How is the open data licensed?",
@@ -278,6 +288,7 @@ export default function AskDemo({ data, audience = "students", skin, side = "lef
                       </span>
                     )}
                   </div>
+                  {item.source && step === "answer" && <a className="pointer-events-auto self-start rounded-full bg-white/85 px-[1.2vmin] py-[0.5vmin] text-[clamp(10px,1.1vmin,20px)] font-medium text-moss-900 underline" href={item.source.url} target="_blank" rel="noopener noreferrer">Source: {item.source.label}</a>}
                 </div>
               </div>
             )}

@@ -26,7 +26,7 @@ export function fuse(lists, limit) {
 
 /**
  * The best passages for `query`.
- * @returns {Promise<Array<{ title: string, author: string|null, pages: string, content: string, score: number }>>}
+ * @returns {Promise<Array<{ title: string, author: string|null, pages: string, sourceUrl: string|null, sourceType: string|null, content: string, score: number }>>}
  */
 export async function searchKnowledge(query, { limit = 6 } = {}) {
   const text = String(query).trim().slice(0, 500);
@@ -45,6 +45,8 @@ export async function searchKnowledge(query, { limit = 6 } = {}) {
   return fuse(lists, limit).map((row) => ({
     title: row.title,
     author: row.author,
+    sourceUrl: row.source_url,
+    sourceType: row.source_type,
     pages: row.page_start === row.page_end ? `p. ${row.page_start}` : `pp. ${row.page_start}-${row.page_end}`,
     content: row.content,
     score: row.score,

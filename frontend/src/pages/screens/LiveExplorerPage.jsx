@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import ExplorerCanvas from "../../components/three/ExplorerCanvas.jsx";
 import SiteCesiumViewer from "../../components/cesium/SiteCesiumViewer.jsx";
 import Icon from "../../components/ui/Icon.jsx";
+import { Link } from "react-router";
 import { EXPLORER_PARTS, OUTSIDE_PARTS, TOWER_PARTS, NACELLE_PARTS } from "../../content/explorerParts.js";
 import ExplorerPartCard from "./components/ExplorerPartCard.jsx";
 import "./liveExplorer.css";
@@ -92,6 +93,7 @@ export default function LiveExplorerPage() {
       </div>
       {inside && <div className="live-explorer-stage is-interior"><ExplorerCanvas sceneRef={sceneRef} onPick={onPick} onViewChange={onViewChange} onReady={interiorReady} /></div>}
       <>
+        <Link to="/" className="explorer-home explorer-glass">← Home</Link>
         <div className="explorer-location explorer-glass"><span className="explorer-location-dot" />{inside ? view.location === "tower" ? "Inside the tower" : "Inside the nacelle" : "ACE · Lawrence Weston"}<span className="explorer-location-note">{inside ? "Illustrated interior" : "Real-world 3D site"}</span></div>
         <div className="explorer-tools explorer-glass" aria-label="View controls">
           <button className="explorer-icon-button" type="button" title="Zoom in" aria-label="Zoom in" onClick={() => inside ? sceneRef.current?.explorer?.zoom(.8) : mapControllerRef.current?.zoom(.8)}>+</button>

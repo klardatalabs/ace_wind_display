@@ -77,8 +77,8 @@ export default function TurbineCanvas({ poster, theme = "realistic", sceneRef, i
         if (cancelled) return;
         setLabels(scene.getLabels());
         scene.bindLabels(labelRefs.current);
-      });
-    });
+      }).catch(() => { if (!cancelled) setStatus("error"); });
+    }).catch(() => { if (!cancelled) setStatus("error"); });
     return () => {
       cancelled = true;
       scene?.dispose();

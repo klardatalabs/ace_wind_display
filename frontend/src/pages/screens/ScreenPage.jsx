@@ -198,18 +198,16 @@ function Hoarding({ screen }) {
   const Transition = TRANSITIONS[screen.key];
   // Chapters told over the real-world view ("Right now", and college's "A day here").
   const liveChapters = useMemo(() => screen.chapters.flatMap((c, i) => (c.live ? [i] : [])), [screen.chapters]);
-  // Load the real-world view a little after start, and let it render (warming its tiles)
-  // through the chapter before each of its own, so it's ready the moment they begin.
+  // Load the large real-world view when the story reaches the preceding chapter.
+  // It can warm its tiles there without slowing the first screen render.
   const [liveMounted, setLiveMounted] = useState(false);
   const [liveReady, setLiveReady] = useState(false);
-  useEffect(() => {
-    if (!liveChapters.length) return undefined;
-    const id = setTimeout(() => setLiveMounted(true), 2500);
-    return () => clearTimeout(id);
-  }, [liveChapters]);
-  const showLive = chapter.live && liveReady && !walking;
   const n = screen.chapters.length;
   const liveActive = liveChapters.some((i) => story.index === i || story.index === (i - 1 + n) % n);
+  useEffect(() => {
+    if (liveActive) setLiveMounted(true);
+  }, [liveActive]);
+  const showLive = chapter.live && liveReady && !walking;
   // A day told over the real place: its clock follows the time-lapse.
   const elapsedS = story.progress * chapter.seconds;
   const liveHour = chapter.day && chapter.live ? Math.round(lapseHour(elapsedS) * 20) / 20 : null;
@@ -278,8 +276,8 @@ function Hoarding({ screen }) {
         <span className="absolute -top-[0.6vmin] -left-[0.6vmin] block size-[1.2vmin] rounded-full bg-white shadow-[0_0_14px_rgb(255_255_255/0.9)]" />
       </div>
 
-      <ScreenTopBar skin={skin} screenName={screen.name} />
-      <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20">
+      <ScreenTopBar skin={skin} screenName={screen.name} screenKey={screen.key} />
+      <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20 portrait:top-[118px]">
         <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={cardSkin} />
       </div>
       <RemoteToast event={toast} skin={cardSkin} />

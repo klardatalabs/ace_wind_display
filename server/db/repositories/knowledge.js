@@ -37,6 +37,11 @@ export async function findDocumentBySha256(sha256) {
   return row ?? null;
 }
 
+export async function updateDocumentSource(id, { sourceUrl, sourceType, rightsNote }) {
+  if (!sourceUrl) return;
+  await db.update(document).set({ sourceUrl, sourceType, rightsNote }).where(eq(document.documentId, id));
+}
+
 /** Stores a document with all its passages and their embeddings, atomically. */
 export async function insertDocument({ doc, passages, modelId }) {
   return db.transaction(async (tx) => {
@@ -58,7 +63,7 @@ export async function insertDocument({ doc, passages, modelId }) {
 export async function listDocuments() {
   return db
     .select({
-      id: document.documentId, title: document.title, author: document.author, fileName: document.fileName,
+      id: document.documentId, title: document.title, author: document.author, fileName: document.fileName, sourceUrl: document.sourceUrl, sourceType: document.sourceType,
       pageCount: document.pageCount, addedAt: document.addedAt, passages: sql`count(${chunk.chunkId})`.mapWith(Number),
     })
     .from(document)
@@ -72,7 +77,7 @@ export async function deleteDocument(documentId) {
   return result.rowCount;
 }
 
-const PASSAGE_COLUMNS = `c.chunk_id, c.position, c.page_start, c.page_end, c.content, d.document_id, d.title, d.author`;
+const PASSAGE_COLUMNS = `c.chunk_id, c.position, c.page_start, c.page_end, c.content, d.document_id, d.title, d.author, d.source_url, d.source_type`;
 
 /** Nearest passages by cosine distance for one embedding model. */
 export async function searchByVector({ modelId, dimensions, embedding, limit }) {

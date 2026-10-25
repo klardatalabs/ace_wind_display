@@ -13,6 +13,9 @@
   box-shadow: 0 12px 36px rgb(4 14 22 / 16%), inset 0 1px 0 rgb(255 255 255 / 6%);
   backdrop-filter: blur(22px) saturate(120%); -webkit-backdrop-filter: blur(22px) saturate(120%);
 }
+.explorer-home { position: absolute; top: 4.5rem; left: 1.25rem; z-index: 5; display: flex; align-items: center; min-height: 2.75rem; padding: .5rem 1rem; border-radius: 2rem; font-size: .75rem; font-weight: 600; }
+.explorer-home:hover { background: rgb(255 255 255 / 16%); }
+.explorer-home:focus-visible { outline: 2px solid #d5e8f6; outline-offset: 3px; }
 .explorer-location { position: absolute; top: 1.25rem; left: 1.25rem; display: flex; align-items: center; gap: .5rem; padding: .75rem 1rem; border-radius: 2rem; font-size: .75rem; }
 .explorer-location-dot { width: .375rem; height: .375rem; border-radius: 50%; background: #dceaf4; }
 .explorer-location-note { margin-left: .25rem; padding-left: .75rem; border-left: 1px solid rgb(255 255 255 / 20%); font-size: .625rem; color: #bbd0de; }
@@ -77,6 +80,7 @@
   .has-part .explorer-interior-controls { width: 14rem; }
 }
 @media (max-width: 680px) {
+  .explorer-home { top: 4.5rem; left: .75rem; }
   .live-explorer-screen { min-height: 100dvh; }
   .live-explorer-screen.has-part .live-explorer-stage.is-interior { right: 0; bottom: 42%; }
   .explorer-location { top: .75rem; left: .75rem; max-width: calc(100% - 5.25rem); font-size: .6875rem; padding: .625rem .75rem; }
