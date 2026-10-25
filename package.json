@@ -8,6 +8,7 @@
     "setup": "npm install && npm --prefix frontend install",
     "dev": "node --watch server/bin/dev.js",
     "dev:web": "npm --prefix frontend run dev",
+    "preview:api": "node scripts/preview-api.mjs",
     "build": "npm --prefix frontend run build",
     "start": "node server/bin/dev.js",
     "start:api": "node server/bin/api.js",

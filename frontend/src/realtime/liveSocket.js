@@ -8,6 +8,21 @@ let socket = null;
 let retry = 0;
 let subscribedScreen = null;
 const commandListeners = new Set();
+let pollTimer = null;
+
+async function pollLiveState() {
+  try {
+    const response = await fetch("/api/state");
+    if (response.ok) {
+      const state = await response.json();
+      if (socket?.readyState !== WebSocket.OPEN || !useLiveStore.getState().state) {
+        useLiveStore.getState().setState(state);
+      }
+    }
+  } catch {
+    // The next poll or WebSocket message can restore live readings.
+  }
+}
 
 function wsUrl() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -22,6 +37,8 @@ function connect() {
   socket.addEventListener("open", () => {
     retry = 0;
     setSocketStatus("open");
+    clearInterval(pollTimer);
+    pollTimer = null;
     if (subscribedScreen) socket.send(JSON.stringify({ type: "screen.subscribe", screen: subscribedScreen }));
   });
 
@@ -39,6 +56,8 @@ function connect() {
 
   socket.addEventListener("close", () => {
     setSocketStatus("closed");
+    if (!pollTimer) pollTimer = setInterval(pollLiveState, 15_000);
+    pollLiveState();
     // Exponential backoff capped at 15 s — kiosks must recover on their own.
     const delay = Math.min(15_000, 500 * 2 ** retry++);
     setTimeout(connect, delay);
@@ -48,10 +67,7 @@ function connect() {
 export function startLiveSocket() {
   if (!socket) connect();
   // Seed state over HTTP so the first paint has numbers even before the socket opens.
-  fetch("/api/state")
-    .then((r) => (r.ok ? r.json() : null))
-    .then((s) => s && !useLiveStore.getState().state && useLiveStore.getState().setState(s))
-    .catch(() => {});
+  pollLiveState();
   fetch("/api/environment")
     .then((r) => (r.ok ? r.json() : null))
     .then((e) => e && !useEnvironmentStore.getState().environment && useEnvironmentStore.getState().setEnvironment(e))

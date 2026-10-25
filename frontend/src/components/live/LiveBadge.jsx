@@ -1,6 +1,6 @@
 // Small "LIVE · 1.24 MW" pill with a pulsing dot. Says DEMO when the server is simulating.
 
-import { useLive,useLiveStore } from "../../store/useLiveStore.js";
+import { useLive } from "../../store/useLiveStore.js";
 import {useEffect,useState} from 'react';
 import { formatPower } from "../../lib/format.js";
 
@@ -13,10 +13,9 @@ function ageOf(iso) {
 
 export default function LiveBadge({ className = "", tone = "light" }) {
   const { ready, mode, connected, liveAt, powerKw } = useLive();
-  const socketStatus=useLiveStore(s=>s.socketStatus);
   const [clock,setClock]=useState(Date.now);
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),10000);return()=>clearInterval(id);},[]);
-  const fresh=connected && socketStatus==='open' && liveAt && clock-Date.parse(liveAt)<=30000;
+  const fresh=connected && liveAt && clock-Date.parse(liveAt)<=30000;
   const p = formatPower(powerKw);
   const label = mode === "simulate" ? "DEMO" : fresh ? "LIVE" : liveAt ? `LAST KNOWN · ${ageOf(liveAt)}` : "SAMPLE DATA";
   const dark = tone === "dark";
