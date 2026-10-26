@@ -9,7 +9,6 @@ const DevelopersPage = lazy(() => import("./pages/developers/DevelopersPage.jsx"
 const ScreenPage = lazy(() => import("./pages/screens/ScreenPage.jsx"));
 const AskPage = lazy(() => import("./pages/ask/AskPage.jsx"));
 const LiveExplorerPage = lazy(() => import("./pages/screens/LiveExplorerPage.jsx"));
-const NewsPage = lazy(() => import("./pages/screens/NewsPage.jsx"));
 const SeasonsPage = lazy(() => import("./pages/screens/SeasonsPage.jsx"));
 
 const lazyPage = (Page) => (
@@ -30,7 +29,7 @@ export const router = createBrowserRouter([
   // Kiosk + phone experiences have no site chrome.
   { path: "/site", element: <Navigate to="/screen/live" replace /> },
   { path: "/screen/live", element: lazyPage(LiveExplorerPage) },
-  { path: "/screen/college/news", element: lazyPage(NewsPage) },
+  { path: "/screen/college/news", element: <Navigate to="/screen/community" replace /> },
   { path: "/screen/college/seasons", element: lazyPage(SeasonsPage) },
   { path: "/screen/:screen", element: lazyPage(ScreenPage) },
   { path: "/ask/:screen?", element: lazyPage(AskPage) },

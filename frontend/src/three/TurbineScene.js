@@ -832,6 +832,11 @@ export class TurbineScene {
       const card = el.firstElementChild?.firstElementChild;
       if (card) this.tagSizes.set(id, { w: card.offsetWidth, h: card.offsetHeight });
     }
+    this.labelSizes = new Map();
+    for (const [id, el] of this.labelEls) {
+      const card = el.firstElementChild?.firstElementChild;
+      if (card) this.labelSizes.set(id, { w: card.offsetWidth, h: card.offsetHeight });
+    }
     this.keepouts = [...document.querySelectorAll("[data-keepout]")]
       .map((node) => node.getBoundingClientRect())
       .filter((r) => r.width > 0 && r.height > 0)
@@ -840,8 +845,6 @@ export class TurbineScene {
 
   #updateTags() {
     if (!this.tagEls.size || !this.size) return;
-    this.tagFrame = (this.tagFrame ?? 0) + 1;
-    if (this.tagFrame % 10 === 1 || !this.tagSizes) this.#measureTagLayout();
     const v = new THREE.Vector3();
     const shown = new Set();
     // Cards hang above their anchor point. One that would cover the story's text or another
@@ -912,13 +915,18 @@ export class TurbineScene {
       const dist = v.distanceTo(this.camera.position);
       v.project(this.camera);
       const visible = fade > 0.01 && v.z < 1 && Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.9 && dist < 75;
-      candidates.push({ el, dist, visible, x: (v.x * 0.5 + 0.5) * this.size.w, y: (-v.y * 0.5 + 0.5) * this.size.h });
+      candidates.push({ id: label.id, el, dist, visible, x: (v.x * 0.5 + 0.5) * this.size.w, y: (-v.y * 0.5 + 0.5) * this.size.h });
     }
     candidates.sort((a, b) => a.dist - b.dist);
     const placed = [];
     const minGap = Math.max(120, this.size.w * 0.09);
     for (const c of candidates) {
-      const clear = c.visible && placed.every((p) => Math.abs(p.x - c.x) > minGap * 1.6 || Math.abs(p.y - c.y) > minGap * 0.6);
+      const size = this.labelSizes?.get(c.id);
+      const box = size && { x: c.x - size.w / 2, y: c.y - size.h, w: size.w, h: size.h };
+      const overlapsNews = box && this.keepouts?.some((r) =>
+        box.x < r.x + r.w + 8 && r.x < box.x + box.w + 8 && box.y < r.y + r.h + 8 && r.y < box.y + box.h + 8
+      );
+      const clear = c.visible && !overlapsNews && placed.every((p) => Math.abs(p.x - c.x) > minGap * 1.6 || Math.abs(p.y - c.y) > minGap * 0.6);
       c.el.style.opacity = clear ? fade.toFixed(3) : "0";
       c.el.style.visibility = clear ? "visible" : "hidden";
       if (clear) {
@@ -1048,6 +1056,8 @@ export class TurbineScene {
       this.camera.updateProjectionMatrix();
     }
     this.sky.position.copy(this.camera.position);
+    this.layoutFrame = (this.layoutFrame ?? 0) + 1;
+    if (this.layoutFrame % 10 === 1 || !this.tagSizes) this.#measureTagLayout();
     this.#updateLabels();
     this.#updateTags();
     if (this.warming) return;

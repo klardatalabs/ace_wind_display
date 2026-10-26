@@ -20,6 +20,7 @@ import { useGeneratedStories } from "./useGeneratedStories.js";
 import { resolveChapter, tourChapter } from "../../content/storyCopy.js";
 import { SKINS, cardSkinOf } from "./components/skins.js";
 import ScreenTopBar from "./components/ScreenTopBar.jsx";
+import CommunityNews from "./components/CommunityNews.jsx";
 import CinematicCaption from "./components/CinematicCaption.jsx";
 import DataTags from "./components/DataTags.jsx";
 import WeatherChip from "./components/WeatherChip.jsx";
@@ -277,6 +278,7 @@ function Hoarding({ screen }) {
       </div>
 
       <ScreenTopBar skin={skin} screenName={screen.name} screenKey={screen.key} />
+      {screen.key === "community" && <CommunityNews />}
       <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20 portrait:top-[118px]">
         <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={cardSkin} />
       </div>

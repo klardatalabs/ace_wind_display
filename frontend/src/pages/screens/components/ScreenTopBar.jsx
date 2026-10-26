@@ -106,7 +106,6 @@ export default function ScreenTopBar({ skin, screenName, screenKey }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-[1vmin]">
-        {screenKey === "college" && <Link to="/screen/college/news" onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }} className="pointer-events-auto rounded-full bg-moss-800 px-4 py-2 text-sm font-bold text-white shadow-lg ring-1 ring-white/60 transition hover:bg-moss-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss-300">Latest news →</Link>}
         {screenKey === "college" && <Link to="/screen/college/seasons" onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }} className="pointer-events-auto rounded-full bg-white px-4 py-2 text-sm font-bold text-moss-900 shadow-lg ring-1 ring-moss-500/40 transition hover:bg-moss-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss-300">Seasonal wind →</Link>}
         <Link to="/" onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }} className={`pointer-events-auto rounded-full px-[1.4vmin] py-[0.6vmin] text-[clamp(12px,1.3vmin,24px)] ring-1 ${skin.dark ? "bg-white/10 text-white ring-white/25" : "bg-white/70 text-moss-900 ring-moss-200"}`}>Home</Link>
         <LiveBadge tone={skin.dark ? "dark" : "light"} className="px-[1.4vmin]! py-[0.6vmin]! text-[clamp(11px,1.3vmin,24px)]!" />
