@@ -23,6 +23,7 @@ import { healthRoutes } from "./routes/health.js";
 import { storyRoutes } from "./routes/stories.js";
 import { gridRoutes } from "./routes/grid.js";
 import { newsRoutes } from "./routes/news.js";
+import { researchRoutes } from "./routes/research.js";
 
 const log = logger("api.http");
 const FRONTEND = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "frontend", "dist");
@@ -74,6 +75,7 @@ export function createApp() {
   app.use("/api/stories", storyRoutes);
   app.use("/api/grid", gridRoutes);
   app.use("/api/news", newsRoutes);
+  app.use("/api/research", researchRoutes);
   app.use("/api", () => {
     throw notFound();
   });

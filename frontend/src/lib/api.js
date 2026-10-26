@@ -34,6 +34,7 @@ export const api = {
   daily: (limit = 30) => request(`/api/history/daily?limit=${limit}`),
   seasons: (signal) => request("/api/history/seasons", { signal }),
   news: (signal) => request("/api/news", { signal }),
+  researchLibrary: (signal) => request("/api/research/library", { signal }),
 
   // Open data
   datasets: () => request("/api/datasets"),
@@ -69,6 +70,7 @@ export const ENDPOINTS = [
   { group: "History", method: "GET", path: "/api/history/power-curve", about: "Measured power curve binned by wind speed, with the theoretical curve alongside.", tryIt: true },
   { group: "History", method: "GET", path: "/api/history/seasons", about: "Four complete UK meteorological seasons from stored turbine measurements, with coverage and nacelle-direction proxy.", tryIt: true },
   { group: "News", method: "GET", path: "/api/news", about: "Automatically selected clean-energy headlines with publisher, date, link and freshness.", tryIt: true },
+  { group: "Ask Ace", method: "GET", path: "/api/research/library", about: "Public research shelf, with links and whether each source is loaded for chat answers.", tryIt: true },
   { group: "History", method: "GET", path: "/api/history/health", about: "Stored coverage, freshness and maintenance outcomes.", tryIt: true },
   { group: "History", method: "GET", path: "/api/history/export?format=csv", about: "Stream the combined maintained history as CSV, with units, quality and provenance." },
   { group: "Open data", method: "GET", path: "/api/datasets", about: "The open datasets (CC BY 4.0), the dates each covers, and the Zenodo archive.", tryIt: true },

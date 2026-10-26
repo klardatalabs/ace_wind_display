@@ -26,6 +26,8 @@ Target: Wednesday, 28 October 2026. Monday, 26 October is the decision review.
 - [ ] Review and add university-level wind papers, books/chapters, and patent documents to the source manifest.
 - [ ] Ingest reviewed sources into staging; inspect text and citation metadata.
 - [ ] Add source-backed College what-if, wake, and generator examples; evaluate answers against the populated corpus.
+- [x] Add the sliding Ask Ace research library with bookshelf, paper and patent files, and source links.
+- [ ] Verify library animation, mobile layout, keyboard controls, and source-readiness labels against the populated database.
 - [ ] Measure four-season coverage and direction availability from the actual site history.
 - [ ] Put a compact four-season comparison on the College screen, with the existing detailed view linked from the website.
 - [x] Delay the heavy real-world viewer until its preceding chapter and fix the invalid rain graphic.

@@ -110,3 +110,7 @@ The Community screen already has an in-screen rotating news card. The feed now r
 4. Check season boundaries, gaps, query time, and readability at kiosk and mobile sizes; compare aggregate totals with direct database queries before the Wednesday release gate.
 
 The remaining RAG ingestion and seasonal-data checks require access to the intended database and actual site history. Code and local previews alone cannot establish that those production views are ready.
+
+### Research library drawer
+
+The Ask Ace phone chat has a top-left Library button. It opens a sliding drawer with animated book volumes, research files, and patent files. The public catalogue combines the reviewed ingestion shortlist with further-reading links; it labels a source "Searchable in chat" only when the knowledge database reports extracted passages. Additional books and papers should enter the reviewed source list as the RAG corpus grows. Verify the drawer on a phone, test keyboard Escape/close and reduced-motion behavior, and compare its readiness labels with the populated database before release.

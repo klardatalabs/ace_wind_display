@@ -2,6 +2,7 @@
 // It fetches public turbine readings and the same curated news used in production.
 import { createServer } from "node:http";
 import { fetchLatestNews } from "../server/news/feed.js";
+import { buildLibrary } from "../server/knowledge/library.js";
 
 const PORT = 4100;
 const LIVE_ORIGIN = "https://ace.klardatalabs.com";
@@ -27,6 +28,7 @@ async function refreshNews() {
 createServer(async (req, res) => {
   const path = new URL(req.url, "http://127.0.0.1").pathname;
   if (req.method !== "GET") return send(res, 405, { error: "Preview is read-only" });
+  if (path === "/api/research/library") return send(res, 200, buildLibrary([], "unavailable"));
   if (path === "/api/news") {
     await refreshNews();
     return send(res, 200, news);

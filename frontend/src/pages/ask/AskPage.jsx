@@ -1,12 +1,13 @@
 // "Ask Ace" — the phone chat opened from a hoarding's QR code (/ask/:screen).
 // No login: each browser tab gets its own private, server-signed session.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router";
 import { useChatSession } from "./useChatSession.js";
 import { ASK } from "../../content/ask.js";
 import { SCREENS } from "../../content/screens.js";
 import ChatHeader from "./components/ChatHeader.jsx";
+import ResearchLibrary from "./components/ResearchLibrary.jsx";
 import MessageBubble from "./components/MessageBubble.jsx";
 import Composer from "./components/Composer.jsx";
 import SuggestionChips from "./components/SuggestionChips.jsx";
@@ -27,6 +28,8 @@ function Chat({ screen }) {
   const [params, setParams] = useSearchParams();
   const asked = useRef(false);
   const bottom = useRef(null);
+  const libraryButton = useRef(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const streaming = status === "streaming";
 
   useEffect(() => {
@@ -55,7 +58,8 @@ function Chat({ screen }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-gradient-to-b from-moss-25 to-moss-50">
-      <ChatHeader title={copy.title} screenName={screenName} screen={screen} onReset={reset} canReset={messages.length > 0} />
+      <ChatHeader title={copy.title} screenName={screenName} screen={screen} onReset={reset} canReset={messages.length > 0} onLibrary={() => setLibraryOpen(true)} libraryButtonRef={libraryButton} />
+      <ResearchLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} triggerRef={libraryButton} />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pt-5 pb-4 md:gap-5 md:px-6 md:pt-8" aria-live="polite">
         <div className="flex items-end gap-2">
