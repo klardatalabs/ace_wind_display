@@ -9,7 +9,7 @@ newsRoutes.get("/", async (_req, res) => {
   let news;
   try { news = raw ? JSON.parse(raw) : null; } catch { news = null; }
   const updatedAt = news?.updatedAt ?? null;
-  res.set("Cache-Control", "public, max-age=300").json({
+  res.set("Cache-Control", "public, max-age=60").json({
     updatedAt,
     stale: !updatedAt || Date.now() - Date.parse(updatedAt) > 6 * 3600_000,
     items: Array.isArray(news?.items) ? news.items : [],

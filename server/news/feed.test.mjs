@@ -8,11 +8,26 @@ const xml = `<?xml version="1.0"?><rss><channel>
   <item><title>Gasoline prices change this week</title><link>https://www.eia.gov/b</link><pubDate>Sat, 24 Oct 2026 12:00:00 GMT</pubDate></item>
   <item><title>Wind project</title><link>https://example.com/other</link><pubDate>Sat, 24 Oct 2026 12:00:00 GMT</pubDate></item>
 </channel></rss>`;
+const atom = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom">
+  <entry><title>Community energy projects expand</title><summary type="html">Clean power for homes</summary>
+    <link rel="alternate" href="https://www.gov.uk/government/news/community-energy" />
+    <updated>2026-10-24T12:00:00Z</updated></entry>
+  <entry><title>New gas field approved</title><summary>Renewable energy also mentioned</summary>
+    <link rel="alternate" href="https://www.gov.uk/government/news/gas-field" />
+    <updated>2026-10-24T12:00:00Z</updated></entry>
+</feed>`;
 
 test("RSS selection keeps recent clean-energy items from their publisher", () => {
   const items = selectNews(parseFeed(xml, source), new Date("2026-10-25T12:00:00Z"));
   assert.deepEqual(items.map(({ title, url }) => [title, url]), [
     ["Wind turbines supply clean electricity to data centres", "https://www.eia.gov/a"],
+  ]);
+});
+
+test("Atom selection uses original links and excludes fossil-fuel headlines", () => {
+  const items = selectNews(parseFeed(atom, { name: "UK energy department", host: "gov.uk" }), new Date("2026-10-25T12:00:00Z"));
+  assert.deepEqual(items.map(({ title, url }) => [title, url]), [
+    ["Community energy projects expand", "https://www.gov.uk/government/news/community-energy"],
   ]);
 });
 

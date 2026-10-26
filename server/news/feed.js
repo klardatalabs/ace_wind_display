@@ -2,23 +2,32 @@ import { XMLParser } from "fast-xml-parser";
 
 const MAX_BYTES = 2_000_000;
 const AGE_MS = 90 * 86400_000;
-const XML = new XMLParser({ ignoreAttributes: true, trimValues: true });
+const XML = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", trimValues: true });
 const SOURCES = [
   { name: "U.S. Energy Information Administration", host: "eia.gov", url: "https://www.eia.gov/rss/todayinenergy.xml", encoding: "iso-8859-1" },
   { name: "U.S. Department of Energy", host: "energy.gov", url: "https://www.energy.gov/rss/energygov/2193718", encoding: "utf-8" },
+  { name: "UK Department for Energy Security and Net Zero", host: "gov.uk", url: "https://www.gov.uk/search/news-and-communications.atom?organisations%5B%5D=department-for-energy-security-and-net-zero", encoding: "utf-8" },
+  { name: "Carbon Brief", host: "carbonbrief.org", url: "https://www.carbonbrief.org/feed/", encoding: "utf-8" },
 ];
-const TOPIC = /\b(wind|turbines?|offshore|renewables?|solar|clean energy|green energy|low.carbon|carbon.free|battery storage|energy storage|geothermal|tidal|wave energy)\b/i;
+const TOPIC = /\b(wind|turbines?|offshore|renewables?|solar|clean energy|clean power|green energy|low.carbon|carbon.free|battery storage|energy storage|geothermal|tidal|wave energy|heat networks?|heat pumps?|fusion|grid connections?|electricity grid|energy transition|community energy)\b/i;
 const AI_ENERGY = /\b(?:AI|artificial intelligence|data cent(?:re|er)s?)\b/i;
 const CLEAN_POWER = /\b(?:renewables?|clean|low.carbon|carbon.free|wind|solar|nuclear)\b/i;
+const FOSSIL_TITLE = /\b(?:gas field|heating oil|oil and gas|petrol|diesel|coal|fossil fuel)\b/i;
+
+const valueOf = (value) => String(value?.["#text"] ?? value ?? "").trim();
+const validDate = (value) => Number.isFinite(Date.parse(value ?? "")) ? new Date(value).toISOString() : null;
 
 export function parseFeed(xml, source) {
-  const channel = XML.parse(xml)?.rss?.channel;
-  if (!channel) throw new Error(`Invalid RSS feed from ${source.name}`);
-  return (Array.isArray(channel.item) ? channel.item : channel.item ? [channel.item] : []).map((item) => ({
-    title: String(item.title ?? "").trim().slice(0, 240),
-    description: String(item.description ?? "").replace(/<[^>]*>/g, " ").slice(0, 600),
-    url: String(item.link ?? "").trim(),
-    publishedAt: Number.isFinite(Date.parse(item.pubDate ?? "")) ? new Date(item.pubDate).toISOString() : null,
+  const document = XML.parse(xml);
+  const channel = document?.rss?.channel;
+  const atom = document?.feed;
+  if (!channel && !atom) throw new Error(`Invalid news feed from ${source.name}`);
+  const entries = channel?.item ?? atom?.entry ?? [];
+  return (Array.isArray(entries) ? entries : [entries]).map((item) => ({
+    title: valueOf(item.title).slice(0, 240),
+    description: valueOf(item.description ?? item.summary).replace(/<[^>]*>/g, " ").slice(0, 600),
+    url: valueOf(item.link?.href ?? (Array.isArray(item.link) ? item.link.find((link) => link.rel === "alternate")?.href : item.link)),
+    publishedAt: validDate(item.pubDate ?? item.published ?? item.updated),
     publisher: source.name,
     host: source.host,
   }));
@@ -33,7 +42,7 @@ export function selectNews(items, now = new Date()) {
     const text = `${item.title} ${item.description}`;
     if (!item.title || url.protocol !== "https:" || !(url.hostname === item.host || url.hostname.endsWith(`.${item.host}`))) return false;
     if (!Number.isFinite(+date) || +date > +now + 86400_000 || +now - +date > AGE_MS) return false;
-    if (!TOPIC.test(text) && !(AI_ENERGY.test(text) && CLEAN_POWER.test(text))) return false;
+    if (FOSSIL_TITLE.test(item.title) || (!TOPIC.test(text) && !(AI_ENERGY.test(text) && CLEAN_POWER.test(text)))) return false;
     if (seen.has(url.href)) return false;
     seen.add(url.href);
     return true;

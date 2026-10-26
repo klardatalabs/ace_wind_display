@@ -90,3 +90,23 @@
 - Retrieval evaluation, with a populated knowledge database: `npm run knowledge:eval`
 
 No reboot of the shared server is part of this plan.
+
+## Monday update: news expansion and remaining research work
+
+The Community screen already has an in-screen rotating news card. The feed now reads four publishers (EIA, U.S. DOE, UK DESNZ, and Carbon Brief) and selects up to eight recent, relevant stories. The server will check publishers every 15 minutes and the card will check the app API every minute. This is a live, automatically refreshed feed, but a new headline appears only when a publisher releases a qualifying story. Verify the expanded card in the local preview and again after deployment.
+
+### Research chat: next implementation slices
+
+1. **Curate the corpus.** Check the five existing source records and add a focused set of university-level material on wind resource assessment, turbine aerodynamics, wake/spacing effects, generators and control, grid integration, and storage. Include original papers, openly available books/chapters, and published patent specifications. Record author, date, DOI/patent number, original URL, and reuse terms. Mark patent claims as descriptions of inventions, never proof of what the ACE turbine contains.
+2. **Load and cite it.** Run the existing curated ingestion into a staging knowledge database, inspect extracted text and page boundaries, then add reviewed sources in small batches. Keep downloaded documents out of Git. Show title, author/publisher, year, page or section, and original link with each chat answer. Say when retrieval finds no reliable passage.
+3. **Make the College example useful.** Put source-backed example questions in the College chat mockup: e.g. "What changes if average wind speed rises 10%?", "How do turbine wakes affect spacing?", and "How does a direct-drive generator compare with a geared design?" Label scenario inputs and calculated outcomes; keep observed ACE values separate from hypothetical results.
+4. **Evaluate before release.** Run research/patent question sets against the populated staging corpus. Check source relevance, citation accuracy, no-source behavior, and that patent text is not presented as site-specific fact. Include at least one what-if question with independently checked arithmetic.
+
+### Four-season wind comparison: next implementation slices
+
+1. Query the production data *read-only* for each season's date range, ten-minute sample coverage, speed range, and direction availability. Use UK meteorological seasons: winter Dec–Feb, spring Mar–May, summer Jun–Aug, autumn Sep–Nov. Choose the latest complete four-season year only if data coverage supports it.
+2. Keep the existing seasonal API and deeper College-linked view, then add a compact four-season comparison on the College screen itself; the website link opens the detailed comparison. Show all four seasons together, with a consistent speed scale, directional distribution, and visible coverage/date labels.
+3. Use measured wind direction if the historical source actually provides it. Otherwise label nacelle heading as a direction proxy. If a season lacks sufficient observations, show "insufficient data" instead of an inferred pattern.
+4. Check season boundaries, gaps, query time, and readability at kiosk and mobile sizes; compare aggregate totals with direct database queries before the Wednesday release gate.
+
+The remaining RAG ingestion and seasonal-data checks require access to the intended database and actual site history. Code and local previews alone cannot establish that those production views are ready.

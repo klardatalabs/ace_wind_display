@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../../lib/api.js";
 
 const CHANGE_MS = 12_000;
-const REFRESH_MS = 5 * 60_000;
+const REFRESH_MS = 60_000;
 
 export default function CommunityNews() {
   const [news, setNews] = useState({ items: [], stale: true });

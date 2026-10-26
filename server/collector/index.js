@@ -38,7 +38,7 @@ async function startJobs() {
     every("retention", 24 * 3_600_000, applyRetention, { initialDelayMs: 120_000 }),
     // Fresh words for the screens' stories: a few model calls an hour, whatever the traffic.
     every("stories", 45 * 60_000, writeStories, { initialDelayMs: 30_000, maxBackoffMs: 3 * 3_600_000 }),
-    every("news", 60 * 60_000, refreshNews, { initialDelayMs: 20_000, maxBackoffMs: 3 * 3_600_000 }),
+    every("news", 15 * 60_000, refreshNews, { initialDelayMs: 20_000, maxBackoffMs: 60 * 60_000 }),
     ...(weatherEnabled() ? [every("weather", config.weather.refreshMs, refreshWeather, { maxBackoffMs: 30 * 60_000 })] : []),
   ];
   log.info("collector jobs started", { jobs: stopJobs.length });

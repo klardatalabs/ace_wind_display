@@ -16,7 +16,7 @@ function send(res, status, body) {
 
 async function refreshNews() {
   if (Date.now() < nextNewsRefresh) return;
-  nextNewsRefresh = Date.now() + 5 * 60_000;
+  nextNewsRefresh = Date.now() + 15 * 60_000;
   try {
     news = { items: await fetchLatestNews(), updatedAt: new Date().toISOString(), stale: false };
   } catch {
