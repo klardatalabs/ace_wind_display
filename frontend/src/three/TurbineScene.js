@@ -196,6 +196,10 @@ export class TurbineScene {
       this.nacelleLights = interiors.nacelleLights;
       this.walkHatch = buildWalkHatch(nodes);
       this.interiors = interiors;
+      // The opening camera is outside. Keep the dense interior out of its draw calls;
+      // reveal it as soon as a walk, cutaway or X-ray begins.
+      interiors.towerInterior.visible = false;
+      interiors.nacelleInterior.visible = false;
       // Piles and pad under the tower, drawn only in the X-ray.
       this.foundation = buildFoundation();
       this.towerPivot.add(this.foundation);
@@ -231,7 +235,7 @@ export class TurbineScene {
       else if (this.storyTourEnabled) this.tour = new StoryRail(this, interiors, { autoplay: false });
 
       if (this.explorerEnabled) this.explorer = new ExplorerNavigation(this);
-      await this.#compileAll();
+      await this.#compileOpening();
       if (this.disposed) return;
       this.callbacks.onReady?.({});
       // Opening move: drift from the wide establishing shot into the hero framing.
@@ -245,17 +249,30 @@ export class TurbineScene {
     }
   }
 
-  /**
-   * Compiles every material in the scene (hidden interiors too) in parallel, through
-   * KHR_parallel_shader_compile, and only then lets frames draw. The environment map goes
-   * on first, since whether a material has one changes the program it needs.
-   */
-  async #compileAll() {
+  /** Prepare the exterior first; interior shaders can warm after the first frame. */
+  async #compileOpening() {
     if (!this.envMap) this.#applyEnvironment(this.timer.getElapsed());
-    const done = this.renderer.compileAsync(this.scene, this.camera).catch((err) => console.warn("[3d] shader warm-up failed", err));
-    // A driver that never reports back shouldn't keep the scene hidden.
-    await Promise.race([done, new Promise((resolve) => setTimeout(resolve, 20_000))]);
+    // WebGLRenderer.compileAsync traverses hidden objects too. Detach the interior
+    // groups briefly so their materials do not delay the opening view.
+    const deferred = [this.interiors.towerInterior, this.interiors.nacelleInterior, this.foundation];
+    const parents = deferred.map((group) => group.parent);
+    deferred.forEach((group) => group.parent.remove(group));
+    try {
+      const done = this.renderer.compileAsync(this.scene, this.camera).catch((err) => console.warn("[3d] exterior shader warm-up failed", err));
+      // A driver that never reports back shouldn't keep the scene hidden.
+      await Promise.race([done, new Promise((resolve) => setTimeout(resolve, 20_000))]);
+    } finally {
+      deferred.forEach((group, index) => parents[index].add(group));
+    }
     this.warming = false;
+    const warmInterior = async () => {
+      for (const group of deferred) {
+        if (this.disposed) return;
+        await this.renderer.compileAsync(group, this.camera, this.scene).catch((err) => console.warn("[3d] interior shader warm-up failed", err));
+      }
+    };
+    if (window.requestIdleCallback) this.warmIdleId = window.requestIdleCallback(warmInterior, { timeout: 8_000 });
+    else this.warmTimer = setTimeout(warmInterior, 2_000);
   }
 
   async #loadScan() {
@@ -1015,6 +1032,9 @@ export class TurbineScene {
       }
       blinkAviationLight(this.aviationLights, t, this.theme);
       this.lookInside?.updatePlanes();
+      const showInterior = this.interior.f > 0.01 || (this.lookInside?.u ?? 0) > 0.01 || Boolean(this.rig.walk) || this.theme === "xray";
+      this.interiors.towerInterior.visible = showInterior;
+      this.interiors.nacelleInterior.visible = showInterior;
       if (this.rig.walk) this.walkHatch?.(true, this.rig.walk.s > 0.93);
       this.#updateScan(realDt);
       // The scan has the neighbouring turbine in it already, and the X-ray is about this
@@ -1066,6 +1086,8 @@ export class TurbineScene {
 
   dispose() {
     this.disposed = true;
+    if (this.warmIdleId != null) window.cancelIdleCallback?.(this.warmIdleId);
+    clearTimeout(this.warmTimer);
     this.explorer?.dispose();
     this.story?.dispose();
     this.tour?.dispose();

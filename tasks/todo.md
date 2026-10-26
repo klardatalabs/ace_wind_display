@@ -19,7 +19,9 @@ Target: Wednesday, 28 October 2026. Monday, 26 October is the decision review.
 - [ ] Extend retrieval evaluation and run it against the populated database.
 - [x] Add seasonal aggregation and College view with coverage/proxy labels and website link.
 - [x] Add automatically selected, attributed news with filtering, freshness, and fallback states.
+- [x] Put rotating news in the Community screen and remove the separate News page.
 - [x] Delay the heavy real-world viewer until its preceding chapter and fix the invalid rain graphic.
+- [x] Prepare the visible 3D scene before hidden interior shaders; warm interiors after the first view.
 
 ## Wednesday release gate
 

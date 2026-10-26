@@ -61,7 +61,7 @@
 
 - Ingest from a short approved list of reliable original publishers or feeds. Select stories about wind, clean energy, energy for AI/data centres, and credible future applications using explicit relevance rules; reject duplicates, old items, and unsupported claims.
 - Cache and serve title, short original summary, publisher, publication date, source link, and last update time. Refresh on a schedule with rate limits and failure handling; keep the last verified set if feeds fail, visibly marked stale.
-- Add a dedicated News chapter to the College screen and a website entry point. Use the Shanghai story only if its original source, date, and claim are verified. Include "The future is calling" as editorial framing, not an unsupported factual claim.
+- Show one rotating headline at a time in the upper-right of the Community screen, with publisher, date, and a stale/empty state. The website News link opens that screen. Keep the card clear of 3D labels. Use the Shanghai story only if its original source, date, and claim are verified.
 - Test filtering, duplicate handling, bad feed data, source failures, and empty/stale presentation.
 
 **Done when:** the app automatically shows only on-topic, attributed items and remains usable when providers fail.
