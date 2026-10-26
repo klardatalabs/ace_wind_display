@@ -18,7 +18,7 @@ function Book({ item, index, available }) {
   return <li className="library-book" style={{ "--item-index": index }}>
     <a href={item.url} target="_blank" rel="noopener noreferrer" className="group block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss-500">
       <span className="library-book-cover block min-h-36 p-3 text-white transition-transform group-hover:-translate-y-2">
-        <span className="block text-[10px] font-semibold uppercase tracking-widest text-white/65">Book · {item.year}</span>
+        <span className="block text-[10px] font-semibold uppercase tracking-widest text-white/65">Book · {item.year ?? "Online"}</span>
         <span className="mt-5 block font-display text-sm font-semibold leading-tight">{item.title}</span>
         <span className="mt-2 block text-[10px] leading-tight text-white/70">{item.author}</span>
       </span>

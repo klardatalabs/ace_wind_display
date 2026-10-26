@@ -13,7 +13,7 @@
 - Put the four-season wind comparison on the College screen and link to it from the website. Base it on measured history and disclose coverage or proxy measurements.
 - Discuss on Monday; no reminder. The public GitHub destination (personal fork or organisation) will be decided later, before publication.
 
-## Existing foundation and gaps
+## Baseline recorded before this branch's changes
 
 - `frontend/src/pages/screens/ScreenPage.jsx` and `frontend/src/three/TurbineScene.js` drive the kiosk scenes. `ScreenTopBar.jsx` has full-screen control but no home control; `ChatHeader.jsx` has New chat but no close/home control.
 - The College `AskDemo.jsx` is scripted. The phone chat already has document ingestion, hybrid retrieval, and an evaluation script. `knowledgeSearch.js` and the agent currently describe sources as books and do not provide source links in answers.
@@ -61,7 +61,7 @@
 
 - Ingest from a short approved list of reliable original publishers or feeds. Select stories about wind, clean energy, energy for AI/data centres, and credible future applications using explicit relevance rules; reject duplicates, old items, and unsupported claims.
 - Cache and serve title, short original summary, publisher, publication date, source link, and last update time. Refresh on a schedule with rate limits and failure handling; keep the last verified set if feeds fail, visibly marked stale.
-- Show one rotating headline at a time in the upper-right of the Community screen, with publisher, date, and a stale/empty state. The website News link opens that screen. Keep the card clear of 3D labels. Use the Shanghai story only if its original source, date, and claim are verified.
+- Show one rotating headline at a time in the upper-right of the Community and College screens, with publisher, date, and a stale/empty state. Leave the Students screen without news. The website News link opens the Community screen. Keep the card clear of 3D labels. Use the Shanghai story only if its original source, date, and claim are verified.
 - Test filtering, duplicate handling, bad feed data, source failures, and empty/stale presentation.
 
 **Done when:** the app automatically shows only on-topic, attributed items and remains usable when providers fail.
@@ -93,7 +93,7 @@ No reboot of the shared server is part of this plan.
 
 ## Monday update: news expansion and remaining research work
 
-The Community screen already has an in-screen rotating news card. The feed now reads four publishers (EIA, U.S. DOE, UK DESNZ, and Carbon Brief) and selects up to eight recent, relevant stories. The server will check publishers every 15 minutes and the card will check the app API every minute. This is a live, automatically refreshed feed, but a new headline appears only when a publisher releases a qualifying story. Verify the expanded card in the local preview and again after deployment.
+The Community and College screens now have an in-screen rotating news card; Students does not. The feed reads four publishers (EIA, U.S. DOE, UK DESNZ, and Carbon Brief) and selects up to eight recent, relevant stories. The server checks publishers every 15 minutes and the card checks the app API every minute. This is a live, automatically refreshed feed, but a new headline appears only when a publisher releases a qualifying story. Verify both card placements in the local preview and again after deployment.
 
 ### Research chat: next implementation slices
 
@@ -114,3 +114,5 @@ The remaining RAG ingestion and seasonal-data checks require access to the inten
 ### Research library drawer
 
 The Ask Ace phone chat has a top-left Library button. It opens a sliding drawer with animated book volumes, research files, and patent files. The public catalogue combines the reviewed ingestion shortlist with further-reading links; it labels a source "Searchable in chat" only when the knowledge database reports extracted passages. Additional books and papers should enter the reviewed source list as the RAG corpus grows. Verify the drawer on a phone, test keyboard Escape/close and reduced-motion behavior, and compare its readiness labels with the populated database before release.
+
+After review, the broad University Physics title was removed in favour of the U.S. Department of Energy's wind-specific guide. The wind-speed what-if answer now shows its speed-cubed calculation and links to that guide. Keep checking future additions for direct relevance to wind-energy research.

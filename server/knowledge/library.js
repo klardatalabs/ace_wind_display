@@ -3,10 +3,10 @@ import { CURATED_SOURCES } from "./curated.js";
 // Extra references are links for visitors, not documents the chatbot can search yet.
 export const FURTHER_READING = [
   {
-    id: "openstax-university-physics-1", sourceType: "book", title: "University Physics Volume 1",
-    author: "William Moebs, Samuel J. Ling and Jeff Sanny", year: 2016,
-    sourceUrl: "https://openstax.org/books/university-physics-volume-1/pages/1-introduction",
-    topic: "Mechanics, energy and fluid physics",
+    id: "doe-small-wind-guidebook", sourceType: "book", title: "Small Wind Guidebook",
+    author: "U.S. Department of Energy", year: null,
+    sourceUrl: "https://www.energy.gov/cmei/systems/windexchange/small-wind-guidebook",
+    topic: "Wind fundamentals, siting and energy estimates",
   },
   {
     id: "nrel-wind-resource-handbook", sourceType: "book", title: "Wind Resource Assessment Handbook",

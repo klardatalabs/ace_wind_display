@@ -278,7 +278,7 @@ function Hoarding({ screen }) {
       </div>
 
       <ScreenTopBar skin={skin} screenName={screen.name} screenKey={screen.key} />
-      {screen.key === "community" && <CommunityNews />}
+      {screen.key !== "students" && <CommunityNews />}
       <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20 portrait:top-[118px]">
         <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={cardSkin} />
       </div>

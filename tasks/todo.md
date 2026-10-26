@@ -20,6 +20,8 @@ Target: Wednesday, 28 October 2026. Monday, 26 October is the decision review.
 - [x] Add seasonal aggregation and College view with coverage/proxy labels and website link.
 - [x] Add automatically selected, attributed news with filtering, freshness, and fallback states.
 - [x] Put rotating news in the Community screen and remove the separate News page.
+- [x] Show the same rotating news on College; keep Students free of news.
+- [x] Explain the wind-speed what-if arithmetic and replace the general physics book with a wind guide.
 - [x] Expand the live news sources and increase source checks to every 15 minutes.
 - [x] Verify the local preview API serves eight automatically selected stories; visual card review remains pending.
 - [ ] Check the expanded in-screen card visually and again after deployment.
