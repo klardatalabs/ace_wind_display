@@ -235,7 +235,7 @@ export class TurbineScene {
       else if (this.storyTourEnabled) this.tour = new StoryRail(this, interiors, { autoplay: false });
 
       if (this.explorerEnabled) this.explorer = new ExplorerNavigation(this);
-      await this.#compileOpening();
+      await this.#compileAll();
       if (this.disposed) return;
       this.callbacks.onReady?.({});
       // Opening move: drift from the wide establishing shot into the hero framing.
@@ -249,30 +249,21 @@ export class TurbineScene {
     }
   }
 
-  /** Prepare the exterior first; interior shaders can warm after the first frame. */
-  async #compileOpening() {
+  /** Prepare every shader before the story moves into the turbine. */
+  async #compileAll() {
     if (!this.envMap) this.#applyEnvironment(this.timer.getElapsed());
-    // WebGLRenderer.compileAsync traverses hidden objects too. Detach the interior
-    // groups briefly so their materials do not delay the opening view.
-    const deferred = [this.interiors.towerInterior, this.interiors.nacelleInterior, this.foundation];
-    const parents = deferred.map((group) => group.parent);
-    deferred.forEach((group) => group.parent.remove(group));
+    // compileAsync traverses the hidden interior too. Keep it attached so the
+    // first interior chapter cannot trigger a fresh compile in mid-animation.
+    let timeout;
     try {
-      const done = this.renderer.compileAsync(this.scene, this.camera).catch((err) => console.warn("[3d] exterior shader warm-up failed", err));
-      // A driver that never reports back shouldn't keep the scene hidden.
-      await Promise.race([done, new Promise((resolve) => setTimeout(resolve, 20_000))]);
+      await Promise.race([
+        this.renderer.compileAsync(this.scene, this.camera),
+        new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("3D shader preparation timed out")), 20_000); }),
+      ]);
     } finally {
-      deferred.forEach((group, index) => parents[index].add(group));
+      clearTimeout(timeout);
     }
     this.warming = false;
-    const warmInterior = async () => {
-      for (const group of deferred) {
-        if (this.disposed) return;
-        await this.renderer.compileAsync(group, this.camera, this.scene).catch((err) => console.warn("[3d] interior shader warm-up failed", err));
-      }
-    };
-    if (window.requestIdleCallback) this.warmIdleId = window.requestIdleCallback(warmInterior, { timeout: 8_000 });
-    else this.warmTimer = setTimeout(warmInterior, 2_000);
   }
 
   async #loadScan() {
@@ -1086,8 +1077,6 @@ export class TurbineScene {
 
   dispose() {
     this.disposed = true;
-    if (this.warmIdleId != null) window.cancelIdleCallback?.(this.warmIdleId);
-    clearTimeout(this.warmTimer);
     this.explorer?.dispose();
     this.story?.dispose();
     this.tour?.dispose();

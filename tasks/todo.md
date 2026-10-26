@@ -31,7 +31,9 @@ Target: Wednesday, 28 October 2026. Monday, 26 October is the decision review.
 - [ ] Measure four-season coverage and direction availability from the actual site history.
 - [ ] Put a compact four-season comparison on the College screen, with the existing detailed view linked from the website.
 - [x] Delay the heavy real-world viewer until its preceding chapter and fix the invalid rain graphic.
-- [x] Prepare the visible 3D scene before hidden interior shaders; warm interiors after the first view.
+- [x] Replace delayed interior warm-up with complete shader preparation before the story starts after an observed mid-animation pause.
+- [x] Provide an isolated local preview chat session and sample answers so the chat UI can be reviewed without production databases.
+- [ ] Check the interior transition on target hardware for frame stalls; inspect GPU timing if a pause remains.
 
 ## Wednesday release gate
 

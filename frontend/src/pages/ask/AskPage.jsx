@@ -24,7 +24,7 @@ export default function AskPage() {
 function Chat({ screen }) {
   const copy = ASK[screen];
   const screenName = SCREENS[screen].name;
-  const { messages, status, send, stop, reset } = useChatSession(screen);
+  const { messages, status, send, stop, reset, preview } = useChatSession(screen);
   const [params, setParams] = useSearchParams();
   const asked = useRef(false);
   const bottom = useRef(null);
@@ -62,6 +62,7 @@ function Chat({ screen }) {
       <ResearchLibrary open={libraryOpen} onClose={() => setLibraryOpen(false)} triggerRef={libraryButton} />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 pt-5 pb-4 md:gap-5 md:px-6 md:pt-8" aria-live="polite">
+        {preview && <p className="rounded-xl border border-moss-200 bg-white px-4 py-3 text-xs leading-relaxed text-moss-800">Local preview chat: sample explanations only. Live and source-backed answers need the production chat and research databases.</p>}
         <div className="flex items-end gap-2">
           <TurbineMark className="mb-1 size-8 shrink-0" />
           <div className="max-w-[85%] rounded-3xl rounded-bl-lg bg-white px-4 py-2.5 text-[15px] leading-relaxed text-moss-950 ring-1 ring-moss-100">

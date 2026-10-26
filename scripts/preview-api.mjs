@@ -1,14 +1,30 @@
-// Read-only local preview for the website when Postgres and Redis are unavailable.
-// It fetches public turbine readings and the same curated news used in production.
+// Local preview for the website when Postgres and Redis are unavailable.
+// Public turbine data is read only; chat is an isolated, in-memory demonstration.
 import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { fetchLatestNews } from "../server/news/feed.js";
 import { buildLibrary } from "../server/knowledge/library.js";
+import { previewAnswer } from "./preview-chat.mjs";
 
 const PORT = 4100;
 const LIVE_ORIGIN = "https://ace.klardatalabs.com";
 const ALLOWED = new Set(["/api/state", "/api/environment"]);
 let news = { items: [], updatedAt: null, stale: true };
 let nextNewsRefresh = 0;
+const sessions = new Map();
+
+const sessionFor = (req) => sessions.get(req.headers.authorization?.replace(/^Bearer /, ""));
+
+async function readMessage(req) {
+  let body = "";
+  for await (const chunk of req) {
+    body += chunk.toString();
+    if (body.length > 4000) throw new Error("Message too long");
+  }
+  const message = JSON.parse(body).message;
+  if (typeof message !== "string" || !message.trim() || message.length > 600) throw new Error("Invalid message");
+  return message.trim();
+}
 
 function send(res, status, body) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
@@ -27,7 +43,33 @@ async function refreshNews() {
 
 createServer(async (req, res) => {
   const path = new URL(req.url, "http://127.0.0.1").pathname;
-  if (req.method !== "GET") return send(res, 405, { error: "Preview is read-only" });
+  if (path === "/api/chat/session" && req.method === "POST") {
+    const token = randomUUID();
+    sessions.set(token, { messages: [], at: Date.now() });
+    return send(res, 200, { token, preview: true });
+  }
+  if (path === "/api/chat/history" && req.method === "GET") {
+    const session = sessionFor(req);
+    return session ? send(res, 200, { messages: session.messages, preview: true }) : send(res, 401, { error: "Preview session expired" });
+  }
+  if (path === "/api/chat/session" && req.method === "DELETE") {
+    const token = req.headers.authorization?.replace(/^Bearer /, "");
+    sessions.delete(token);
+    return send(res, 200, { ok: true });
+  }
+  if (path === "/api/chat/stream" && req.method === "POST") {
+    const session = sessionFor(req);
+    if (!session) return send(res, 401, { error: "Preview session expired" });
+    let message;
+    try { message = await readMessage(req); } catch { return send(res, 400, { error: "Enter a question up to 600 characters." }); }
+    const reply = previewAnswer(message);
+    session.messages.push({ role: "user", content: message }, { role: "assistant", content: reply });
+    res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store" });
+    res.write(`event: token\ndata: ${JSON.stringify({ t: reply })}\n\n`);
+    res.end("event: done\ndata: {}\n\n");
+    return;
+  }
+  if (req.method !== "GET") return send(res, 405, { error: "Unavailable in local preview" });
   if (path === "/api/research/library") return send(res, 200, buildLibrary([], "unavailable"));
   if (path === "/api/news") {
     await refreshNews();

@@ -46,11 +46,13 @@ function writeToken(screen, token) {
 export function useChatSession(screen) {
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("connecting"); // connecting | ready | streaming | error
+  const [preview, setPreview] = useState(false);
   const token = useRef(null);
   const abort = useRef(null);
 
   const mint = useCallback(async () => {
     const s = await api.chatSession(screen);
+    setPreview(Boolean(s.preview));
     token.current = s.token;
     writeToken(screen, s.token);
     return s.token;
@@ -64,6 +66,7 @@ export function useChatSession(screen) {
       try {
         if (token.current) {
           const h = await api.chatHistory(token.current);
+          if (alive) setPreview(Boolean(h.preview));
           if (alive) setMessages(h.messages.map((m) => ({ id: id(), role: m.role, content: m.content, steps: savedSteps(m.steps), photos: m.photos })));
         } else {
           await mint();
@@ -157,5 +160,5 @@ export function useChatSession(screen) {
     setStatus("ready");
   }, [mint]);
 
-  return { messages, status, send, stop, reset };
+  return { messages, status, send, stop, reset, preview };
 }
