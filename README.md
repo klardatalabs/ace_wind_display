@@ -43,7 +43,7 @@ Highlights:
 
 ## Architecture
 
-![Architecture](docs/diagrams/architecture.png)
+![Architecture](docs/system-design/architecture.png)
 
 - **Collectors** poll the ACE Live API, the weather and the Zenodo archive. Two run for resilience; a leader election ensures only one is active. Readings are stored in TimescaleDB and published to Redis.
 - **API instances** (three, behind an nginx load balancer) serve the REST API, push live state to every connected screen over WebSockets, stream the chat over Server-Sent Events, and stream CSV exports.
@@ -54,7 +54,7 @@ The live path: ACE → collector → Redis pub/sub → every API instance → We
 
 ## The Ask Ace agent
 
-![Ask Ace agent](docs/diagrams/agent.png)
+![Ask Ace agent](docs/system-design/agent.png)
 
 Each message is cleaned, locked (one reply at a time per session, so the transcript stays in order) and answered with the visitor's screen persona. The agent runs up to four rounds; in each, the model can call several tools in parallel:
 
@@ -73,7 +73,7 @@ The knowledge base is built from documents in `ingestion/`: text is extracted an
 
 ## Tech stack
 
-![Tech stack](docs/diagrams/tech-stack.png)
+![Tech stack](docs/system-design/tech-stack.png)
 
 
 ## Getting started
@@ -203,7 +203,7 @@ server/
   db/                  schema, migrations and repositories
 shared/                constants, physics and data definitions shared by server and website
 deploy/                nginx configuration
-docs/diagrams/         architecture, agent and tech-stack diagrams (PNG)
+docs/                  notes, planning and system-design/ diagrams (PNG)
 assets/source/         the turbine model sources
 scripts/               model export, scan preparation, renders, database backup and restore
 ```
@@ -215,3 +215,7 @@ Turbine data is published by Ambition Community Energy under [CC BY 4.0](https:/
 > Plumley, Charlie; Garrad, Andrew; Burke, Wilf; Jonsson, Christian; Smirthwaite, Andrew. *ACE Wind Turbine Data.* Zenodo. https://doi.org/10.5281/zenodo.22662372
 
 Weather data is from OpenWeather, regional grid data from National Grid ESO's Carbon Intensity API, and chat photographs from Unsplash, credited to their photographers. Photographs of the turbine and the community on the screens are by Ambition Community Energy.
+
+## License and contributing
+
+The code is open source under the [MIT License](LICENSE). The ACE turbine data it displays is published separately under CC BY 4.0 (see above) and keeps that licence. Issues and pull requests are welcome: run `npm test` before opening one.
