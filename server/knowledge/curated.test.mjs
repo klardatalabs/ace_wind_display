@@ -11,5 +11,7 @@ test("curated research has stable identities and source citations", () => {
     assert.equal(new URL(source.downloadUrl).protocol, "https:");
     assert.ok(source.title && source.author && source.rightsNote);
   }
-  assert.deepEqual(CURATED_SOURCES.filter((source) => source.indexable).map((source) => source.id), ["power-curve-working-group-2020"]);
+  assert.deepEqual(CURATED_SOURCES.filter((source) => source.indexable).map((source) => source.id), [
+    "power-curve-working-group-2020", "wind-speed-variability-2022", "turbulence-loads-2026", "scaled-turbine-wakes-2021",
+  ]);
 });

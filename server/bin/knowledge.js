@@ -41,7 +41,7 @@ async function downloadCurated(source) {
   } catch { /* first import */ }
   const response = await fetch(source.downloadUrl, { signal: AbortSignal.timeout(120_000) });
   const host = new URL(response.url).hostname;
-  if (!response.ok || !["nrel.gov", "nlr.gov", "archive.org", "patentimages.storage.googleapis.com"].some((domain) => host === domain || host.endsWith(`.${domain}`))) {
+  if (!response.ok || !["nrel.gov", "nlr.gov", "archive.org", "patentimages.storage.googleapis.com", "wes.copernicus.org"].some((domain) => host === domain || host.endsWith(`.${domain}`))) {
     throw new Error(`Download failed for ${source.id}`);
   }
   const maxBytes = 60_000_000;
