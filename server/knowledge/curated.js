@@ -1,5 +1,5 @@
 // Reviewed public research shortlist. PDFs are downloaded only by the admin CLI and remain
-// in ignored ingestion/; the public repository contains metadata and source links only.
+// in the admin container's temporary directory; the public repository contains metadata and source links only.
 export const CURATED_SOURCES = [
   {
     id: "nrel-wind-resource-handbook-1997", sourceType: "book", title: "Wind Resource Assessment Handbook",
@@ -18,8 +18,8 @@ export const CURATED_SOURCES = [
   {
     id: "power-curve-working-group-2020", sourceType: "paper", title: "The Power Curve Working Group's assessment of wind turbine power performance prediction methods",
     author: "Joseph C. Y. Lee, Peter Stuart, Andrew Clifton and co-authors", year: 2020,
-    sourceUrl: "https://docs.nrel.gov/docs/fy20osti/76102.pdf",
-    downloadUrl: "https://docs.nrel.gov/docs/fy20osti/76102.pdf",
+    sourceUrl: "https://wes.copernicus.org/articles/5/199/2020/",
+    downloadUrl: "https://wes.copernicus.org/articles/5/199/2020/wes-5-199-2020.pdf",
     rightsNote: "CC BY 4.0, confirmed on the publisher's article page; attribute authors, title and DOI.",
     indexable: true,
   },

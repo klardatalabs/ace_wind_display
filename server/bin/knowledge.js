@@ -5,6 +5,7 @@
 //   npm run knowledge -- search "<question>"
 
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { validateConfig } from "../config/index.js";
 import { closePostgres } from "../infra/postgres.js";
@@ -29,7 +30,7 @@ async function filesIn(target) {
 }
 
 async function downloadCurated(source) {
-  const directory = path.resolve("ingestion");
+  const directory = path.join(os.tmpdir(), "weston-wind-ingestion");
   const file = path.join(directory, `${source.id}.pdf`);
   try {
     const cached = await fs.open(file, "r");
