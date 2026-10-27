@@ -13,8 +13,13 @@ export default function Composer({ onSend, onStop, onStudio, studioActive = fals
   useEffect(() => {
     const el = area.current;
     if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+    const resize = () => {
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
   }, [text]);
 
   const submit = (e) => {
