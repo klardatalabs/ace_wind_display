@@ -9,7 +9,7 @@ export const ASK = {
   community: {
     title: "Ask Ace",
     greeting: "Hello! I'm Ace, Lawrence Weston's community wind turbine. Ask me how much power I'm making, where the money goes, or anything else about me.",
-    suggestions: ["How many homes are you powering right now?", "Who owns this turbine?", "Where does the money go?", "How much carbon did you save today?", "What was your best day ever?"],
+    suggestions: ["How many homes' average demand is this equivalent to?", "Who owns this turbine?", "Where does the money go?", "What was your best day ever?"],
   },
   college: {
     title: "Ask Ace",

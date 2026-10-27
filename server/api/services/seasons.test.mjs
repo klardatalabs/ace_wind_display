@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { comparisonYear, seasonWindows, summarizeSeasons } from "./seasons.js";
 
-test("comparison uses the latest completed four-season year", () => {
-  assert.equal(comparisonYear(new Date("2026-10-25")), 2025);
+test("comparison uses the year of the latest stored observation", () => {
+  assert.equal(comparisonYear(new Date("2026-10-25")), 2026);
   assert.equal(comparisonYear(new Date("2026-12-01")), 2026);
   const windows = seasonWindows(2025);
   assert.equal(windows.length, 4);

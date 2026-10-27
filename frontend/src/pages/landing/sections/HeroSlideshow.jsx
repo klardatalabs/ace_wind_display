@@ -38,7 +38,7 @@ export default function HeroSlideshow({ className = "" }) {
     { image: IMAGES.drone, position: "top-[50%] right-[5%]", card: { icon: "wind", label: "Wind right now", value: live.windSpeed.toFixed(1), unit: "m/s", caption: beaufortLabel(live.windSpeed) } },
     { image: IMAGES.tall, position: "top-[52%] left-[5%]", card: { icon: "fan", label: "Blade tips", value: formatInt(msToMph(tipSpeedMs(live.rotorRpm))), unit: "mph", caption: `${live.rotorRpm.toFixed(1)} turns a minute` } },
     { image: IMAGES.portrait, position: "top-[40%] right-[5%]", card: { icon: "bolt", label: "Making", value: power.value, unit: power.unit, caption: "of clean electricity" } },
-    { image: IMAGES.hillside, position: "top-[6%] left-[5%]", card: { icon: "home", label: "Enough for", value: formatInt(homesPoweredNow(live.powerKw)), unit: "homes", caption: "at average UK demand" } },
+    { image: IMAGES.hillside, position: "top-[6%] left-[5%]", card: { icon: "home", label: "Equivalent to", value: formatInt(homesPoweredNow(live.powerKw)), unit: "homes", caption: "assumes 0.35 kW per home" } },
   ];
 
   return (

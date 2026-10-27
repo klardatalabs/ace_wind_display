@@ -24,7 +24,7 @@ export default function PowerCurvePanel({ curve, stale=false, windSpeed, powerKw
       <figcaption className={`mb-[1vmin] flex items-baseline justify-between text-[clamp(12px,1.6vmin,30px)] font-medium ${skin.text}`}>
         <span>Power curve</span>
         <span className={`font-mono ${skin.accent}`}>
-          {measured.length ? `${measured.reduce((s, b) => s + b.sample_count, 0).toLocaleString("en-GB")} measured intervals${stale ? ' · last known' : ''}` : "manufacturer reference"}
+          {measured.length ? `${measured.reduce((s, b) => s + b.sample_count, 0).toLocaleString("en-GB")} observed intervals${stale ? ' · last known' : ''}` : "no measured bins"}
         </span>
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} className={`block w-[clamp(280px,38vmin,820px)] ${skin.glass ? "drop-shadow-[0_1px_3px_rgb(0_0_0/0.7)]" : ""}`} role="img" aria-label="Power output against wind speed">
@@ -41,13 +41,14 @@ export default function PowerCurvePanel({ curve, stale=false, windSpeed, powerKw
         {measured.map((b) => (
           <circle key={b.bin_wind} cx={x(b.bin_wind)} cy={y(b.power_avg_kw)} r="3" fill="var(--color-moss-400)" opacity="0.8" />
         ))}
-        <path d={path} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinejoin="round" />
+        <path d={path} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinejoin="round" strokeDasharray="5 5" />
         <line x1={x(windSpeed)} x2={x(windSpeed)} y1={PAD.t} y2={H - PAD.b} stroke="var(--color-moss-300)" strokeDasharray="4 5" />
         <circle cx={x(windSpeed)} cy={y(powerKw)} r="9" fill="var(--color-moss-300)" opacity="0.35">
           <animate attributeName="r" values="7;14;7" dur="2.4s" repeatCount="indefinite" />
         </circle>
         <circle cx={x(windSpeed)} cy={y(powerKw)} r="5.5" fill="var(--color-moss-300)" stroke="white" strokeWidth="2" />
       </svg>
+      <p className={`text-[clamp(10px,1.2vmin,22px)] ${skin.muted}`}>Dashed line: illustrative app curve, not a verified manufacturer curve. Dots: observed intervals, including downtime and curtailment.</p>
     </figure>
   );
 }

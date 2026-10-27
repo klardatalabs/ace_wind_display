@@ -78,7 +78,7 @@ Each caption is { "eyebrow": ..., "line": ..., "sub": ... }:
 Rules:
 - NEVER write a digit. For any figure, use one of these placeholders exactly; the screen fills them in live:
 ${placeholders}
-- Write "carbon dioxide", never the chemical formula. No emoji, no links, no markdown, no hashtags.
+- Do not claim a measured carbon saving, avoided emissions, or a monetary amount. No emoji, links, markdown or hashtags.
 - Use only the facts above; invent nothing. British English. Each variant must say something different.
 - Never say where something is on the screen (above, below, beside, left, right): the layout changes.
 

@@ -3,32 +3,12 @@
 
 import {
   AVG_UK_HOME_DEMAND_KW,
-  CO2_FACTOR_KG_PER_KWH,
-  CO2_KG_PER_TREE_PER_YEAR,
-  COMMUNITY_FUND_RATE_GBP_PER_MWH,
-  RATED_POWER_KW,
   ROTOR_DIAMETER_M,
 } from "./constants.js";
 
 export function homesPoweredNow(activePowerKw) {
   if (typeof activePowerKw !== "number" || activePowerKw <= 0) return 0;
   return Math.round(activePowerKw / AVG_UK_HOME_DEMAND_KW);
-}
-
-export function co2AvoidedKg(energyKwh) {
-  if (typeof energyKwh !== "number" || energyKwh <= 0) return 0;
-  return energyKwh * CO2_FACTOR_KG_PER_KWH;
-}
-
-export function treesEquivalent(co2Kg) {
-  if (typeof co2Kg !== "number" || co2Kg <= 0) return 0;
-  return co2Kg / CO2_KG_PER_TREE_PER_YEAR;
-}
-
-/** Indicative only - see COMMUNITY_FUND_RATE_GBP_PER_MWH in constants.js. */
-export function communityFundGbp(energyKwh) {
-  if (typeof energyKwh !== "number" || energyKwh <= 0) return 0;
-  return (energyKwh / 1000) * COMMUNITY_FUND_RATE_GBP_PER_MWH;
 }
 
 export function tipSpeedMs(rotorRpm) {
@@ -38,13 +18,6 @@ export function tipSpeedMs(rotorRpm) {
 
 export function msToMph(ms) {
   return ms * 2.23694;
-}
-
-export function capacityFactorPct(lifetimeKwh, commissionDate, now = new Date()) {
-  const hours = (now - commissionDate) / 3_600_000;
-  if (hours <= 0) return 0;
-  const maxPossibleKwh = RATED_POWER_KW * hours;
-  return (lifetimeKwh / maxPossibleKwh) * 100;
 }
 
 export function beaufortLabel(windSpeedMs) {

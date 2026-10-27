@@ -4,9 +4,8 @@ import { ASSET } from "../../../shared/site.js";
 const LABELS = ["Winter", "Spring", "Summer", "Autumn"];
 const DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
-export function comparisonYear(now = new Date()) {
-  const year = now.getUTCFullYear();
-  return now.getUTCMonth() === 11 ? year : year - 1;
+export function comparisonYear(latestObservation) {
+  return new Date(latestObservation).getUTCFullYear();
 }
 
 export function seasonWindows(year) {
@@ -50,7 +49,10 @@ export function summarizeSeasons(rows, year) {
 }
 
 export async function seasons(now = new Date()) {
-  const year = comparisonYear(now);
+  const latest = await pool.query("SELECT max(observed_at) AS observed_at FROM ts.scada_10m WHERE asset_id = $1", [ASSET.id]);
+  const latestObservation = latest.rows[0]?.observed_at;
+  if (!latestObservation) return { year: null, source: "ACE 10-minute turbine history", directionMethod: "Nacelle heading, a proxy for wind direction", seasons: [] };
+  const year = comparisonYear(latestObservation);
   const windows = seasonWindows(year);
   const { rows } = await pool.query(
     `SELECT CASE
@@ -68,5 +70,5 @@ export async function seasons(now = new Date()) {
      GROUP BY 1, 2`,
     [ASSET.id, windows[0].from, windows[1].from, windows[2].from, windows[3].from, windows[3].to]
   );
-  return { year, source: "ACE 10-minute turbine history", directionMethod: "Nacelle heading, a proxy for wind direction", seasons: summarizeSeasons(rows, year) };
+  return { year, latestObservation, source: "ACE 10-minute turbine history", directionMethod: "Nacelle heading, a proxy for wind direction", seasons: summarizeSeasons(rows, year) };
 }

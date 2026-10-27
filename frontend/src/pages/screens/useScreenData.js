@@ -8,15 +8,11 @@ import { classifyMood } from "../../lib/mood.js";
 import { formatPower, formatEnergy } from "../../lib/format.js";
 import {
   homesPoweredNow,
-  co2AvoidedKg,
-  treesEquivalent,
-  communityFundGbp,
   tipSpeedMs,
   msToMph,
   beaufortLabel,
-  capacityFactorPct,
 } from "@shared/impact.js";
-import { COMMISSION_DATE_ISO, RATED_POWER_KW, ROTOR_DIAMETER_M } from "@shared/constants.js";
+import { RATED_POWER_KW, ROTOR_DIAMETER_M } from "@shared/constants.js";
 import { theoreticalPowerKw, E115_REFERENCE_CURVE } from "@shared/physics.js";
 import { cupsOfTea, phoneCharges } from "../../lib/impact.js";
 import {londonDate} from '@shared/time.js';
@@ -70,6 +66,8 @@ function useHistory() {
 
 export function useScreenData() {
   const state = useLiveStore((s) => s.state);
+  const [clock, setClock] = useState(Date.now);
+  useEffect(() => { const id = setInterval(() => setClock(Date.now()), 10_000); return () => clearInterval(id); }, []);
   const history = useHistory();
   const live = useSteadyLive(state);
 
@@ -79,15 +77,15 @@ export function useScreenData() {
     const todayKwh = state?.today?.energyKwh ?? 0;
     const lifetimeKwh = now.lifetimeEnergyKwh ?? 0;
     const tipMs = tipSpeedMs(rotorRpm);
-    const co2Kg = co2AvoidedKg(todayKwh);
     const todayDate=new Date(`${londonDate()}T12:00:00Z`);
     const monday=new Date(todayDate.getTime()-((todayDate.getUTCDay()+6)%7)*86400000).toISOString().slice(0,10);
     const weekDays=history.daily.some(d=>d.energy_method) ? history.daily.filter(d=>d.date_london>=monday) : history.daily.slice(0,7);
     const weekKwh = weekDays.reduce((sum,d)=>sum+(d.energy_kwh || 0),0);
+    const connected = Boolean(state?.mode === 'simulate' || (state?.connected && state?.receivedAt && clock - Date.parse(state.receivedAt) <= 30_000));
     return {
       ready: Boolean(state),
       mode: state?.mode ?? "live",
-      connected: state?.connected ?? false,
+      connected,
       mood: live.mood,
       statusStale:state?.mode!=='simulate' && Boolean(state?.freshness?.status?.failures),
       powerKw,
@@ -102,17 +100,13 @@ export function useScreenData() {
       tsr: windSpeed > 0.5 ? (rotorRpm * 2 * Math.PI * (ROTOR_DIAMETER_M / 2)) / 60 / windSpeed : 0,
       homes: homesPoweredNow(powerKw),
       todayKwh,
-      todayEstimated:state?.mode!=='simulate' && Boolean(state?.today?.energyMethod),
+      todayEstimated:state?.mode!=='simulate' && Boolean(state?.today?.energyMethod) && !state.today.energyMethod.startsWith('energy meter'),
       todayStale:state?.mode!=='simulate' && Boolean(state?.today?.stale || state?.freshness?.today?.failures),
       today: formatEnergy(todayKwh),
-      co2Kg,
-      trees: treesEquivalent(co2Kg),
       cupsOfTea: cupsOfTea(todayKwh),
       phoneCharges: phoneCharges(todayKwh),
-      fundGbp: communityFundGbp(todayKwh),
       lifetimeKwh,
       lifetime: formatEnergy(lifetimeKwh),
-      capacityFactor: lifetimeKwh > 0 ? capacityFactorPct(lifetimeKwh, new Date(COMMISSION_DATE_ISO)) : 0,
       theoreticalKw: theoreticalPowerKw(windSpeed),
       utilisation: (powerKw / RATED_POWER_KW) * 100,
       weekKwh,
@@ -121,5 +115,5 @@ export function useScreenData() {
       curveStale:history.curveStale,
       curve: history.curve,
     };
-  }, [state, live, history]);
+  }, [state, live, history, clock]);
 }

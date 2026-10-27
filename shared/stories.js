@@ -23,7 +23,6 @@ export const STORY_PLACEHOLDERS = {
   rpm: "rotor speed now, e.g. '9.4 rpm'",
   tip: "blade-tip speed now, e.g. '120 mph'",
   today: "energy made since midnight, e.g. '12.4 MWh'",
-  carbon: "carbon dioxide kept out of the air today, e.g. '2,900 kg'",
   lifetime: "energy made since spring 2023, e.g. '24.1 GWh'",
   share: "share of full power now, e.g. '43%'",
   hubHeight: "'92 m' (hub height)",

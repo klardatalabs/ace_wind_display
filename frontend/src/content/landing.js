@@ -33,7 +33,7 @@ export const SCREEN_CARDS = [
     title: "Community",
     to: "/screen/community",
     icon: "heart",
-    blurb: "Our street-by-street story: homes powered, carbon saved, money that stays local.",
+    blurb: "Our street-by-street story: turbine power, the people who own it, and where the income goes.",
     image: "drone",
   },
   {
@@ -81,7 +81,7 @@ export const DAY_IN_LIFE = [
     image: "drone",
     focus: "30% 35%", // object-position that keeps the turbine in frame
     title: "When it matters most",
-    body: "Ovens on, heating up, lights on. Every kilowatt-hour here is one that didn't come from gas.",
+    body: "Ovens on, heating up, lights on. This imagined evening shows how demand changes across the day.",
   },
   {
     when: "23:00 · Night",
@@ -99,7 +99,7 @@ export const QUESTION_WALL = [
   { q: "How fast are your", hl: "blade tips", end: "?" },
   { q: "What was your", hl: "best day", end: " ever?" },
   { q: "Why is there", hl: "no gearbox", end: "?" },
-  { q: "How much", hl: "carbon", end: " did you save today?" },
+  { q: "How much", hl: "energy", end: " did you generate today?" },
   { q: "What happens in a", hl: "storm", end: "?" },
   { q: "Can I", hl: "download", end: " your data?" },
   { q: "How", hl: "tall", end: " are you compared to Big Ben?" },

@@ -84,11 +84,8 @@ const QUESTIONS = {
       source: { label: "NREL: Fundamentals of Wind Energy", url: "https://docs.nlr.gov/docs/fy23osti/84501.pdf" },
     },
     {
-      q: "What's your capacity factor?",
-      a: (d) =>
-        d.capacityFactor > 0
-          ? `Since generation began in 2023, the capacity factor is ${d.capacityFactor.toFixed(1)}%: the energy made, against running at the full 4,245 kW the whole time.`
-          : "The lifetime total isn't in the live feed right now. Scan the code and I'll work it out from the stored history instead.",
+      q: "Can you calculate your lifetime capacity factor?",
+      a: () => "Not reliably yet. ACE publishes the lifetime meter, but the exact generation start and installed rating need confirmation before a lifetime capacity factor can be calculated.",
     },
     {
       q: "Explain the power curve",

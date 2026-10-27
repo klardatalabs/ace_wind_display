@@ -1,8 +1,7 @@
 // The college screen's ending to the energy journey: into the South West grid, live. The
 // turbine's power flows into the region's grid; the mix the region is running on this
-// half hour fills in fuel by fuel, wind picked out; then its carbon intensity, and what the
-// turbine's output right now is worth in CO₂ at that intensity. The grid figures are National
-// Grid ESO's regional estimate for the turbine's postcode district (/api/grid).
+// half hour fills in fuel by fuel, wind picked out; then its forecast carbon intensity.
+// The grid figures are the Carbon Intensity API's regional estimate (/api/grid).
 
 import { useEffect, useState } from "react";
 import { api } from "../../../lib/api.js";
@@ -30,9 +29,12 @@ function useGrid() {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let alive = true;
-    api.grid().then((g) => alive && setGrid(g)).catch(() => alive && setFailed(true));
+    const refresh = () => api.grid().then((g) => { if (alive) { setGrid(g); setFailed(false); } }).catch(() => { if (alive) { setGrid(null); setFailed(true); } });
+    refresh();
+    const id = setInterval(refresh, 60_000);
     return () => {
       alive = false;
+      clearInterval(id);
     };
   }, []);
   return { grid, failed };
@@ -41,10 +43,11 @@ function useGrid() {
 export default function GridEnding({ data, skin }) {
   const { grid, failed } = useGrid();
   const power = formatPower(Math.max(0, data.powerKw));
+  const currentGrid = grid && Date.now() >= Date.parse(grid.from) && Date.now() < Date.parse(grid.to) ? grid : null;
   // Fuels under half a percent would be slivers; they join "other".
-  const mix = grid
+  const mix = currentGrid
     ? Object.values(
-        grid.mix.reduce((acc, m) => {
+        currentGrid.mix.reduce((acc, m) => {
           const key = m.perc >= 0.5 ? m.fuel : "other";
           acc[key] = { fuel: key, perc: (acc[key]?.perc ?? 0) + m.perc };
           return acc;
@@ -53,13 +56,12 @@ export default function GridEnding({ data, skin }) {
         .filter((m) => m.perc > 0)
         .sort((a, b) => (a.fuel === "wind" ? -1 : b.fuel === "wind" ? 1 : b.perc - a.perc))
     : [];
-  const kgPerHour = grid ? (Math.max(0, data.powerKw) * grid.intensity) / 1000 : 0;
 
   return (
     <aside className={`milestone-in pointer-events-none absolute top-[16vmin] right-[3vmin] z-10 flex w-[min(38vw,720px)] flex-col gap-[1.8vmin] rounded-[2.6vmin] p-[2.4vmin] ${skin.card}`}>
       <div className="flex items-baseline justify-between gap-[2vmin]">
         <p className={`font-mono text-[clamp(11px,1.5vmin,28px)] tracking-[0.12em] uppercase ${skin.accent}`}>Into the grid</p>
-        {grid && <p className={`font-mono text-[clamp(10px,1.35vmin,26px)] tabular-nums ${skin.muted}`}>{londonTime(grid.from)}–{londonTime(grid.to)}</p>}
+        {currentGrid && <p className={`font-mono text-[clamp(10px,1.35vmin,26px)] tabular-nums ${skin.muted}`}>{londonTime(currentGrid.from)}–{londonTime(currentGrid.to)}</p>}
       </div>
 
       {/* The turbine's power, flowing into the region's grid */}
@@ -67,19 +69,19 @@ export default function GridEnding({ data, skin }) {
         <span className="flex shrink-0 items-center gap-[1vmin]">
           <TurbineMark className="size-[5vmin]" />
           <span className={`font-display text-[clamp(16px,2.6vmin,52px)] leading-none font-semibold tabular-nums ${skin.text}`}>
-            {power.value} <span className="text-[0.6em] font-medium">{power.unit}</span>
+            {data.connected ? power.value : "—"} {data.connected && <span className="text-[0.6em] font-medium">{power.unit}</span>}
           </span>
         </span>
         <svg viewBox="0 0 200 12" preserveAspectRatio="none" className="h-[1.6vmin] min-w-0 flex-1" aria-hidden="true">
           <path d="M2,6 H198" stroke="currentColor" className="text-moss-900/15" strokeWidth="4" strokeLinecap="round" />
           <path className="grid-flow" d="M2,6 H198" stroke="var(--color-moss-500)" strokeWidth="4" strokeLinecap="round" strokeDasharray="6 14" />
         </svg>
-        <span className={`shrink-0 rounded-full px-[1.4vmin] py-[0.6vmin] text-[clamp(11px,1.6vmin,30px)] font-semibold ring-1 ring-moss-900/15 ${skin.text}`}>{grid?.region ?? "South West England"}</span>
+        <span className={`shrink-0 rounded-full px-[1.4vmin] py-[0.6vmin] text-[clamp(11px,1.6vmin,30px)] font-semibold ring-1 ring-moss-900/15 ${skin.text}`}>{currentGrid?.region ?? "South West England"}</span>
       </div>
 
       {/* The mix the region is running on, fuel by fuel */}
       <div className="flex flex-col gap-[1.2vmin]">
-        <p className={`text-[clamp(12px,1.7vmin,32px)] font-medium ${skin.text}`}>What the region is running on now</p>
+        <p className={`text-[clamp(12px,1.7vmin,32px)] font-medium ${skin.text}`}>Regional generation mix forecast</p>
         <div className="flex h-[3.6vmin] overflow-hidden rounded-[1vmin] bg-moss-900/10">
           {mix.map((m, i) => (
             <span
@@ -97,31 +99,31 @@ export default function GridEnding({ data, skin }) {
             </li>
           ))}
         </ul>
-        {!grid && <p className={`text-[clamp(12px,1.6vmin,30px)] ${skin.muted}`}>{failed ? "The grid figures aren't available right now." : "Asking the National Grid…"}</p>}
+        {!currentGrid && <p className={`text-[clamp(12px,1.6vmin,30px)] ${skin.muted}`}>{failed || grid ? "Current grid figures aren't available." : "Asking the grid…"}</p>}
       </div>
 
-      {/* Carbon: the region's intensity, and the turbine's output at that intensity */}
-      {grid && (
+      {/* Regional forecast intensity is not a measure of avoided emissions. */}
+      {currentGrid && (
         <div className="grid-in grid grid-cols-[auto_1fr] items-center gap-x-[2.4vmin] gap-y-[0.6vmin] border-t border-moss-900/10 pt-[1.6vmin]" style={{ animationDelay: `${1 + mix.length * 0.35}s` }}>
           <p className={`font-display text-[clamp(26px,5vmin,100px)] leading-none font-semibold tabular-nums ${skin.text}`}>
-            {formatInt(grid.intensity)}
+            {formatInt(currentGrid.intensity)}
             <span className="ml-[0.6vmin] text-[0.35em] font-medium">g CO₂/kWh</span>
           </p>
           <div className="flex flex-col gap-[0.6vmin]">
-            {grid.index && (
-              <span className="w-fit rounded-full px-[1.2vmin] py-[0.3vmin] text-[clamp(10px,1.4vmin,26px)] font-semibold uppercase" style={{ background: INDEX_COLOUR[grid.index]?.[0] ?? "#e5e7eb", color: INDEX_COLOUR[grid.index]?.[1] ?? "#0a151d" }}>
-                {grid.index} carbon
+            {currentGrid.index && (
+              <span className="w-fit rounded-full px-[1.2vmin] py-[0.3vmin] text-[clamp(10px,1.4vmin,26px)] font-semibold uppercase" style={{ background: INDEX_COLOUR[currentGrid.index]?.[0] ?? "#e5e7eb", color: INDEX_COLOUR[currentGrid.index]?.[1] ?? "#0a151d" }}>
+                {currentGrid.index} carbon
               </span>
             )}
             <p className={`text-[clamp(12px,1.65vmin,32px)] leading-snug ${skin.text}`}>
-              At that intensity, the turbine's {power.value} {power.unit} right now is worth about <strong className="font-semibold">{formatInt(kgPerHour)} kg of CO₂ an hour</strong>.
+              Regional carbon intensity forecast for this half-hour. This is not a measure of emissions avoided by the turbine.
             </p>
           </div>
         </div>
       )}
 
       <p className={`font-mono text-[clamp(9px,1.25vmin,24px)] leading-snug ${skin.muted}`}>
-        Grid: National Grid ESO regional estimate, {grid?.postcode ?? "BS11"} · Turbine: open data, CC BY 4.0
+        Grid: Carbon Intensity API regional forecast, {currentGrid?.postcode ?? "BS11"} · Turbine: ACE open data, CC BY 4.0
       </p>
     </aside>
   );

@@ -12,7 +12,9 @@ export function isOverridden(environment) {
 
 /** The genuine weather reading, or null. */
 export function realWeather(environment) {
-  return environment?.weather && !isOverridden(environment) ? environment.weather : null;
+  const weather = environment?.weather;
+  return weather && !isOverridden(environment) && Number.isFinite(Date.parse(weather.observedAt)) &&
+    Date.now() - Date.parse(weather.observedAt) <= 45 * 60_000 ? weather : null;
 }
 
 /** What the weather means for the picture: 0..1 cloud, rain and fog. Zero without a reading. */

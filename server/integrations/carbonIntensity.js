@@ -12,11 +12,13 @@ const FUELS = ["wind", "solar", "gas", "nuclear", "imports", "biomass", "hydro",
 let cached = null; // { at, value }
 
 /** The API's regional JSON -> { region, from, to, intensity, index, mix }. */
-export function normaliseRegional(json) {
+export function normaliseRegional(json, now = Date.now()) {
   const region = json?.data?.[0];
   const slot = region?.data?.[0];
   const g = slot?.intensity?.forecast;
   if (!region || !slot || !Number.isFinite(g)) throw new Error("Carbon intensity reading is incomplete");
+  if (!Number.isFinite(Date.parse(slot.from)) || !Number.isFinite(Date.parse(slot.to)) ||
+      now < Date.parse(slot.from) || now >= Date.parse(slot.to)) throw new Error("Carbon intensity interval is not current");
   const mix = FUELS.map((fuel) => ({ fuel, perc: Number(slot.generationmix?.find((m) => m.fuel === fuel)?.perc) || 0 }));
   return {
     region: String(region.shortname || "South West England"),
@@ -26,13 +28,13 @@ export function normaliseRegional(json) {
     intensity: g,
     index: String(slot.intensity.index || ""),
     mix,
-    source: "National Grid ESO Carbon Intensity API",
+    source: "Carbon Intensity API regional forecast",
   };
 }
 
 /** The grid right now, from the cache when it's fresh. */
 export async function fetchRegionalGrid() {
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.value;
+  if (cached && Date.now() - cached.at < CACHE_MS && Date.now() < Date.parse(cached.value.to)) return cached.value;
   const res = await fetch(`${URL_BASE}/regional/postcode/${POSTCODE}`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`Carbon Intensity API responded ${res.status}`);
   const value = normaliseRegional(await res.json());

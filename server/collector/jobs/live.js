@@ -20,7 +20,7 @@ export async function pollLive() {
     if (observed === lastObservedAt) return; // ACE hasn't produced a newer second yet
     lastObservedAt = observed;
     bufferReading(reading);
-    await update({ now: toNow(reading.site, reading.turbine), liveAt: new Date(observed).toISOString() });
+    await update({ now: toNow(reading.site, reading.turbine), liveAt: new Date(observed).toISOString(), receivedAt: new Date().toISOString() });
   } catch (err) {
     markFeed("now", false);
     await update({}); // republish so "connected" flips once the last reading ages out

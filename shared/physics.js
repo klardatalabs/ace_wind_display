@@ -9,7 +9,7 @@ export const MIN_ROTOR_RPM = 4;
 export const MAX_ROTOR_RPM = 12.8;
 export const IDLE_ROTOR_RPM = 0.8; // feathered blades still drift round slowly
 
-// Enercon E-115 EP3 4.2 MW manufacturer reference curve (wind m/s -> power kW).
+// Illustrative app curve for an E-115 EP3-class turbine (wind m/s -> power kW); not OEM-verified.
 export const E115_REFERENCE_CURVE = [
   { wind: 0, power: 0 }, { wind: 2, power: 0 }, { wind: 2.5, power: 5 }, { wind: 3, power: 45 },
   { wind: 4, power: 175 }, { wind: 5, power: 410 }, { wind: 6, power: 820 }, { wind: 7, power: 1400 },

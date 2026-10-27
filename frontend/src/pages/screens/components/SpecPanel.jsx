@@ -1,12 +1,12 @@
 // The machine's spec sheet, its rows printing in one by one like a terminal.
 const SPECS = [
   ["Model", "Enercon E-115 EP3"],
-  ["Rated power", "4,245 kW"],
+  ["Rated power", "4.2 MW (ACE published)"],
   ["Rotor diameter", "115.7 m"],
   ["Hub height", "≈ 92 m"],
   ["Tip height", "150 m"],
   ["Drive train", "Gearless, annular generator"],
-  ["Commissioned", "March 2023"],
+  ["Operational", "May 2023 (ACE timeline)"],
 ];
 
 export default function SpecPanel({ skin, className = "" }) {

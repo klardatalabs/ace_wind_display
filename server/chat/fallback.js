@@ -52,7 +52,7 @@ async function answerFor(intent, question, ctx) {
       if (s.available === false) return "My live readings aren't coming through right now. Please try again in a minute!";
       const prefix = s.data === "live" ? "" : `(These are my ${s.data}.) `;
       if (!s.spinning) return `${prefix}The wind is a **${s.wind_description.toLowerCase()}** at **${s.wind_speed_ms} m/s**, so I'm resting and waiting for a stronger gust.`;
-      return `${prefix}I'm making **${fmt(s.power_kw)} kW**, enough for about **${fmt(s.homes_powered_now)} homes**. The wind is **${s.wind_speed_ms} m/s** and my blade tips are moving at about **${s.blade_tip_speed_mph} mph**!`;
+      return `${prefix}I'm making **${fmt(s.power_kw)} kW**, equivalent to about **${fmt(s.homes_demand_equivalent_estimate)} homes' average demand** at an assumed 0.35 kW per home. The wind is **${s.wind_speed_ms} m/s** and my blade tips are moving at about **${s.blade_tip_speed_mph} mph**!`;
     }
     default: {
       const [books] = await Promise.all([

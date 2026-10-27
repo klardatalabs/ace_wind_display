@@ -24,13 +24,14 @@ export default function SeasonsPage() {
       <div className="mx-auto max-w-[1600px] pt-10 sm:pt-14">
         <p className="text-sm font-semibold uppercase tracking-[0.25em] text-moss-300">College research</p>
         <h1 className="mt-3 font-display text-4xl leading-tight sm:text-6xl">Wind through the seasons</h1>
-        <p className="mt-5 max-w-3xl text-white/70">ACE turbine measurements over the latest complete four-season year. Each card shows mean wind speed, the most frequent nacelle heading, and how much of the expected 10-minute history is present.</p>
+        <p className="mt-5 max-w-3xl text-white/70">Available ACE turbine measurements in the latest recorded year. Each card shows mean wind speed, the most frequent nacelle heading, and how much of the expected 10-minute history is present. Seasons without readings are omitted.</p>
         {error && <p role="status" className="mt-8 rounded-2xl border border-white/20 p-5">Seasonal history is temporarily unavailable.</p>}
         {!data && !error && <p role="status" className="mt-8 text-white/70">Loading seasonal history…</p>}
         {data && <>
-          <p className="mt-6 text-sm text-white/60">{data.year} comparison · {data.source} · Direction: {data.directionMethod}</p>
+          <p className="mt-6 text-sm text-white/60">{data.year ? `${data.year} measured periods · ` : "No stored seasons yet · "}{data.source} · Direction: {data.directionMethod}</p>
+          {!data.seasons.some((season) => season.samples > 0) && <p role="status" className="mt-8 rounded-2xl border border-white/20 p-5">There is not enough stored wind history to show a seasonal pattern yet.</p>}
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {data.seasons.map((season) => {
+            {data.seasons.filter((season) => season.samples > 0).map((season) => {
               const most = Math.max(1, ...season.directions.map((direction) => direction.samples));
               return <section key={season.name} className="rounded-3xl border border-white/15 bg-white/5 p-6">
                 <h2 className="font-display text-3xl">{season.name}</h2>

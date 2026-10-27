@@ -8,7 +8,7 @@ export default function DailyBarsPanel({ daily, stale=false, skin, className = "
   const max = Math.max(...days.map((d) => d.energy_kwh || 0), 1);
   return (
     <figure className={`rounded-[2.4vmin] p-[2vmin] ${skin.card} ${className}`}>
-      <figcaption className={`mb-[1.2vmin] text-[clamp(12px,1.6vmin,30px)] font-medium ${skin.text}`}>Energy per day · last {days.length} days{days.some(d=>d.energy_method) ? ' · estimated' : ''}{stale ? ' · last known' : ''}</figcaption>
+      <figcaption className={`mb-[1.2vmin] text-[clamp(12px,1.6vmin,30px)] font-medium ${skin.text}`}>Energy per day · last {days.length} days{days.some(d=>d.energy_method && !d.energy_method.startsWith('energy meter')) ? ' · includes estimates' : ''}{stale ? ' · last known' : ''}</figcaption>
       <div className="flex h-[18vmin] w-[clamp(280px,38vmin,820px)] items-end gap-[0.5vmin]">
         {days.map((d) => (
           <div key={d.date_london} className="flex h-full flex-1 flex-col justify-end" title={`${d.date_london}: ${d.energy_kwh == null ? 'missing' : `${formatInt(d.energy_kwh)} kWh`}${d.coverage_pct != null ? ` · ${d.coverage_pct}% coverage` : ''}`}>

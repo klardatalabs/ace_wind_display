@@ -191,7 +191,9 @@ function Hoarding({ screen }) {
       : resolveChapter(story.chapter, story.chapter.cycle ? story.loop * 3 + Math.min(2, Math.floor(story.progress * 3)) : story.loop, data, generated);
   const showQr = screen.rail || Boolean(story.chapter.ask);
   const showNews = screen.key === "community" && story.chapter.id === "news";
-  const captionChapter = story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
+  const captionChapter = !data.connected && (chapter.live || chapter.tour || chapter.day)
+    ? { ...chapter, id: `${chapter.id}-offline`, eyebrow: "Turbine data", line: () => "Waiting for a current reading.", sub: () => "The ACE feed is unavailable. The scene is an illustration; live figures will return when a fresh reading arrives." }
+    : story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
   const panel = chapter.panel;
   const tagIds = useMemo(() => ((xrayId ? XRAY_COPY[screen.key][xrayId].tags : story.chapter.tags) ?? []).filter((id) => TAGS[id]), [story.chapter, xrayId, screen.key]);
   const tagDefs = useMemo(() => tagIds.map((id) => ({ id, anchor: TAGS[id].anchor })), [tagIds]);
@@ -269,7 +271,7 @@ function Hoarding({ screen }) {
       {!screen.mascot && <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-[46vh] ${skin.scrimBottom}`} />}
       <div className={`pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b to-transparent ${screen.mascot ? "h-[12vh] from-white/30" : `h-[18vh] ${skin.dark ? "from-black/40" : "from-white/50"}`}`} />
 
-      {!walking && !showLive && !showNews && <DataTags ids={tagIds} data={data} tagRefs={tagRefs} skin={cardSkin} />}
+      {!walking && !showLive && !showNews && <DataTags ids={data.connected ? tagIds : tagIds.filter((id) => ["tower", "transformer", "height", "rotor", "bigben", "xPiles", "xPad"].includes(id))} data={data} tagRefs={tagRefs} skin={cardSkin} />}
       <div
         ref={markerRef}
         data-on="0"
@@ -284,7 +286,7 @@ function Hoarding({ screen }) {
       {openingSite && <span className="pointer-events-none absolute left-[2.2vmin] top-[17vmin] z-20 rounded-full bg-white/85 px-3 py-1.5 text-xs font-semibold text-moss-900">{showLive ? "3D site view · daylight" : "Site photo · loading 3D view"}</span>}
       {showNews && <CommunityNews onSelect={() => story.yieldTo(null)} />}
       {!showNews && <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20 portrait:top-[118px]">
-        <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={cardSkin} />
+        <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} live={data.connected} skin={cardSkin} />
       </div>}
       <RemoteToast event={toast} skin={cardSkin} />
 
@@ -309,7 +311,7 @@ function Hoarding({ screen }) {
           ) : noCaption || showNews ? null : (
             // In a card, the card fades in with its words, so it never shows empty.
             <main key={screen.captionCard ? captionChapter.id : undefined} data-keepout className={`${screen.captionCard ? "caption-card-in" : ""} pointer-events-none absolute z-10 flex flex-col portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin] landscape:left-[4vmin] ${xrayId ? "landscape:bottom-[15vmin]" : "landscape:bottom-[23vmin]"} ${screen.captionCard ? `rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] ${cardSkin.card}` : ""}`}>
-              {chapter.day ? (
+              {chapter.day && data.connected ? (
                 <DayStory audience={screen.key} elapsedS={elapsedS} skin={screen.captionCard ? cardSkin : skin} compact={Boolean(screen.captionCard)} />
               ) : (
                 <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={screen.captionCard ? cardSkin : skin} bubble={Boolean(screen.captionCard)} instant={screen.rail && new URLSearchParams(window.location.search).has("storyTime")} />
@@ -317,11 +319,11 @@ function Hoarding({ screen }) {
             </main>
           )}
 
-          {!screen.rail && chapter.ask && <AskDemo key={story.loop} data={data} audience={screen.key} skin={cardSkin} side={askSide} startAt={story.loop} />}
-          {tour?.ended && story.chapter.ending === "home" && <EveningAtHome data={data} skin={cardSkin} />}
+          {!screen.rail && chapter.ask && data.connected && <AskDemo key={story.loop} data={data} audience={screen.key} skin={cardSkin} side={askSide} startAt={story.loop} />}
+          {tour?.ended && story.chapter.ending === "home" && data.connected && <EveningAtHome data={data} skin={cardSkin} />}
           {tour?.ended && story.chapter.ending === "data" && <GridEnding data={data} skin={cardSkin} />}
           {xrayStop != null && <XrayRoute stop={xrayStop} skin={cardSkin} place={screen.cardsBottom ? "bottom-[13vmin]" : "top-[16vmin]"} />}
-          {!pick && chapter.viz === "homes" && (
+          {!pick && chapter.viz === "homes" && data.connected && (
             <aside data-keepout className="pointer-events-none absolute z-10 landscape:top-[16vmin] landscape:right-[3vmin] portrait:top-[16vmin] portrait:right-[3vmin]">
               <HomesGrid homes={data.homes} skin={cardSkin} />
             </aside>

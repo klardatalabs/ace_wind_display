@@ -2,7 +2,7 @@
 // (their gallery), dropping onto the board one by one like taped-up polaroids, then the
 // turbine's community facts counting up. Every figure is ACE's own
 // (ambitioncommunityenergy.org): the community plan, the yearly homes figure and the
-// lifetime carbon estimate.
+// annual homes estimate.
 
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "../../../lib/gsap.js";
@@ -22,7 +22,6 @@ const PHOTOS = [
 const FACTS = [
   { value: 1200, suffix: "+", text: "neighbours shared ideas for their area. A wind turbine was one." },
   { value: 3000, suffix: "+", text: "homes' worth of electricity, every year" },
-  { value: 87600, suffix: " t", text: "of carbon dioxide kept out of the air over my life (ACE's estimate)" },
 ];
 
 /** A number that counts up from zero once it appears. */
@@ -60,7 +59,7 @@ export default function TownPanel({ skin }) {
         </div>
       ))}
       <div
-        className={`milestone-in absolute inset-x-[2%] top-[71%] grid grid-cols-3 gap-[2vmin] rounded-[2.4vmin] px-[2.2vmin] py-[1.6vmin] shadow-[0_24px_70px_rgb(10_21_29/0.35)] ${skin.card}`}
+        className={`milestone-in absolute inset-x-[2%] top-[71%] grid grid-cols-2 gap-[2vmin] rounded-[2.4vmin] px-[2.2vmin] py-[1.6vmin] shadow-[0_24px_70px_rgb(10_21_29/0.35)] ${skin.card}`}
         style={{ animationDelay: `${FACTS_AT_S}s` }}
       >
         {FACTS.map((f, i) => (
@@ -71,7 +70,7 @@ export default function TownPanel({ skin }) {
             <span className={`text-[clamp(11px,1.6vmin,30px)] leading-snug ${skin.text}`}>{f.text}</span>
           </div>
         ))}
-        <figcaption className={`col-span-3 text-[clamp(9px,1.2vmin,22px)] ${skin.muted}`}>Photos and figures: Ambition Community Energy</figcaption>
+        <figcaption className={`col-span-2 text-[clamp(9px,1.2vmin,22px)] ${skin.muted}`}>Photos and figures: Ambition Community Energy · 3,000 homes is ACE's annual estimate</figcaption>
       </div>
     </figure>
   );

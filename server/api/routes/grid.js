@@ -18,5 +18,5 @@ gridRoutes.get("/", async (req, res) => {
     log.warn("grid lookup failed", { error: err.message });
     throw unavailable("The grid figures aren't available right now.");
   }
-  res.set("Cache-Control", "public, max-age=300").json(grid);
+  res.set("Cache-Control", "no-store").json(grid);
 });

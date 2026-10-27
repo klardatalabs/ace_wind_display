@@ -27,7 +27,6 @@ export function storyValues(d) {
     rpm: `${d.rotorRpm.toFixed(1)} rpm`,
     tip: `${formatInt(d.tipMph)} mph`,
     today: `${d.today.value} ${d.today.unit}`,
-    carbon: `${formatInt(d.co2Kg)} kg`,
     lifetime: `${d.lifetime.value} ${d.lifetime.unit}`,
     share: `${Math.round(d.utilisation)}%`,
     hubHeight: "92 m",
@@ -48,7 +47,7 @@ const WORKING_KW = 10;
 
 function variantsFor(chapter, generated, working) {
   const pick = (copy) => (Array.isArray(copy) ? copy : copy?.[working ? "working" : "calm"]) ?? [];
-  return [...pick(generated?.[chapter.id]), ...pick(chapter.copy)];
+  return [...pick(generated?.[chapter.id]), ...pick(chapter.copy)].filter((v) => !JSON.stringify(v).includes("{carbon}"));
 }
 
 /**

@@ -14,7 +14,7 @@ export default function DayInLife() {
     <section className="px-6 pt-16 pb-16 md:px-12 md:pt-24 xl:px-36">
       <div className="mx-auto max-w-[1280px]">
         <SectionHeading eyebrow="A day on the hill" title={<>Meet Ace.<br />Here's a day in its life.</>}>
-          From first light to the evening peak, the turbine is working for the neighbourhood.
+          An illustrative story of a possible day. Times and events here are examples, not measured turbine history.
         </SectionHeading>
         <div ref={ref} {...hoverProps} className="relative mt-10 md:mt-14">
           <div className="relative h-[480px] overflow-hidden rounded-4xl bg-moss-950 md:h-[520px]">

@@ -1,7 +1,6 @@
 // Small "LIVE · 1.24 MW" pill with a pulsing dot. Says DEMO when the server is simulating.
 
 import { useLive } from "../../store/useLiveStore.js";
-import {useEffect,useState} from 'react';
 import { formatPower } from "../../lib/format.js";
 
 function ageOf(iso) {
@@ -13,9 +12,7 @@ function ageOf(iso) {
 
 export default function LiveBadge({ className = "", tone = "light" }) {
   const { ready, mode, connected, liveAt, powerKw } = useLive();
-  const [clock,setClock]=useState(Date.now);
-  useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),10000);return()=>clearInterval(id);},[]);
-  const fresh=connected && liveAt && clock-Date.parse(liveAt)<=30000;
+  const fresh = connected;
   const p = formatPower(powerKw);
   const label = mode === "simulate" ? "DEMO" : fresh ? "LIVE" : liveAt ? `LAST KNOWN · ${ageOf(liveAt)}` : "SAMPLE DATA";
   const dark = tone === "dark";
@@ -26,11 +23,11 @@ export default function LiveBadge({ className = "", tone = "light" }) {
       } ${className}`}
     >
       <span className="relative flex size-2">
-        <span className={`absolute inline-flex size-full animate-ping rounded-full opacity-60 ${dark ? "bg-moss-300" : "bg-moss-400"}`} />
+        {(fresh || mode === "simulate") && <span className={`absolute inline-flex size-full animate-ping rounded-full opacity-60 ${dark ? "bg-moss-300" : "bg-moss-400"}`} />}
         <span className={`relative inline-flex size-2 rounded-full ${dark ? "bg-moss-300" : "bg-moss-500"}`} />
       </span>
       {label}
-      {ready && (
+      {ready && (fresh || mode === "simulate" || liveAt) && (
         <span className="font-mono tabular-nums">
           {p.value} {p.unit}
         </span>

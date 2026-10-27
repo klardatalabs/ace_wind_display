@@ -16,6 +16,7 @@ const LIVE_STALE_MS = 30_000;
 
 const state = {
   liveAt: null,
+  receivedAt: null,
   now: null,
   today: null,
   statusEvent: null,
@@ -25,7 +26,7 @@ let lastPublished = "";
 let lastPublishedAt = 0;
 
 export function snapshot() {
-  const connected = Boolean(state.liveAt) && Date.now() - Date.parse(state.liveAt) <= LIVE_STALE_MS;
+  const connected = Boolean(state.receivedAt) && Date.now() - Date.parse(state.receivedAt) <= LIVE_STALE_MS;
   return { ...structuredClone(state), connected, updatedAt: new Date().toISOString() };
 }
 

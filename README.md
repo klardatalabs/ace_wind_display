@@ -12,11 +12,13 @@ The platform is built on the turbine's open data: the [ACE Live API](https://ace
 - [Architecture](#architecture)
 - [The Ask Ace agent](#the-ask-ace-agent)
 - [Tech stack](#tech-stack)
+- [System requirements](#system-requirements)
 - [Getting started](#getting-started)
 - [Configuration](#configuration)
 - [Scripts](#scripts)
 - [API](#api)
 - [Deployment](#deployment)
+- [Homes-equivalent calculation](#homes-equivalent-calculation)
 - [Project structure](#project-structure)
 - [Data and attribution](#data-and-attribution)
 
@@ -74,6 +76,14 @@ The knowledge base is built from documents in `ingestion/`: text is extracted an
 ## Tech stack
 
 ![Tech stack](docs/system-design/tech-stack.png)
+
+The database is PostgreSQL 17 with the TimescaleDB and pgvector extensions (the `timescale/timescaledb-ha:pg17` image). Redis 7.4 handles pub/sub, caches and rate limits. The knowledge base uses a local CPU text-embeddings service. Grafana is not included in either Compose stack or provisioned by this repository; it is not required to run the project.
+
+## System requirements
+
+- **Local development:** Node.js 24, npm, Docker Engine and Docker Compose. The development Compose file starts PostgreSQL/TimescaleDB, Redis and the CPU embeddings service; the API and Vite website run on the host.
+- **Production host:** A Linux server with Docker Engine and Docker Compose, persistent storage for the Compose volumes (especially `db_data` and `db_backups`), and a host reverse proxy with TLS. The included deployment uses a Contabo server at `/opt/weston-wind`, with host nginx proxying to the Compose load balancer on `127.0.0.1:4100`; the public site needs DNS and HTTPS. The deploy workflow connects by SSH and pulls the application image from GitHub Container Registry.
+- **Sizing:** No Contabo VPS plan, CPU/RAM minimum or disk capacity is specified in this repository. Size the host for PostgreSQL, Redis, the CPU embedding model, two collectors, three API instances, nginx and backups; measure memory and disk use for your data retention and traffic before relying on a particular plan. The frontend also needs a browser capable of WebGL for its 3D views.
 
 
 ## Getting started
@@ -185,6 +195,18 @@ docker compose up -d
 ```
 
 The application image is built from the `Dockerfile`; `IMAGE` and `IMAGE_TAG` in `.env` select which one the stack runs. Continuous integration (`.github/workflows/ci.yml`) runs the server tests against a real database, builds the website and runs the frontend tests.
+
+## Homes-equivalent calculation
+
+The live “homes” figure is an **illustrative demand equivalent**, not a count of homes connected to the turbine or receiving its electricity. The shared calculation uses an assumed average continuous demand of **0.35 kW per UK home** (equivalent to **8.4 kWh/day** or **3,066 kWh/year**):
+
+```text
+homes equivalent now = round(max(active turbine power in kW, 0) / 0.35 kW per home)
+```
+
+For example, 700 kW is shown as about 2,000 homes. At the configured 4,200 kW grid setpoint, it would be 12,000. The API's `homes_powered_on_average` uses the same divisor on average power from stored daily history, so it covers that stored period rather than a lifetime or annual total. This fixed demand assumption is for explanation; actual household demand varies over time.
+
+The separate **“more than 3,000 homes each year”** figure used in some stories is Ambition Community Energy's annual project estimate. It is not calculated from the live power reading or the 0.35 kW assumption, and it should not be read as the number of homes connected to the turbine.
 
 ## Project structure
 

@@ -5,7 +5,7 @@ import { useTweenedNumber } from "../../../hooks/useTweenedNumber.js";
 import Icon from "../../../components/ui/Icon.jsx";
 import Reveal from "../../../components/ui/Reveal.jsx";
 import DaylightBar from "./DaylightBar.jsx";
-import { homesPoweredNow, co2AvoidedKg, cupsOfTea } from "../../../lib/impact.js";
+import { homesPoweredNow, cupsOfTea } from "../../../lib/impact.js";
 import { formatInt } from "../../../lib/format.js";
 
 function Stat({ icon, value, decimals = 0, unit, label, ready }) {
@@ -31,13 +31,12 @@ export default function LiveStrip() {
       <DaylightBar />
       <div className="mx-auto max-w-[1400px] rounded-4xl border border-moss-100 bg-white px-4 pt-6 pb-2">
         {ready && <p className="text-center text-sm text-moss-900/55">Right now at the turbine in Lawrence Weston</p>}
-        <Reveal className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6" stagger={0.06}>
+        <Reveal className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" stagger={0.06}>
           <Stat ready={ready} icon="bolt" value={live.powerKw} unit="kW" label="power output" />
-          <Stat ready={ready} icon="home" value={homesPoweredNow(live.powerKw)} label="homes powered" />
+          <Stat ready={ready} icon="home" value={homesPoweredNow(live.powerKw)} label="home-demand equivalent · assumes 0.35 kW/home" />
           <Stat ready={ready} icon="wind" value={live.windSpeed} decimals={1} unit="m/s" label="wind speed" />
           <Stat ready={ready} icon="fan" value={live.rotorRpm} decimals={1} unit="rpm" label="rotor speed" />
-          <Stat ready={ready} icon="leaf" value={co2AvoidedKg(live.todayKwh)} unit="kg" label={`CO₂ avoided today${today}`} />
-          <Stat ready={ready} icon="lightbulb" value={cupsOfTea(live.todayKwh)} label={`cups of tea, today${today}`} />
+          <Stat ready={ready && live.todayKwh > 0} icon="lightbulb" value={cupsOfTea(live.todayKwh)} label={`illustrative cups of tea · 0.03 kWh/cup${today}`} />
         </Reveal>
       </div>
     </section>

@@ -1,9 +1,6 @@
 // Human-scale conversions shared with the server (see shared/impact.js).
 export {
   homesPoweredNow,
-  co2AvoidedKg,
-  treesEquivalent,
-  communityFundGbp,
   tipSpeedMs,
   msToMph,
   beaufortLabel,
