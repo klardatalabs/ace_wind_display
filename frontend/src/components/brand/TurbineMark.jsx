@@ -1,4 +1,4 @@
-// The Weston Wind mark: a three-blade rotor that turns at the real turbine's speed
+// The Lawrence Weston wind mark: a three-blade rotor that turns at the real turbine's speed
 // (the same rpm the live API reports) and spins up on hover.
 
 import { useEffect, useRef } from "react";

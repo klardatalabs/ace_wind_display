@@ -42,6 +42,8 @@ test("bad feed dates and unrelated AI energy stories do not reach the screen", (
   assert.equal(selectNews(parseFeed(badDate, source), new Date("2026-10-25T12:00:00Z")).length, 0);
   const fossil = { ...parseFeed(xml, source)[0], title: "AI data centre powered by natural gas", description: "", url: "https://www.eia.gov/c" };
   assert.equal(selectNews([fossil], new Date("2026-10-25T12:00:00Z")).length, 0);
+  const incidental = { ...parseFeed(xml, source)[0], title: "New policy briefing", description: "Wind power is mentioned in passing", url: "https://www.eia.gov/incidental" };
+  assert.equal(selectNews([incidental], new Date("2026-10-25T12:00:00Z")).length, 0);
 });
 
 test("a failed publisher feed does not hide the other publisher", async () => {

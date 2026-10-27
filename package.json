@@ -1,7 +1,7 @@
 {
   "name": "ace-wind-display",
   "version": "1.0.0",
-  "description": "Weston Wind: live hoarding screens, phone chat and website for the ACE community wind turbine",
+  "description": "Lawrence Weston wind: live hoarding screens, phone chat and website for the ACE community wind turbine",
   "type": "module",
   "private": true,
   "scripts": {

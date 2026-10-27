@@ -310,18 +310,56 @@
 }
 
 /* "Ask me" example chat (pages/screens/components/AskDemo.jsx). */
-/* Ask Ace's research drawer: books settle on a shelf; document folders slide into view. */
-.library-drawer { position: fixed; inset: 0 auto 0 0; width: min(100vw, 430px); max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; background: var(--color-moss-25); transform: translateX(-100%); transition: transform 280ms var(--ease-out-expo); }
-.library-drawer.is-open { transform: translateX(0); }
-.library-drawer::backdrop { background: rgb(10 21 29 / 0.55); }
-.library-book { animation: library-book-in 520ms var(--ease-spring) both; animation-delay: calc(var(--item-index) * 70ms); }
-.library-book-cover { position: relative; background: var(--color-moss-800); border-left: 9px solid var(--color-moss-600); box-shadow: inset 3px 0 rgb(255 255 255 / 0.14), 4px 5px 0 var(--color-moss-200); }
-.library-book:nth-child(3n+2) .library-book-cover { background: var(--color-moss-700); border-left-color: var(--color-moss-400); }
-.library-book:nth-child(3n) .library-book-cover { background: var(--color-moss-900); border-left-color: var(--color-moss-500); }
-.library-file { animation: library-file-in 440ms var(--ease-out-expo) both; animation-delay: calc(var(--item-index) * 80ms); }
-@keyframes library-book-in { from { opacity: 0; transform: translateY(-28px) rotate(-5deg); } to { opacity: 1; transform: none; } }
-@keyframes library-file-in { from { opacity: 0; transform: translateX(-32px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .library-drawer { transition-duration: 0.01ms; } .library-book, .library-file { animation: none; } }
+.news-chapter { inset: clamp(90px, 12vmin, 170px) 4vmin clamp(96px, 14vmin, 180px); display: flex; flex-direction: column; gap: 2vmin; pointer-events: auto; }
+.news-heading { display: flex; align-items: end; justify-content: space-between; gap: 4vmin; text-shadow: 0 2px 12px rgb(0 0 0 / .5); }
+.news-heading h2 { font-family: var(--font-display); font-size: clamp(44px, 7vmin, 110px); font-weight: 700; line-height: .95; letter-spacing: -.05em; }
+.news-heading > p { max-width: 28ch; font-size: clamp(13px, 1.8vmin, 25px); line-height: 1.3; }
+.news-kicker { color: #a9e1bd; font-size: clamp(10px, 1.25vmin, 18px); font-weight: 750; letter-spacing: .15em; text-transform: uppercase; }
+.news-layout { display: grid; grid-template-columns: minmax(0, 1.28fr) minmax(0, .72fr); gap: 1.6vmin; min-height: 0; flex: 1; }
+.news-feature, .news-preview, .news-empty { border: 1px solid rgb(255 255 255 / .22); background: rgb(3 25 20 / .91); box-shadow: 0 14px 40px rgb(0 0 0 / .2); backdrop-filter: blur(16px); }
+.news-feature { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; overflow: hidden; padding: clamp(20px, 3vmin, 46px); border-radius: 16px; }
+.news-feature-photo { position: absolute; inset: 0; z-index: -1; }
+.news-feature-photo, .news-preview-photo { background-image: url("/images/news-energy-triptych.png"); background-repeat: no-repeat; background-size: 300% auto; }
+.news-photo-heat { background-position: left center; }
+.news-photo-solar { background-position: center center; }
+.news-photo-wind { background-position: right center; }
+.news-photo-site { background-image: url("/images/ace-turbine-drone.jpg"); background-size: cover; background-position: center; }
+.news-feature-photo::after { position: absolute; inset: 0; content: ""; background: linear-gradient(90deg, rgb(2 21 17 / .98) 0%, rgb(2 21 17 / .86) 47%, rgb(2 21 17 / .2) 100%), linear-gradient(0deg, rgb(2 21 17 / .85), transparent 35%); }
+.news-image-credit { position: absolute; right: 1.5vmin; bottom: 1.5vmin; color: white; font-size: clamp(10px, 1.15vmin, 16px); text-shadow: 0 1px 4px #001; }
+.news-feature-copy { display: flex; min-height: 0; flex: 1; flex-direction: column; justify-content: center; }
+.news-feature h3 { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 4; max-width: 21ch; margin-top: 2vmin; font-family: var(--font-display); font-size: clamp(30px, 5vmin, 72px); font-weight: 700; line-height: 1.06; letter-spacing: -.04em; }
+.news-byline { color: #d0e1d8; font-size: clamp(12px, 1.45vmin, 21px); line-height: 1.3; }
+.news-feature .news-byline { margin-top: 1.8vmin; }
+.news-stale { margin-top: .6vmin; color: #ffdca4; font-size: clamp(11px, 1.2vmin, 18px); }
+.news-source { display: flex; width: fit-content; align-items: center; gap: 1.3vmin; margin-top: 1.6vmin; color: white; font-size: clamp(12px, 1.45vmin, 21px); font-weight: 650; line-height: 1.25; text-decoration: none; }
+.news-source:hover span, .news-source:focus-visible span { text-decoration: underline; }
+.news-qr { width: clamp(76px, 11vmin, 154px); height: clamp(76px, 11vmin, 154px); padding: 5px; border-radius: 6px; background: white; }
+.news-previews { display: flex; flex-direction: column; gap: 1.6vmin; min-height: 0; }
+.news-preview { position: relative; isolation: isolate; display: flex; min-height: 0; flex: 1; flex-direction: column; align-items: start; justify-content: space-between; overflow: hidden; width: 100%; padding: clamp(18px, 2.4vmin, 36px); border-radius: 14px; color: white; text-align: left; transition: background 180ms, transform 180ms; }
+.news-preview-photo { position: absolute; inset: 0; z-index: -1; }
+.news-preview-photo::after { position: absolute; inset: 0; content: ""; background: linear-gradient(90deg, rgb(2 21 17 / .96), rgb(2 21 17 / .72) 58%, rgb(2 21 17 / .18)); }
+.news-preview:nth-child(2) { margin-left: 3vmin; width: calc(100% - 3vmin); }
+.news-preview:hover, .news-preview:focus-visible { transform: translateX(-.5vmin); background: rgb(8 62 46 / .95); outline: 2px solid #a9e1bd; outline-offset: 2px; }
+.news-preview strong { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; max-width: 28ch; margin: .8vmin 0; font-family: var(--font-display); font-size: clamp(19px, 2.7vmin, 39px); line-height: 1.12; letter-spacing: -.025em; }
+.news-preview-arrow { position: absolute; right: 2vmin; top: 1.5vmin; color: #a9e1bd; font-size: clamp(22px, 2.8vmin, 38px); }
+.news-single { flex: 1; align-content: center; padding: 3vmin; color: #d0e1d8; font-size: clamp(16px, 2vmin, 25px); }
+.news-empty { display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 2vmin; padding: 5vmin; border-radius: 16px; }
+.news-empty h3 { max-width: 20ch; font-family: var(--font-display); font-size: clamp(32px, 5vmin, 70px); font-weight: 700; line-height: 1.1; }
+.news-empty > p:last-child { font-size: clamp(15px, 1.8vmin, 24px); }
+@media (orientation: portrait) { .news-chapter { inset: 120px 4vmin 30vmin; } .news-heading > p { display: none; } .news-layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1.2fr) minmax(0, .8fr); } .news-feature h3 { -webkit-line-clamp: 4; font-size: clamp(24px, 4vmin, 48px); } .news-previews { flex-direction: row; } .news-preview:nth-child(2) { margin: 0; width: 100%; } .news-preview strong { -webkit-line-clamp: 4; font-size: clamp(16px, 2.6vmin, 30px); } .news-qr { width: 76px; height: 76px; } }
+@media (prefers-reduced-motion: reduce) { .news-preview { transition: none; } }
+.scenario-focus { flex: 1; min-height: 0; overflow: hidden; background: var(--color-moss-25); }
+.studio-layout { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; }
+.studio-workspace { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(350px, .9fr); }
+.studio-viewer, .studio-viewer > .scenario-turbine { height: 100%; }
+.studio-viewer { overflow: hidden; background: linear-gradient(#a9c8d8, #dbe9e3 64%, #79a37c); }
+.studio-viewer > .scenario-turbine { z-index: 1; }
+@media (max-width: 800px) {
+  .studio-layout { grid-template-rows: auto minmax(0, 1fr); }
+  .studio-workspace { display: block; overflow-y: auto; }
+  .studio-viewer { height: min(48dvh, 440px); min-height: 270px; }
+  .studio-controls { overflow: visible; border-left: 0; border-top: 1px solid var(--color-moss-200); }
+}
 @keyframes ask-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-0.8vmin); } }
 .ask-float { animation: milestone-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both, ask-bob 3.6s ease-in-out infinite; }
 @keyframes ask-click { from { opacity: 0.9; transform: scale(0.3); } to { opacity: 0; transform: scale(1.6); } }

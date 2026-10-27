@@ -80,7 +80,7 @@ export async function deleteDocument(documentId) {
 const PASSAGE_COLUMNS = `c.chunk_id, c.position, c.page_start, c.page_end, c.content, d.document_id, d.title, d.author, d.source_url, d.source_type`;
 
 /** Nearest passages by cosine distance for one embedding model. */
-export async function searchByVector({ modelId, dimensions, embedding, limit }) {
+export async function searchByVector({ modelId, dimensions, embedding, limit, sourceUrls }) {
   const id = assertInt(modelId, "model id");
   const dims = assertInt(dimensions, "dimensions");
   // model_id is inlined so the planner can match the partial HNSW index.
@@ -89,25 +89,25 @@ export async function searchByVector({ modelId, dimensions, embedding, limit }) 
      FROM kb.chunk_embedding e
      JOIN kb.chunk c ON c.chunk_id = e.chunk_id
      JOIN kb.document d ON d.document_id = c.document_id
-     WHERE e.model_id = ${id}
+     WHERE e.model_id = ${id} AND d.source_url = ANY($3::text[])
      ORDER BY (e.embedding::halfvec(${dims})) <=> $1::halfvec(${dims})
      LIMIT $2`,
-    [vectorLiteral(embedding), limit]
+    [vectorLiteral(embedding), limit, sourceUrls]
   );
   return rows;
 }
 
 /** Best keyword matches (English full-text search over passages). */
-export async function searchByKeywords({ text, limit }) {
+export async function searchByKeywords({ text, limit, sourceUrls }) {
   const { rows } = await pool.query(
     `SELECT ${PASSAGE_COLUMNS}, ts_rank_cd(to_tsvector('english', c.content), q) AS rank
      FROM kb.chunk c
      JOIN kb.document d ON d.document_id = c.document_id,
           websearch_to_tsquery('english', $1) q
-     WHERE to_tsvector('english', c.content) @@ q
+     WHERE to_tsvector('english', c.content) @@ q AND d.source_url = ANY($3::text[])
      ORDER BY rank DESC
      LIMIT $2`,
-    [text, limit]
+    [text, limit, sourceUrls]
   );
   return rows;
 }

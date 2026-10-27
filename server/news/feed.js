@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 
 const MAX_BYTES = 2_000_000;
-const AGE_MS = 90 * 86400_000;
+const AGE_MS = 45 * 86400_000;
 const XML = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", trimValues: true });
 const SOURCES = [
   { name: "U.S. Energy Information Administration", host: "eia.gov", url: "https://www.eia.gov/rss/todayinenergy.xml", encoding: "iso-8859-1" },
@@ -42,18 +42,19 @@ export function selectNews(items, now = new Date()) {
     const text = `${item.title} ${item.description}`;
     if (!item.title || url.protocol !== "https:" || !(url.hostname === item.host || url.hostname.endsWith(`.${item.host}`))) return false;
     if (!Number.isFinite(+date) || +date > +now + 86400_000 || +now - +date > AGE_MS) return false;
-    if (FOSSIL_TITLE.test(item.title) || (!TOPIC.test(text) && !(AI_ENERGY.test(text) && CLEAN_POWER.test(text)))) return false;
+    // A passing mention buried in a feed summary is not enough for a kiosk headline.
+    if (FOSSIL_TITLE.test(item.title) || (!TOPIC.test(item.title) && !(AI_ENERGY.test(item.title) && CLEAN_POWER.test(text)))) return false;
     if (seen.has(url.href)) return false;
     seen.add(url.href);
     return true;
   }).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).slice(0, 8)
-    .map(({ title, description, url, publishedAt, publisher }) => ({
-      title, summary: description.replace(/\s+/g, " ").trim().slice(0, 240), url, publishedAt, publisher,
+    .map(({ title, url, publishedAt, publisher }) => ({
+      title, url, publishedAt, publisher,
     }));
 }
 
 async function readFeed(source) {
-  const response = await fetch(source.url, { signal: AbortSignal.timeout(10_000), headers: { "User-Agent": "WestonWindNews/1.0" } });
+  const response = await fetch(source.url, { signal: AbortSignal.timeout(10_000), headers: { "User-Agent": "LawrenceWestonWindNews/1.0" } });
   if (!response.ok) throw new Error(`${source.name} returned ${response.status}`);
   const reader = response.body.getReader();
   const chunks = [];

@@ -66,7 +66,7 @@ export default function Footer() {
           className="pointer-events-none mt-20 select-none whitespace-nowrap font-display text-[min(13.5vw,200px)] leading-none font-black tracking-tighter text-moss-100"
           aria-hidden="true"
         >
-          Weston Wind
+          Lawrence Weston wind
         </p>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-moss-100 pt-6 text-xs text-moss-900/60 md:flex-row md:items-center md:justify-between">

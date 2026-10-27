@@ -93,7 +93,7 @@ export async function streamExport(res, datasetId, from, to) {
     await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
     res.status(200).set({
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="weston-wind-${datasetId}-${from}-to-${to}.csv"`,
+      "Content-Disposition": `attachment; filename="lawrence-weston-wind-${datasetId}-${from}-to-${to}.csv"`,
       "Cache-Control": "private, no-store",
       "X-Attribution": ATTRIBUTION_TEXT,
       "X-License": LICENSE_URL,

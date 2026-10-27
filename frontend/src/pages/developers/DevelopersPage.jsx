@@ -9,7 +9,7 @@ import ScreensSection from "./sections/ScreensSection.jsx";
 export default function DevelopersPage() {
   const origin = usePublicOrigin();
   useEffect(() => {
-    document.title = "Developers · Weston Wind";
+    document.title = "Developers · Lawrence Weston wind";
   }, []);
   return (
     <>

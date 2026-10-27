@@ -6,7 +6,7 @@ import Icon from "../../../components/ui/Icon.jsx";
 
 const MAX = 600;
 
-export default function Composer({ onSend, onStop, streaming, disabled }) {
+export default function Composer({ onSend, onStop, onStudio, studioActive = false, studioButtonRef, streaming, disabled, placeholder = "Ask the turbine anything…" }) {
   const [text, setText] = useState("");
   const area = useRef(null);
 
@@ -26,7 +26,8 @@ export default function Composer({ onSend, onStop, streaming, disabled }) {
   };
 
   return (
-    <form onSubmit={submit} className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-[26px] bg-white p-1.5 pl-4 shadow-[0_8px_30px_rgb(10_21_29/0.1)] ring-1 ring-moss-100 focus-within:ring-2 focus-within:ring-moss-300">
+    <form onSubmit={submit} className="mx-auto flex w-full max-w-3xl items-end gap-2 rounded-[26px] bg-white p-1.5 pl-1.5 shadow-[0_8px_30px_rgb(10_21_29/0.1)] ring-1 ring-moss-100 focus-within:ring-2 focus-within:ring-moss-300">
+      <button ref={studioButtonRef} type="button" onClick={onStudio} disabled={disabled && !studioActive} aria-label={studioActive ? "Back to chat" : "Try a scenario"} className="flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-moss-800 px-3 text-xs font-semibold text-white transition hover:bg-moss-700 focus-visible:outline-2 focus-visible:outline-moss-600 disabled:opacity-35"><Icon name={studioActive ? "arrowRight" : "fan"} className={`size-4 ${studioActive ? "rotate-180" : ""}`} /><span>{studioActive ? "Chat" : "Try a scenario"}</span></button>
       <label htmlFor="ask-input" className="sr-only">
         Your question
       </label>
@@ -40,7 +41,7 @@ export default function Composer({ onSend, onStop, streaming, disabled }) {
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) submit(e);
         }}
-        placeholder="Ask the turbine anything…"
+        placeholder={placeholder}
         enterKeyHint="send"
         className="max-h-[140px] flex-1 resize-none bg-transparent py-2.5 text-base text-moss-950 outline-none placeholder:text-moss-900/40"
       />

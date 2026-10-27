@@ -80,7 +80,7 @@ async function main() {
         : `  stored #${result.documentId} "${result.title}": ${result.passages} passages in ${((Date.now() - started) / 1000).toFixed(0)} s`);
     }
   } else if (command === "ingest-curated") {
-    const selected = rest.length ? CURATED_SOURCES.filter((s) => rest.includes(s.id)) : CURATED_SOURCES;
+    const selected = rest.length ? CURATED_SOURCES.filter((s) => s.indexable && rest.includes(s.id)) : CURATED_SOURCES.filter((s) => s.indexable);
     if (!selected.length || (rest.length && selected.length !== rest.length)) throw new Error("Unknown curated source id");
     for (const source of selected) {
       const file = await downloadCurated(source);

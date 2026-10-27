@@ -81,11 +81,12 @@ export default function MessageBubble({ message }) {
           </p>
         ))}
         {!message.streaming && message.sources?.length > 0 && (
-          <div className="mt-1.5 ml-2 flex flex-wrap gap-1.5">
+          <div className="mt-2 ml-2 flex flex-wrap items-center gap-1.5" aria-label="Sources for this answer">
+            <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-moss-700">Sources</span>
             {dedupe(message.sources).slice(0, 4).map((s, i) =>
               s.url ? (
-                <a key={i} href={s.url} target="_blank" rel="noreferrer" className="rounded-full bg-moss-50 px-2.5 py-1 text-[11px] text-moss-700 ring-1 ring-moss-100 hover:bg-moss-100">
-                  {s.title || hostOf(s.url)}
+                <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" className="rounded-full bg-moss-50 px-2.5 py-1 text-[11px] text-moss-700 underline decoration-moss-300 underline-offset-2 ring-1 ring-moss-100 hover:bg-moss-100 focus-visible:outline-2 focus-visible:outline-moss-700">
+                  {s.title || hostOf(s.url)}{s.pages ? ` · ${s.pages}` : ""} <span aria-hidden="true">↗</span>
                 </a>
               ) : (
                 <span key={i} className="rounded-full bg-moss-50 px-2.5 py-1 text-[11px] text-moss-700 ring-1 ring-moss-100">

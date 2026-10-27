@@ -258,7 +258,7 @@ export default function AskDemo({ data, audience = "students", skin, side = "lef
             <TurbineMark className="size-[4.6vmin] shrink-0" />
             <div className="leading-tight">
               <p className="font-display text-[clamp(13px,2vmin,38px)] font-semibold">{TITLES[audience] ?? "Ask Ace"}</p>
-              <p className="text-[clamp(9px,1.2vmin,22px)] opacity-70">Weston Wind · {audience[0].toUpperCase() + audience.slice(1)} screen</p>
+              <p className="text-[clamp(9px,1.2vmin,22px)] opacity-70">Lawrence Weston wind · {audience[0].toUpperCase() + audience.slice(1)} screen</p>
             </div>
           </div>
           <div className="flex flex-col gap-[1.4vmin] p-[1.8vmin] text-[clamp(12px,1.75vmin,34px)] leading-snug">

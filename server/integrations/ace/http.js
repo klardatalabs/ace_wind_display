@@ -30,7 +30,7 @@ export async function aceGet(path, params = {}, { retries = 2 } = {}) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, {
-        headers: { Accept: "application/json", "User-Agent": "WestonWind/3 (+community display)" },
+        headers: { Accept: "application/json", "User-Agent": "LawrenceWestonWind/3 (+community display)" },
         signal: AbortSignal.timeout(config.ace.timeoutMs),
       });
       if (res.status === 429 || res.status === 503) {

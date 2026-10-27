@@ -1,4 +1,4 @@
-# Weston Wind release tasks
+# Lawrence Weston wind release tasks
 
 Target: Wednesday, 28 October 2026. Monday, 26 October is the decision review.
 
@@ -43,3 +43,16 @@ Target: Wednesday, 28 October 2026. Monday, 26 October is the decision review.
 - [ ] Review repository and Git history for secrets, private data, licensing, and attribution.
 - [ ] Verify deployment, rollback, and public-site health without disturbing other server workloads.
 - [ ] Publish the chosen repository only after the audit passes and the remote is confirmed.
+
+## What-if Studio and expanded research RAG
+
+- [x] Document fields currently ingested from ACE and distinguish them from uninspected archive configuration fields.
+- [ ] Inspect the complete ACE configuration/SCADA/OPC archive field list and confirm any additional sensor channels.
+- [ ] Confirm the installed E-115 EP3 variant and audit the current reference power/RPM curves against original sources.
+- [x] Add more wind-specific books/papers and ACE/manufacturer reference links to the source shelf; preserve truthful indexing labels.
+- [ ] Ingest the new reviewed PDFs into the intended knowledge database and run retrieval evaluation.
+- [x] Return a versioned scenario result with baseline source, units, assumptions, and supported outputs.
+- [x] Add the chat `+` Studio, natural-language scenario interpretation, editable supported values, compare/reset, and a lightweight ACE 3D view.
+- [x] Add a deterministic wind-speed/power/energy scenario engine with explicit illustrative-versus-historical labels and unit tests.
+- [ ] Verify the Studio visually and measure 3D performance on target phones; check live-data and populated-database behavior.
+- [ ] Assess advanced pitch/load/design simulation only after turbine-specific engineering inputs and expert validation are available.

@@ -1,4 +1,4 @@
-# Weston Wind final release plan
+# Lawrence Weston wind final release plan
 
 **Planning date:** 25 October 2026 (IST)
 **Discussion:** Monday, 26 October 2026
@@ -116,3 +116,38 @@ The remaining RAG ingestion and seasonal-data checks require access to the inten
 The Ask Ace phone chat has a top-left Library button. It opens a sliding drawer with animated book volumes, research files, and patent files. The public catalogue combines the reviewed ingestion shortlist with further-reading links; it labels a source "Searchable in chat" only when the knowledge database reports extracted passages. Additional books and papers should enter the reviewed source list as the RAG corpus grows. Verify the drawer on a phone, test keyboard Escape/close and reduced-motion behavior, and compare its readiness labels with the populated database before release.
 
 After review, the broad University Physics title was removed in favour of the U.S. Department of Energy's wind-specific guide. The wind-speed what-if answer now shows its speed-cubed calculation and links to that guide. Keep checking future additions for direct relevance to wind-energy research.
+
+## Proposed next feature: research-backed What-if Studio in Ask Ace (26 October)
+
+**Goal.** Visitors type natural-language changes through a `+` beside the chat composer, see the ACE turbine respond in a 3D scene, and compare a clearly identified baseline with a hypothetical outcome. The interface keeps its chat-first feel; parameter controls are available in an expandable inspector, not a mandatory form. The first four-input Studio is implemented locally; it is not a validated engineering simulator. Data-audit, ingestion, and device-review tasks remain below.
+
+### Evidence and parameter inventory first
+
+- Treat the ACE dataset's static, configuration, event, 10-minute, 60-second, and approximately one-second files as the first source to inspect. Build a field dictionary with units, timestamps, sampling, quality, range, provenance, and licensing. Compare it with the live API, current ingest schema, and the exact E-115 EP3 variant at Lawrence Weston.
+- The **current app integration** already has active power, wind speed, wind direction, rotor speed, nacelle angle, exported energy, operating hours, and operating/fault status, with some fields optional. It does not currently ingest blade pitch, vibration, component temperature, bearing load, or torque. Inspect ACE configuration and source documentation before declaring any of these measured or using them as defaults.
+- Audit `shared/physics.js` against traceable ACE/manufacturer data. Its RPM and power curve are presently labelled as assumptions/reference behavior in code. The application must not call them a verified ACE prediction unless their source, variant, and operating conditions are established.
+- Build a parameter registry. Each field has unit, baseline source (`live`, `historical`, `ACE configuration`, `manufacturer`, or `assumed`), freshness, editable bounds, calculation support, and a corresponding 3D/graph effect. Baseline choice: a timestamped live snapshot when healthy, otherwise a selected historical interval or explicitly labelled reference values. Missing readings never silently become live values.
+
+### Interaction and calculation design
+
+1. Add `+` at the Ask Ace composer. It opens a sliding **What-if Studio** with one free-form prompt, example prompts, a compact 3D ACE turbine, and a baseline selector. Suggested prompt: “What if wind rises from 7 to 9 m/s for an hour and the grid limit stays the same?” The chat response shows the changed inputs, baseline and scenario outputs, source links, assumptions, uncertainty, and a Reset/Undo action.
+2. Parse the user's text into a typed scenario proposal. Show the interpretation in plain language and allow direct correction. Keep an expandable **All parameters** inspector grouped by weather, turbine/rotor, generator/control, and grid; populate fields from the registry rather than asking users to fill a form first. Preserve units and reject impossible or ambiguous combinations before calculation.
+3. Keep the language/retrieval layer separate from the calculation engine. RAG locates evidence for explanations and assumptions; versioned deterministic functions calculate power/energy. A model may propose a scenario but cannot invent a sensor reading or numeric result. Store the baseline timestamp, input values, formula/model version, and cited sources with each result.
+4. Reuse the existing `TurbineScene` and its `setLive`/`setEnvironment` hooks for a lightweight, interactive view in chat. Wind-speed scenarios animate rotor speed smoothly; wind direction changes yaw/wind visualization; weather changes the scene. Pitch or internal parts animate only if the model supports an honest depiction. Other inputs update charts/annotations without suggesting the 3D mesh is a physics simulation. Load this view on opening Studio without blocking chat or repeating the screen's expensive full-scene initialization.
+5. Implement calculation tiers. **First:** teaching examples and instant visuals with explicit assumptions and cut-in/rated/storm limits. **Next:** site-calibrated power/energy estimates from a validated ACE curve and historical samples, including sample coverage and uncertainty. **Later:** pitch, aerodynamic loads, component temperatures, and design changes only after suitable OEM/validated engineering model inputs exist. Unsupported requests receive a useful explanation and sources, rather than a fabricated number. Scenarios never write to turbine controls or live telemetry.
+
+### Research corpus and answer quality
+
+- Add a reviewed, wind-specific corpus: ACE data and metadata; NREL/AWS *Wind Resource Assessment Handbook*; NREL *Fundamentals of Wind Energy*; Lee et al., *The Power Curve Working Group's assessment of wind turbine power performance prediction methods*; IEA Wind power-performance guidance; OpenFAST/AeroDyn documentation as a modelling reference; selected E-115 EP3 technical material and relevant patent specifications. Check rights and the exact turbine variant before ingesting or exposing full text. Reference-turbine studies must be labelled as general research, not ACE specifications.
+- For each document, record persistent URL/DOI, edition, author, date, licence, topic, extraction quality, and page/section anchors. Ingest in reviewed batches, inspect extracted passages, then run retrieval questions covering fundamentals, ACE facts, control, power curves, uncertainty, and patents. Cite original passages in answers and distinguish evidence, calculation, and assumption.
+- Keep the Library drawer synchronized with actually indexed documents. Show searchable state only after ingestion succeeds. University students can browse all public references; patent claims are inventions, not proof of installed ACE hardware.
+
+### Delivery slices and checks
+
+1. **Source audit and design gate:** ACE field dictionary, exact E-115 variant, power-curve provenance, research shortlist, input/output matrix, and unsupported-parameter list reviewed. No full engineering output promised until this gate passes.
+2. **Chat-first vertical slice:** `+` opens Studio; natural-language wind-speed/period change is parsed, editable, resettable; baseline and scenario results are traceable; rotor animation responds; small screens and keyboard work.
+3. **Research-backed slice:** more wind-specific sources indexed, passages/citations verified, library readiness truthful, no-source handling tested, and explanations link to the calculation method.
+4. **Validated scenario slice:** ACE-calibrated power and energy with caps/operating states, comparison chart, time-series scenarios, uncertainty and coverage labels. Extend the parameter inspector only to inputs supported by the chosen model.
+5. **Advanced engineering slice:** evaluate OpenFAST/AeroDyn or a validated equivalent for pitch, yaw losses, loads, and design changes after acquiring turbine-specific inputs and expert validation. Keep this separate from the initial public calculator.
+
+**Acceptance checks:** compare scenario arithmetic with independent calculations; test units, limits, cut-in/rated/cut-out, stale/missing data, and invalid combinations; test retrieval and citation grounding; measure chat/3D open time and frame continuity on target phones; ensure scenarios cannot reach control APIs. The full editable engineering twin is a separate milestone from the existing Wednesday release gate; its date depends on ACE data availability and model validation.

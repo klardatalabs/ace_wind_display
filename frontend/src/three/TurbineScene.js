@@ -260,6 +260,14 @@ export class TurbineScene {
         this.renderer.compileAsync(this.scene, this.camera),
         new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("3D shader preparation timed out")), 20_000); }),
       ]);
+      if (this.tour) {
+        // Upload the hidden interior and generator geometry before the tour opens them.
+        const parts = [this.interiors.towerInterior, this.interiors.nacelleInterior, this.tour.magnetRing, this.tour.coilGlow];
+        const visible = parts.map((part) => part.visible);
+        parts.forEach((part) => { part.visible = true; });
+        try { this.renderer.render(this.scene, this.camera); }
+        finally { parts.forEach((part, i) => { part.visible = visible[i]; }); }
+      }
     } finally {
       clearTimeout(timeout);
     }

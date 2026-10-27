@@ -110,6 +110,7 @@ const CHAPTERS = {
   day: { id: "day", label: "A day here", seconds: 24, stage: { action: "overview", lapse: [5, 22, 21] }, day: true },
   ask: { id: "ask", label: "Ask me", seconds: 14, stage: { action: "hero" }, ask: true },
   town: { id: "town", label: "Our town", seconds: 16, stage: { action: "aerial" } },
+  news: { id: "news", label: "News", seconds: 30, stage: { action: "aerial" }, backdrop: "soft" },
   // Shashi's energy journey (three/storyRail.js) played once through: wind to a home.
   power: { id: "power", label: "Follow my power", seconds: STORY_SECONDS, stage: { action: "tour" }, tour: true },
 };
@@ -267,6 +268,7 @@ export const SCREENS = {
     chapters: story({
       power: { label: "Follow the power", seconds: TOUR_END_AT + 16, stage: { value: { endAt: TOUR_END_AT, ending: "ev" } }, ending: "home" },
       hello: {
+        seconds: 20,
         stage: { action: "aerial" },
         tags: ["homes"],
         copy: [
@@ -306,7 +308,7 @@ export const SCREENS = {
         // Long enough for the example chat to answer three questions (components/AskDemo.jsx).
         seconds: 30,
       },
-    }, ["hello", "now", "power", "walk", "day", "ask"]),
+    }, ["hello", "now", "power", "walk", "day", "ask", "news"]),
   },
 
   college: {

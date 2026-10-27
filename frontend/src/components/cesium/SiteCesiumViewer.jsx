@@ -45,9 +45,13 @@ function turbineFootprint(lon, lat, radiusM = 62) {
 // `hoarding`: an unattended big screen. No buttons, markers or panels (the screen has its
 // own), just the real place, the turbine and a slow orbit. `hour` (London, 0-24) shows
 // that time of day instead of now, for a time-lapse; null follows the real clock.
-export default function SiteCesiumViewer({ className = "", screenMode = false, hoarding = false, controllerRef, onPick, onReady, active = true, hour = null }) {
+export default function SiteCesiumViewer({ className = "", screenMode = false, hoarding = false, hoardingRange = 480, hoardingIntro = false, waitForTiles = false, controllerRef, onPick, onReady, active = true, hour = null }) {
   const rootRef = useRef(null);
   const cameraRef = useRef(null);
+  const hoardingRangeRef = useRef(hoardingRange);
+  hoardingRangeRef.current = hoardingRange;
+  const hourRef = useRef(hour);
+  hourRef.current = hour;
   const selectionRef = useRef(null);
   const markerRef = useRef(null);
   const selectedRef = useRef(false);
@@ -63,6 +67,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, h
   const [envReady, setEnvReady] = useState(false);
   const callbacksRef = useRef({ screenMode, onPick, onReady, active });
   callbacksRef.current = { screenMode, onPick, onReady, active };
+  const waitForTilesRef = useRef(waitForTiles);
+  waitForTilesRef.current = waitForTiles;
 
   const selectTurbine = useCallback((picked = null) => {
     if (callbacksRef.current.screenMode) {
@@ -90,6 +96,10 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, h
       if (active) viewer.resize();
     }
   }, [active]);
+
+  useEffect(() => {
+    if (hoarding) cameraRef.current?.orbit(true, { range: hoardingRange, introSeconds: hoardingIntro ? 5 : 0 });
+  }, [hoarding, hoardingRange, hoardingIntro]);
 
   const closeDetails = useCallback((overview = false) => {
     selectedRef.current = false;
@@ -126,6 +136,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, h
     let selection;
     let whiteShader;
     let stopReady;
+    let stopTiles;
+    let revealTimer;
 
     async function init() {
       setStatus("loading");
@@ -178,17 +190,19 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, h
         const model = await loadTurbineModel(config, groundHeight);
         if (cancelled) { model.destroy(); return; }
         viewer.scene.primitives.add(model);
-        if (screenMode) {
-          whiteShader = new Cesium.CustomShader({ fragmentShaderText: "void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) { material.diffuse = vec3(1.0); material.specular = vec3(0.04); material.roughness = 0.65; material.emissive = vec3(0.12); }" });
+        if (screenMode || hoarding) {
+          whiteShader = new Cesium.CustomShader({ fragmentShaderText: `void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) { material.diffuse = vec3(1.0); material.specular = vec3(0.04); material.roughness = 0.65; material.emissive = vec3(${hoarding ? 0.45 : 0.12}); }` });
           model.customShader = whiteShader;
+          if (hoarding) model.shadows = Cesium.ShadowMode.DISABLED;
         }
         stopAnimation = animateTurbine(viewer.scene, model);
         stopEnvironment = applySiteEnvironment(viewer, tileset);
+        if (hourRef.current != null) stopEnvironment.setTime(londonHourToDate(hourRef.current));
         environmentRef.current = stopEnvironment;
         setEnvReady(true);
         camera = createSiteCamera(viewer, groundHeight, model);
         cameraRef.current = camera;
-        if (hoarding) camera.orbit(true);
+        if (hoarding) camera.orbit(true, { range: hoardingRangeRef.current, degPerSecond: waitForTilesRef.current ? 0 : 4 });
         selection = createSiteSelection(viewer, model, { marker: () => markerRef.current, onSelect: selectTurbine });
         selectionRef.current = selection;
         if (controllerRef) controllerRef.current = {
@@ -200,11 +214,21 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, h
         if (import.meta.env.DEV && new URLSearchParams(location.search).has("debug")) window.__liveMap = { viewer, model };
         setStatus("ready");
         viewer.useDefaultRenderLoop = callbacksRef.current.active;
-        if (model.ready) callbacksRef.current.onReady?.();
+        const reveal = () => {
+          if (!waitForTilesRef.current || !tileset) return callbacksRef.current.onReady?.();
+          stopTiles = tileset.tileVisible.addEventListener(() => {
+            stopTiles?.();
+            stopTiles = null;
+            revealTimer = window.setTimeout(() => {
+              if (!cancelled) callbacksRef.current.onReady?.();
+            }, 1500);
+          });
+        };
+        if (model.ready) reveal();
         else stopReady = model.readyEvent.addEventListener(() => {
           stopReady?.();
           stopReady = null;
-          if (!cancelled) callbacksRef.current.onReady?.();
+          if (!cancelled) reveal();
         });
       } catch (error) {
         console.error("[site-viewer] initialization failed", error);
@@ -224,6 +248,8 @@ export default function SiteCesiumViewer({ className = "", screenMode = false, h
       stopEnvironment?.();
       environmentRef.current = null;
       stopReady?.();
+      stopTiles?.();
+      window.clearTimeout(revealTimer);
       selection?.dispose();
       selectionRef.current = null;
       camera?.dispose();

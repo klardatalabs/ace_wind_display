@@ -125,7 +125,7 @@ function Hoarding({ screen }) {
 
   useWakeLock();
   useEffect(() => {
-    document.title = `Weston Wind · ${screen.name} screen`;
+    document.title = `Lawrence Weston wind · ${screen.name} screen`;
   }, [screen.name]);
 
   // The pick marker is positioned by the scene, like the data tags.
@@ -189,7 +189,8 @@ function Hoarding({ screen }) {
     : xrayId
       ? { ...story.chapter, ...tourChapter(XRAY_COPY[screen.key][xrayId], `xray-${xrayId}`) }
       : resolveChapter(story.chapter, story.chapter.cycle ? story.loop * 3 + Math.min(2, Math.floor(story.progress * 3)) : story.loop, data, generated);
-  const showQr = screen.rail || story.index === screen.chapters.length - 1;
+  const showQr = screen.rail || Boolean(story.chapter.ask);
+  const showNews = screen.key === "community" && story.chapter.id === "news";
   const captionChapter = story.railState?.final ? { ...chapter, id: "community-finale", eyebrow: "Avonmouth / Lawrence Weston, Bristol", line: () => "Powering more than homes. Powering a community.", sub: () => "Our turbine. Our power. Income from ACE supports Ambition Lawrence Weston's work on fuel poverty and the community." } : chapter;
   const panel = chapter.panel;
   const tagIds = useMemo(() => ((xrayId ? XRAY_COPY[screen.key][xrayId].tags : story.chapter.tags) ?? []).filter((id) => TAGS[id]), [story.chapter, xrayId, screen.key]);
@@ -204,11 +205,12 @@ function Hoarding({ screen }) {
   const [liveMounted, setLiveMounted] = useState(false);
   const [liveReady, setLiveReady] = useState(false);
   const n = screen.chapters.length;
+  const openingSite = screen.key === "community" && story.chapter.id === "hello";
   const liveActive = liveChapters.some((i) => story.index === i || story.index === (i - 1 + n) % n);
   useEffect(() => {
     if (liveActive) setLiveMounted(true);
   }, [liveActive]);
-  const showLive = chapter.live && liveReady && !walking;
+  const showLive = (chapter.live || openingSite) && liveReady && !walking;
   // A day told over the real place: its clock follows the time-lapse.
   const elapsedS = story.progress * chapter.seconds;
   const liveHour = chapter.day && chapter.live ? Math.round(lapseHour(elapsedS) * 20) / 20 : null;
@@ -222,7 +224,7 @@ function Hoarding({ screen }) {
   const soft = chapter.backdrop === "soft" && !walking;
   // Once the live view has faded in over it, the 3D scene can stop drawing until it's
   // needed again. (A softened view keeps moving: frozen, it read as the story stopping.)
-  const resting = showLive;
+  const resting = showLive || openingSite;
   useEffect(() => {
     if (!resting) return sceneRef.current?.setPaused?.(false);
     const id = setTimeout(() => sceneRef.current?.setPaused?.(true), soft ? 2600 : 1200);
@@ -252,12 +254,13 @@ function Hoarding({ screen }) {
         </div>
       </div>
       {liveMounted && (
-        <div className={`absolute inset-0 transition-opacity duration-1000 ${showLive ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!showLive}>
+        <div className={`absolute inset-0 transition-opacity duration-1000 ${showLive || openingSite ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!showLive}>
           <Suspense fallback={null}>
-            <SiteCesiumViewer hoarding active={liveActive} onReady={onLiveReady} hour={liveHour} className="size-full" />
+            <SiteCesiumViewer hoarding hoardingRange={openingSite ? 280 : 480} hoardingIntro={openingSite && showLive} waitForTiles={openingSite} active={liveActive} onReady={onLiveReady} hour={openingSite ? 13 : liveHour} className="size-full" />
           </Suspense>
         </div>
       )}
+      {openingSite && <img src="/images/ace-turbine-drone.jpg" alt="" className={`pointer-events-none absolute inset-0 size-full object-cover transition-opacity duration-1000 ${showLive ? "opacity-0" : "opacity-[0.98]"}`} />}
       {screen.rail && <div className="pointer-events-none absolute inset-0 bg-moss-950" style={{ opacity: story.fade }} />}
       {tour && <div className="pointer-events-none absolute inset-0 bg-moss-950" style={{ opacity: tour.fade }} />}
       {screen.rail && story.railState && new URLSearchParams(window.location.search).has("debug") && <output hidden data-story-state>{JSON.stringify(story.railState)}</output>}
@@ -266,7 +269,7 @@ function Hoarding({ screen }) {
       {!screen.mascot && <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-[46vh] ${skin.scrimBottom}`} />}
       <div className={`pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b to-transparent ${screen.mascot ? "h-[12vh] from-white/30" : `h-[18vh] ${skin.dark ? "from-black/40" : "from-white/50"}`}`} />
 
-      {!walking && !showLive && <DataTags ids={tagIds} data={data} tagRefs={tagRefs} skin={cardSkin} />}
+      {!walking && !showLive && !showNews && <DataTags ids={tagIds} data={data} tagRefs={tagRefs} skin={cardSkin} />}
       <div
         ref={markerRef}
         data-on="0"
@@ -278,10 +281,11 @@ function Hoarding({ screen }) {
       </div>
 
       <ScreenTopBar skin={skin} screenName={screen.name} screenKey={screen.key} />
-      {screen.key !== "students" && <CommunityNews />}
-      <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20 portrait:top-[118px]">
+      {openingSite && <span className="pointer-events-none absolute left-[2.2vmin] top-[17vmin] z-20 rounded-full bg-white/85 px-3 py-1.5 text-xs font-semibold text-moss-900">{showLive ? "3D site view · daylight" : "Site photo · loading 3D view"}</span>}
+      {showNews && <CommunityNews onSelect={() => story.yieldTo(null)} />}
+      {!showNews && <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20 portrait:top-[118px]">
         <WeatherChip windSpeed={data.windSpeed} windDir={data.windDir} skin={cardSkin} />
-      </div>
+      </div>}
       <RemoteToast event={toast} skin={cardSkin} />
 
       {/* Ace introduces itself in the opening chapter, from the bottom-left corner; after
@@ -302,7 +306,7 @@ function Hoarding({ screen }) {
             <main data-keepout className={`pointer-events-none absolute right-[3vmin] bottom-[3vmin] z-10 rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] portrait:inset-x-[4vmin] portrait:bottom-[34vmin] ${showAce ? "ace-bubble" : ""} ${skin.card}`}>
               <CinematicCaption key={captionChapter.id} chapter={captionChapter} data={data} skin={cardSkin} bubble />
             </main>
-          ) : noCaption ? null : (
+          ) : noCaption || showNews ? null : (
             // In a card, the card fades in with its words, so it never shows empty.
             <main key={screen.captionCard ? captionChapter.id : undefined} data-keepout className={`${screen.captionCard ? "caption-card-in" : ""} pointer-events-none absolute z-10 flex flex-col portrait:inset-x-0 portrait:bottom-[34vmin] portrait:px-[4vmin] landscape:left-[4vmin] ${xrayId ? "landscape:bottom-[15vmin]" : "landscape:bottom-[23vmin]"} ${screen.captionCard ? `rounded-[3vmin] px-[3.4vmin] py-[2.8vmin] ${cardSkin.card}` : ""}`}>
               {chapter.day ? (
@@ -358,7 +362,7 @@ function Hoarding({ screen }) {
         </div>
         {/* The QR waits for the story's last chapter, so the opening shows the turbine alone.
             On the students screen it goes top-right, clear of Ace's speech bubble. */}
-        {!screen.mascot && <QrCard
+        {!screen.mascot && showQr && <QrCard
           keepout={showQr}
           large={chapter.ask}
           screenKey={screen.key}
@@ -369,7 +373,7 @@ function Hoarding({ screen }) {
         />}
       </footer>
       {Transition && <Transition index={story.index} label={story.chapter.label} total={screen.chapters.length} layerRef={gustLayer} />}
-      {screen.mascot && (
+      {screen.mascot && showQr && (
         <div className="absolute top-[24vmin] right-[3vmin] z-20">
           <QrCard
             keepout={showQr}

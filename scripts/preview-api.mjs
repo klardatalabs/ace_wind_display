@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { fetchLatestNews } from "../server/news/feed.js";
 import { buildLibrary } from "../server/knowledge/library.js";
 import { previewAnswer } from "./preview-chat.mjs";
+import { previewScenario } from "../shared/scenarios.js";
 
 const PORT = 4100;
 const LIVE_ORIGIN = "https://ace.klardatalabs.com";
@@ -15,13 +16,17 @@ const sessions = new Map();
 
 const sessionFor = (req) => sessions.get(req.headers.authorization?.replace(/^Bearer /, ""));
 
-async function readMessage(req) {
+async function readBody(req) {
   let body = "";
   for await (const chunk of req) {
     body += chunk.toString();
-    if (body.length > 4000) throw new Error("Message too long");
+    if (body.length > 4000) throw new Error("Request too long");
   }
-  const message = JSON.parse(body).message;
+  return JSON.parse(body || "{}");
+}
+
+async function readMessage(req) {
+  const message = (await readBody(req)).message;
   if (typeof message !== "string" || !message.trim() || message.length > 600) throw new Error("Invalid message");
   return message.trim();
 }
@@ -68,6 +73,12 @@ createServer(async (req, res) => {
     res.write(`event: token\ndata: ${JSON.stringify({ t: reply })}\n\n`);
     res.end("event: done\ndata: {}\n\n");
     return;
+  }
+  if (path === "/api/chat/scenario" && req.method === "POST") {
+    if (!sessionFor(req)) return send(res, 401, { error: "Preview session expired" });
+    try {
+      return send(res, 200, previewScenario(await readBody(req)));
+    } catch (err) { return send(res, 400, { error: err.message }); }
   }
   if (req.method !== "GET") return send(res, 405, { error: "Unavailable in local preview" });
   if (path === "/api/research/library") return send(res, 200, buildLibrary([], "unavailable"));

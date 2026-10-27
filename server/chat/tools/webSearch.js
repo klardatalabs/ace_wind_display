@@ -20,7 +20,9 @@ export const definition = {
   },
 };
 
-export async function run({ query = "" } = {}) {
+export async function run({ query = "" } = {}, ctx) {
   const found = await webSearch(query);
-  return { answer: found.answer, results: found.results.map(({ title, snippet }) => ({ title, snippet })) };
+  const results = found.results.filter(({ url }) => { try { return new URL(url).protocol === "https:"; } catch { return false; } });
+  if (results.length) ctx?.emit("sources", { sources: results.map(({ title, url }) => ({ title, url })) });
+  return { answer: found.answer, results: results.map(({ title, url, snippet }) => ({ title, url, snippet })) };
 }

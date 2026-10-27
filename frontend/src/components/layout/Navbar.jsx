@@ -57,7 +57,7 @@ export default function Navbar() {
           className="mx-auto flex max-w-[1096px] items-center rounded-full bg-white/90 py-2 pl-3 pr-2 shadow-[0_8px_24px_rgb(10_21_29/0.06)] ring-1 ring-moss-900/5 backdrop-blur-xl lg:py-3 lg:pl-5 lg:pr-3"
         >
           <div className="flex flex-1 items-center">
-            <Wordmark markClassName="size-8 lg:size-9" textClassName="text-lg lg:text-xl" />
+            <Wordmark markClassName="size-8 lg:size-9" textClassName="text-sm sm:text-lg lg:text-xl" />
           </div>
           <ul className="hidden items-center gap-1 lg:flex">
             {NAV_LINKS.map((l) => (

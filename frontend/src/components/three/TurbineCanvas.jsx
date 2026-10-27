@@ -130,7 +130,7 @@ export default function TurbineCanvas({ poster, theme = "realistic", sceneRef, i
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
-      <canvas ref={canvas} className="block size-full cursor-grab active:cursor-grabbing" aria-label="Interactive 3D model of the Weston Wind turbine" />
+      <canvas ref={canvas} className="block size-full cursor-grab active:cursor-grabbing" aria-label="Interactive 3D model of the Lawrence Weston wind turbine" />
       {showLabels && (
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           {labels.map((l) => (

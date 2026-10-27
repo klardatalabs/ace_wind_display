@@ -12,7 +12,7 @@ import { fetchApiStatus } from "./ace/history.js";
 
 const KINDS = ["10m", "daily", "events"];
 // Zenodo rejects requests without a descriptive User-Agent.
-const HEADERS = { Accept: "application/json", "User-Agent": "WestonWind/3 (+community display)" };
+const HEADERS = { Accept: "application/json", "User-Agent": "LawrenceWestonWind/3 (+community display)" };
 
 /** The verified release the ACE API advertises: { doi, recordId }. */
 export async function currentRelease() {

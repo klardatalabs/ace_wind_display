@@ -14,9 +14,62 @@ import { enforce, rateLimit } from "../middleware/rateLimit.js";
 import { LIMITS } from "../rateLimits.js";
 import { HttpError } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";
+import { currentState } from "../liveFeed.js";
+import { powerCurve } from "../services/history.js";
+import { REFERENCE, parseScenario, evaluateScenario, validateChanges } from "../../../shared/scenarios.js";
 
 const log = logger("api.chat");
 export const chatRoutes = Router();
+
+chatRoutes.post("/scenario", requireChatSession, async (req, res) => {
+  await enforce(res, `scenario:${req.chatSession.sessionId}`, LIMITS.scenarioPerSession);
+  const state = currentState();
+  const live = state?.connected && Date.now() - Date.parse(state.liveAt) <= 30_000 && Number.isFinite(state.now?.windSpeed) && state.now.windSpeed >= 0 && state.now.windSpeed <= 34;
+  const baseline = live ? {
+    windMs: state.now.windSpeed,
+    windDeg: Number.isFinite(state.now.aggregateWindDir) ? state.now.aggregateWindDir : REFERENCE.windDeg,
+    durationHours: 1,
+    gridLimitKw: Number.isFinite(state.now.availablePowerAfterSetpoints) ? Math.min(REFERENCE.gridLimitKw, Math.max(0, state.now.availablePowerAfterSetpoints)) : REFERENCE.gridLimitKw,
+      airDensityKgM3: REFERENCE.airDensityKgM3,
+      operatingPct: REFERENCE.operatingPct,
+  } : REFERENCE;
+  let parsed;
+  let heldBaseline = null;
+  try {
+    if (req.body?.baseline != null) {
+      heldBaseline = validateChanges(req.body.baseline);
+      if (Object.keys(heldBaseline).length !== Object.keys(REFERENCE).length) throw new Error("The saved baseline is incomplete.");
+    }
+    parsed = req.body?.prompt != null ? parseScenario(req.body.prompt, heldBaseline ?? baseline) : { baselineChanges: {}, changes: {}, unsupported: [] };
+    if (req.body?.prompt && !Object.keys(parsed.changes).length && !parsed.unsupported.length) throw new Error("Add a number, such as ‘wind speed 9 m/s for 2 hours’, or edit the supported values below.");
+  } catch (err) { throw new HttpError(400, err.message, { code: "bad_scenario" }); }
+  const changes = req.body?.changes ?? parsed.changes;
+  const comparisonBaseline = { ...(heldBaseline ?? baseline), ...parsed.baselineChanges };
+  let empirical = [];
+  let curveTimer;
+  try {
+    empirical = (await Promise.race([powerCurve(), new Promise((_, reject) => { curveTimer = setTimeout(() => reject(new Error("curve timeout")), 1500); })])).empirical;
+  } catch (err) { log.debug("scenario curve unavailable", { err }); }
+  finally { clearTimeout(curveTimer); }
+  let result;
+  try {
+    result = evaluateScenario({ baseline: comparisonBaseline, changes, empirical, unsupported: parsed.unsupported, source: parsed.baselineChanges.windMs != null ? "your stated starting value" : heldBaseline ? "saved experiment baseline" : live ? "ACE live snapshot" : "reference example", liveAt: live && !heldBaseline && parsed.baselineChanges.windMs == null ? state.liveAt : null });
+    if (live && !heldBaseline && parsed.baselineChanges.windMs == null) {
+      result.baseline.observedPowerKw = state.now.activePowerKw;
+      result.measurements = {
+        rotorRpm: state.now.rotorRpm,
+        nacelleDeg: state.now.nacelleDeg,
+        lifetimeEnergyKwh: state.now.lifetimeEnergyKwh,
+        operatingHours: state.now.operatingHours,
+        status: state.statusEvent?.main_status ?? null,
+      };
+    }
+  } catch (err) {
+    if (err instanceof Error) throw new HttpError(400, err.message, { code: "bad_scenario" });
+    throw err;
+  }
+  res.set("Cache-Control", "no-store").json(result);
+});
 
 chatRoutes.post(
   "/session",

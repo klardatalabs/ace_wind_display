@@ -100,7 +100,7 @@ export default function ScreenTopBar({ skin, screenName, screenKey }) {
         <TurbineMark className="size-[clamp(36px,4.6vmin,96px)]" />
         <div className="leading-tight">
           <p className={`font-display text-[clamp(18px,2.4vmin,48px)] font-bold tracking-display ${skin.text}`}>
-            Weston<span className={skin.dark ? "text-moss-300" : "text-moss-500"}> Wind</span>
+            Lawrence Weston<span className={skin.dark ? "text-moss-300" : "text-moss-500"}> wind</span>
           </p>
           <p className={`text-[clamp(11px,1.3vmin,24px)] font-medium ${skin.muted}`}>{screenName} screen · Lawrence Weston, Bristol</p>
         </div>

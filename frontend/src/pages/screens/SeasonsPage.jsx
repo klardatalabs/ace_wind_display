@@ -15,7 +15,7 @@ export default function SeasonsPage() {
   return (
     <main className="min-h-dvh bg-moss-950 px-5 py-6 text-white sm:px-10 sm:py-9 xl:px-16">
       <header className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3"><TurbineMark className="size-12" /><span className="font-display text-xl font-semibold">Weston Wind</span></div>
+        <div className="flex items-center gap-3"><TurbineMark className="size-12" /><span className="font-display text-xl font-semibold">Lawrence Weston wind</span></div>
         <nav className="flex gap-3 text-sm" aria-label="Seasons navigation">
           <Link className="rounded-full border border-white/30 px-4 py-2 hover:bg-white/10" to="/screen/college">College screen</Link>
           <Link className="rounded-full border border-white/30 px-4 py-2 hover:bg-white/10" to="/">Home</Link>

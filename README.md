@@ -1,8 +1,8 @@
-# Weston Wind
+# Lawrence Weston wind
 
 **Live wind. Local energy. A turbine you can talk to.**
 
-Weston Wind is the public display platform for the ACE community wind turbine in Lawrence Weston, Bristol: an Enercon E-115 EP3 (4.2 MW) owned by its community through Ambition Community Energy. It turns the turbine's live telemetry into storytelling screens for public hoardings, a private phone chat that answers questions about the turbine, a public website, and a developer portal with open data.
+Lawrence Weston wind is the public display platform for the ACE community wind turbine in Lawrence Weston, Bristol: an Enercon E-115 EP3 (4.2 MW) owned by its community through Ambition Community Energy. It turns the turbine's live telemetry into storytelling screens for public hoardings, a private phone chat that answers questions about the turbine, a public website, and a developer portal with open data.
 
 The platform is built on the turbine's open data: the [ACE Live API](https://ace-api.duckdns.org/docs) and the [ACE Wind Turbine Data archive on Zenodo](https://doi.org/10.5281/zenodo.22662372).
 

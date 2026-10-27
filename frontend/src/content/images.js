@@ -9,7 +9,7 @@ export const IMAGES = {
   hillside: { src: "/images/turbines-hillside.jpg", alt: "Wind turbines on a grassy hillside under a big sky" },
   dawn: { src: "/images/turbines-dawn-fog.jpg", alt: "Wind turbines rising out of morning fog at sunrise" },
   dusk: { src: "/images/wind-farm-dusk.jpg", alt: "A row of wind turbines along a ridge in the evening light" },
-  renderHero: { src: "/images/renders/turbine-hero.jpg", alt: "3D render of the Weston Wind turbine" },
+  renderHero: { src: "/images/renders/turbine-hero.jpg", alt: "3D render of the Lawrence Weston wind turbine" },
   renderInside: { src: "/images/renders/turbine-inside.jpg", alt: "3D cutaway render showing inside the turbine" },
   liveVisualisation: { src: "/images/live-visualisation.jpg", alt: "The turbine in the live 3D view of its real surroundings", credit: "Imagery © Google" },
 };

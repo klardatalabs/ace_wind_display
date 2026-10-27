@@ -3,15 +3,14 @@ import LiveBadge from "../../../components/live/LiveBadge.jsx";
 import Icon from "../../../components/ui/Icon.jsx";
 import { Link } from "react-router";
 
-export default function ChatHeader({ title, screenName, screen, onReset, canReset, onLibrary, libraryButtonRef }) {
+export default function ChatHeader({ title, screenName, screen, onReset, canReset }) {
   return (
     <header className="sticky top-0 z-20 border-b border-moss-100/70 bg-white/80 px-4 pt-[max(env(safe-area-inset-top),12px)] pb-3 backdrop-blur-xl">
       <div className="mx-auto flex max-w-3xl items-center gap-3">
-        <button ref={libraryButtonRef} type="button" onClick={onLibrary} aria-label="Open research library" className="flex shrink-0 items-center gap-1.5 rounded-full bg-moss-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-moss-800 active:scale-95"><Icon name="book" className="size-4" /><span className="hidden min-[380px]:inline">Library</span></button>
         <TurbineMark className="hidden size-11 sm:block" />
         <div className="min-w-0 flex-1">
           <p className="font-display text-lg leading-tight font-semibold text-moss-950">{title}</p>
-          <p className="truncate text-xs text-moss-900/60">Weston Wind · {screenName} screen</p>
+          <p className="truncate text-xs text-moss-900/60">Lawrence Weston wind · {screenName} screen</p>
         </div>
         <span className="hidden sm:block">
           <LiveBadge />

@@ -64,7 +64,7 @@ export function createSiteCamera(viewer, groundHeightM, model) {
 
   // A slow, steady circle round the turbine, for screens nobody is driving.
   let stopOrbit = null;
-  function orbit(on, { range = 480, pitchDeg = -24, degPerSecond = 4 } = {}) {
+  function orbit(on, { range = 480, pitchDeg = -24, degPerSecond = 4, introSeconds = 0 } = {}) {
     stopOrbit?.();
     stopOrbit = null;
     if (!on) return camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
@@ -72,11 +72,18 @@ export function createSiteCamera(viewer, groundHeightM, model) {
     const centre = Cesium.Cartesian3.fromDegrees(SITE_COORDS.lon, SITE_COORDS.lat, groundHeightM + 70);
     let heading = Cesium.Math.toRadians(215);
     let last = performance.now();
+    const started = last;
     const step = () => {
       const now = performance.now();
       if (!reducedMotion.matches) heading += Cesium.Math.toRadians(degPerSecond) * Math.min(0.1, (now - last) / 1000);
       last = now;
-      camera.lookAt(centre, new Cesium.HeadingPitchRange(heading, Cesium.Math.toRadians(pitchDeg), range));
+      const progress = introSeconds && !reducedMotion.matches ? Cesium.Math.clamp((now - started) / (introSeconds * 1000), 0, 1) : 1;
+      const eased = progress * progress * (3 - 2 * progress);
+      camera.lookAt(centre, new Cesium.HeadingPitchRange(
+        heading - Cesium.Math.toRadians(35) * (1 - eased),
+        Cesium.Math.toRadians(pitchDeg),
+        Cesium.Math.lerp(Math.max(400, range), range, eased),
+      ));
     };
     stopOrbit = scene.preUpdate.addEventListener(step);
   }

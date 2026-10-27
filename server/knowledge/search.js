@@ -6,10 +6,14 @@ import { embedQuery, embeddingsEnabled } from "../integrations/llm.js";
 import { embeddingModel } from "./ingest.js";
 import * as knowledge from "../db/repositories/knowledge.js";
 import { logger } from "../lib/logger.js";
+import { CURATED_SOURCES } from "./curated.js";
 
 const log = logger("knowledge.search");
 const RRF_K = 60; // the usual constant: damps the influence of top ranks
 const CANDIDATES = 20;
+// A public answer may use only text with verified reuse permission. The other
+// titles stay as outbound references, including documents indexed previously.
+export const SEARCHABLE_SOURCE_URLS = CURATED_SOURCES.filter((source) => source.indexable).map((source) => source.sourceUrl);
 
 /** Reciprocal-rank fusion of several ranked lists of rows keyed by chunk_id. */
 export function fuse(lists, limit) {
@@ -30,14 +34,14 @@ export function fuse(lists, limit) {
  */
 export async function searchKnowledge(query, { limit = 6 } = {}) {
   const text = String(query).trim().slice(0, 500);
-  if (!text) return [];
+  if (!text || !SEARCHABLE_SOURCE_URLS.length) return [];
   const semantic = embeddingsEnabled
     ? (async () => {
         const [{ modelId, dimensions }, embedding] = await Promise.all([embeddingModel(), embedQuery(text)]);
-        return knowledge.searchByVector({ modelId, dimensions, embedding, limit: CANDIDATES });
+        return knowledge.searchByVector({ modelId, dimensions, embedding, limit: CANDIDATES, sourceUrls: SEARCHABLE_SOURCE_URLS });
       })()
     : Promise.resolve([]);
-  const keyword = knowledge.searchByKeywords({ text, limit: CANDIDATES });
+  const keyword = knowledge.searchByKeywords({ text, limit: CANDIDATES, sourceUrls: SEARCHABLE_SOURCE_URLS });
   const [vectorHits, keywordHits] = await Promise.allSettled([semantic, keyword]);
   for (const r of [vectorHits, keywordHits]) if (r.status === "rejected") log.warn("one search half failed", { err: r.reason });
   const lists = [vectorHits, keywordHits].filter((r) => r.status === "fulfilled").map((r) => r.value);
