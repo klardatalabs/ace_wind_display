@@ -5,7 +5,6 @@ import { randomUUID } from "node:crypto";
 import { fetchLatestNews } from "../server/news/feed.js";
 import { buildLibrary } from "../server/knowledge/library.js";
 import { previewAnswer } from "./preview-chat.mjs";
-import { previewScenario } from "../shared/scenarios.js";
 
 const PORT = 4100;
 const LIVE_ORIGIN = "https://ace.klardatalabs.com";
@@ -73,12 +72,6 @@ createServer(async (req, res) => {
     res.write(`event: token\ndata: ${JSON.stringify({ t: reply })}\n\n`);
     res.end("event: done\ndata: {}\n\n");
     return;
-  }
-  if (path === "/api/chat/scenario" && req.method === "POST") {
-    if (!sessionFor(req)) return send(res, 401, { error: "Preview session expired" });
-    try {
-      return send(res, 200, previewScenario(await readBody(req)));
-    } catch (err) { return send(res, 400, { error: err.message }); }
   }
   if (req.method !== "GET") return send(res, 405, { error: "Unavailable in local preview" });
   if (path === "/api/research/library") return send(res, 200, buildLibrary([], "unavailable"));
