@@ -14,7 +14,7 @@ export const ASK = {
   college: {
     title: "Ask Ace",
     greeting: "Ace here — Enercon E-115 EP3, 4.2 MW, direct drive. Ask about live telemetry, history, the power curve, or how the drivetrain works.",
-    suggestions: ["What's my capacity factor this week?", "Explain the power curve", "What if the wind were 10% faster?", "Find research on direct-drive turbines", "Find a wind-turbine patent", "Compare today with yesterday"],
+    suggestions: ["What's my capacity factor this week?", "Explain the power curve", "Find research on direct-drive turbines", "Find a wind-turbine patent", "Compare today with yesterday"],
   },
 };
 
