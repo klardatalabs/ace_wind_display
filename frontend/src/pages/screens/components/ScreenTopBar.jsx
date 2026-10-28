@@ -93,7 +93,7 @@ function FullscreenControl({ skin }) {
 
 // The time of day is shown once, in the weather chip below this bar; the top right keeps
 // just the live badge and the full-screen button (no status pill).
-export default function ScreenTopBar({ skin, screenName, screenKey }) {
+export default function ScreenTopBar({ skin, screenName }) {
   return (
     <header data-keepout className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-[2.2vmin] portrait:flex-col">
       <div className="flex items-center gap-[1.2vmin]">
@@ -106,7 +106,6 @@ export default function ScreenTopBar({ skin, screenName, screenKey }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-[1vmin]">
-        {screenKey === "college" && <Link to="/screen/college/seasons" onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }} className="pointer-events-auto rounded-full bg-white px-4 py-2 text-sm font-bold text-moss-900 shadow-lg ring-1 ring-moss-500/40 transition hover:bg-moss-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-moss-300">Seasonal wind →</Link>}
         <Link to="/" onClick={() => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); }} className={`pointer-events-auto rounded-full px-[1.4vmin] py-[0.6vmin] text-[clamp(12px,1.3vmin,24px)] ring-1 ${skin.dark ? "bg-white/10 text-white ring-white/25" : "bg-white/70 text-moss-900 ring-moss-200"}`}>Home</Link>
         <LiveBadge tone={skin.dark ? "dark" : "light"} className="px-[1.4vmin]! py-[0.6vmin]! text-[clamp(11px,1.3vmin,24px)]!" />
         <FullscreenControl skin={skin} />

@@ -282,7 +282,7 @@ function Hoarding({ screen }) {
         <span className="absolute -top-[0.6vmin] -left-[0.6vmin] block size-[1.2vmin] rounded-full bg-white shadow-[0_0_14px_rgb(255_255_255/0.9)]" />
       </div>
 
-      <ScreenTopBar skin={skin} screenName={screen.name} screenKey={screen.key} />
+      <ScreenTopBar skin={skin} screenName={screen.name} />
       {openingSite && <span className="pointer-events-none absolute left-[2.2vmin] top-[17vmin] z-20 rounded-full bg-white/85 px-3 py-1.5 text-xs font-semibold text-moss-900">{showLive ? "3D site view · daylight" : "Site photo · loading 3D view"}</span>}
       {showNews && <CommunityNews onSelect={() => story.yieldTo(null)} />}
       {!showNews && <div data-keepout className="pointer-events-none absolute top-[11vmin] left-[2.2vmin] z-20 portrait:top-[118px]">
