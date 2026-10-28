@@ -55,9 +55,10 @@ test("a chat exchange is stored with its steps, photos and actions, and purged b
 test("knowledge passages are found by meaning and by keywords", { skip }, async () => {
   const modelId = await knowledge.registerModel("test-embedding-model", 3);
   const contentSha256 = sha(`doc-${Date.now()}`);
+  const sourceUrl = "https://example.com/test-book";
   const documentId = await knowledge.insertDocument({
     modelId,
-    doc: { contentSha256, title: "Test Book", author: "A. Writer", fileName: "test.pdf", mediaType: "application/pdf", byteSize: 1234, pageCount: 3 },
+    doc: { contentSha256, title: "Test Book", author: "A. Writer", fileName: "test.pdf", mediaType: "application/pdf", byteSize: 1234, pageCount: 3, sourceUrl },
     passages: [
       { position: 1, pageStart: 1, pageEnd: 1, content: "The rotor converts kinetic energy of the wind into rotation.", embedding: [1, 0, 0] },
       { position: 2, pageStart: 2, pageEnd: 2, content: "Gearless turbines use a ring generator with many poles.", embedding: [0, 1, 0] },
@@ -66,9 +67,9 @@ test("knowledge passages are found by meaning and by keywords", { skip }, async 
   });
   try {
     assert.ok(await knowledge.findDocumentBySha256(contentSha256));
-    const byVector = await knowledge.searchByVector({ modelId, dimensions: 3, embedding: [0.1, 0.9, 0], limit: 2 });
+    const byVector = await knowledge.searchByVector({ modelId, dimensions: 3, embedding: [0.1, 0.9, 0], limit: 2, sourceUrls: [sourceUrl] });
     assert.equal(byVector[0].position, 2, "closest vector first");
-    const byWords = await knowledge.searchByKeywords({ text: "pitch control strong winds", limit: 5 });
+    const byWords = await knowledge.searchByKeywords({ text: "pitch control strong winds", limit: 5, sourceUrls: [sourceUrl] });
     assert.ok(byWords.some((r) => r.position === 3 && r.document_id === documentId));
     const around = await knowledge.passagesAround(documentId, 2);
     assert.deepEqual(around.map((p) => p.position), [1, 2, 3]);

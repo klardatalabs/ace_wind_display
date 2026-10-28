@@ -60,5 +60,4 @@ jobs:
       - run: npm --prefix frontend ci
       - run: npm --prefix frontend run build
       - name: Frontend tests
-        working-directory: frontend/src
-        run: node --test "three/*.test.mjs" "cesium/*.test.mjs"
+        run: node --test "frontend/src/**/*.test.mjs"

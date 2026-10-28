@@ -15,6 +15,7 @@ The platform is built on the turbine's open data: the [ACE Live API](https://ace
 - [System requirements](#system-requirements)
 - [Getting started](#getting-started)
 - [Configuration](#configuration)
+- [Contributing and secret safety](#contributing-and-secret-safety)
 - [Scripts](#scripts)
 - [API](#api)
 - [Deployment](#deployment)
@@ -96,7 +97,7 @@ The database is PostgreSQL 17 with the TimescaleDB and pgvector extensions (the 
 ### Run locally
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/klardatalabs/ace_wind_display.git
 cd ace_wind_display
 
 npm run setup                                # server and frontend dependencies
@@ -127,7 +128,7 @@ npm run knowledge -- search "how does pitch control limit power"
 
 ## Configuration
 
-All configuration is read from environment variables; `.env.example` lists every one with a description. In production the API refuses to start without the required values.
+All configuration is read from environment variables; `.env.example` lists the settings needed for common setups. In production the API refuses to start without the required values.
 
 | Variable | Purpose |
 | --- | --- |
@@ -144,6 +145,14 @@ All configuration is read from environment variables; `.env.example` lists every
 | `VITE_CESIUM_ION_TOKEN` / `VITE_GOOGLE_MAP_TILES_API_KEY` | Real-world 3D view, built into the website |
 
 `VITE_*` values are public once built into the website: restrict those keys to your site's origins in the provider's console.
+
+## Contributing and secret safety
+
+This repository is private, so ask a maintainer for access before cloning. Start from a new branch, follow [Run locally](#run-locally), then run `npm test`, `node --test "frontend/src/**/*.test.mjs"`, and `npm run build` before opening a pull request. Database-backed tests need the development Compose services running. Describe what changed and how you checked it in the pull request.
+
+Copy `.env.example` to `.env` for local work. The example's `devpass` and `devredis` values match only the localhost-bound development containers; replace them on any shared or production host. API keys for chat, weather, search, and photos are optional for local development. Leave their example fields blank until you need those features. Never commit `.env`, a filled-in example file, a private key, or credentials in source, screenshots, logs, issues, or pull requests. The ignore rules cover common secret files, but check `git diff --cached` before every commit.
+
+If a real key is ever pushed, revoke or rotate it immediately. Removing it in a later commit does not remove it from Git history. Coordinate any history cleanup with maintainers and other clones; see [GitHub's sensitive-data removal guide](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository). Ask a repository administrator to enable [secret scanning and push protection](https://docs.github.com/en/code-security/how-tos/secure-your-secrets/prevent-future-leaks/enable-push-protection) to block supported credentials before they reach GitHub.
 
 ## Scripts
 
@@ -195,6 +204,17 @@ docker compose up -d
 ```
 
 The application image is built from the `Dockerfile`; `IMAGE` and `IMAGE_TAG` in `.env` select which one the stack runs. Continuous integration (`.github/workflows/ci.yml`) runs the server tests against a real database, builds the website and runs the frontend tests.
+
+The Deploy workflow runs on pushes to `main`. Before using it, a maintainer must put a production `.env` on the server (never in Git) and configure these **GitHub Actions secrets** in the repository or its `production` environment under **Settings → Secrets and variables → Actions**:
+
+| Secret | What to provide |
+| --- | --- |
+| `DEPLOY_HOST` | The production SSH hostname or IP address; an empty value makes the deploy fail before it copies files |
+| `DEPLOY_SSH_KEY` | The private key for the account that can SSH to the production host |
+| `DEPLOY_KNOWN_HOSTS` | The production host's verified SSH host-key entry; verify its fingerprint through a trusted channel before adding it |
+| `VITE_CESIUM_ION_TOKEN`, `VITE_GOOGLE_MAP_TILES_API_KEY` | Optional browser-visible build tokens; restrict them to the site's origin in their provider consoles |
+
+`GITHUB_TOKEN` is supplied by GitHub Actions; do not create or commit one for this workflow. After setting the required secrets, rerun the failed **Deploy** workflow for the desired `main` commit and check that the live page serves the new version. A successful push alone does not mean the production site updated.
 
 ## Homes-equivalent calculation
 

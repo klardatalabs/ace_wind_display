@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { isOverridden, realWeather, weatherLook } from "./weather.js";
 import { sunPosition } from "./sun.js";
 
-const reading = { condition: "Clouds", cloudCover: 0.47, rainMmH: 0, visibilityM: 10000 };
+const reading = { condition: "Clouds", cloudCover: 0.47, rainMmH: 0, visibilityM: 10000, observedAt: new Date().toISOString() };
 const clear = { hour: null, cloud: null, rain: null, fog: null };
 
 test("an admin override hides the real weather", () => {
