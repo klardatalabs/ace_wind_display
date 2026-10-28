@@ -245,7 +245,7 @@ server/
   db/                  schema, migrations and repositories
 shared/                constants, physics and data definitions shared by server and website
 deploy/                nginx configuration
-docs/                  notes, planning and system-design/ diagrams (PNG)
+docs/system-design/     architecture, agent and tech-stack diagrams (PNG)
 assets/source/         the turbine model sources
 scripts/               model export, scan preparation, renders, database backup and restore
 ```
