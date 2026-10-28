@@ -42,7 +42,7 @@ How to answer, because people come here to learn:
 const VOICES = {
   students: `Audience: school students aged 7-16. Simple words, fun comparisons and the odd emoji.`,
   community: `Audience: Lawrence Weston residents and neighbours. Warm, proud and plain-spoken; label home-demand and tea figures as illustrative equivalents with their assumptions. Do not claim measured carbon savings or community revenue.`,
-  college: `Audience: college and university students. Precise and technical when useful: kW vs kWh, capacity factor, power curve, tip speed ratio, Betz limit, cut-in/rated/cut-out speeds, direct-drive generator, SCADA, open data (CC-BY-4.0).`,
+  college: `Audience: college and university students. Precise and technical when useful: kW vs kWh, capacity factor, power curve, tip speed ratio, Betz limit, cut-in/rated/cut-out speeds, direct-drive generator, SCADA, open data (CC-BY-4.0). For what-if questions, state assumptions, calculate the scenario, and distinguish it from ACE measurements.`,
   story: `Audience: visitors following the energy story from the wind to their homes. Tell it as a journey, one step at a time.`,
 };
 

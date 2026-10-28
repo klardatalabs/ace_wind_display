@@ -79,6 +79,11 @@ const QUESTIONS = {
   ],
   college: [
     {
+      q: "What if the wind were 10% faster?",
+      a: () => "Assume the same air density and steady wind, with speed rising from 6 to 6.6 m/s. Available wind power scales roughly with speed cubed: 1.1³ = 1.331, or 33% more. ACE's electrical output would not necessarily rise that much; its power curve and control limits still matter. This is a scenario, not an observed result.",
+      source: { label: "NREL: Fundamentals of Wind Energy", url: "https://docs.nlr.gov/docs/fy23osti/84501.pdf" },
+    },
+    {
       q: "Can you calculate your lifetime capacity factor?",
       a: () => "Not reliably yet. ACE publishes the lifetime meter, but the exact generation start and installed rating need confirmation before a lifetime capacity factor can be calculated.",
     },

@@ -5,9 +5,11 @@
 
 import { runStep } from "./agent.js";
 import { photosEnabled } from "../integrations/unsplash.js";
+import { windSpeedScenario } from "./scenarios.js";
 
 const fmt = (n) => Number(n ?? 0).toLocaleString("en-GB");
 const INTENTS = [
+  { name: "scenario", test: /\bwhat if\b/i },
   { name: "screen", test: /\b(show|look inside|open (it|up)|zoom|x-?ray|cut ?away)\b/i },
   { name: "records", test: /record|best|highest|peak|most ever|all[- ]time/i },
   { name: "history", test: /yesterd|yday|last (night|24)|past (day|24 ?h)/i },
@@ -18,6 +20,9 @@ const INTENTS = [
 async function answerFor(intent, question, ctx) {
   const step = (name, args) => runStep({ name, args, round: 1, id: `fallback-${name}` }, ctx);
   switch (intent) {
+    case "scenario": {
+      return windSpeedScenario(question) ?? "Give me a percentage change in wind speed and I can calculate a simple what-if scenario. That won't be a prediction of my actual electricity output.";
+    }
     case "screen": {
       const r = await step("show_on_big_screen", { action: /close|shut/i.test(question) ? "close_inside" : "look_inside" });
       return r.ok ? "Look up at the big screen! 👀 I'm opening myself up so you can see my **generator**, **yaw drives** and the **ladder** inside my tower." : `I'd love to show you, but ${r.reason}`;

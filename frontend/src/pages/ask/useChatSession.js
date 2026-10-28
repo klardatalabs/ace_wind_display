@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api.js";
 import { readEventStream } from "../../lib/sse.js";
+import { previewScenario } from "@shared/scenarios.js";
 
 const storageKey = (screen) => `ww.chat.${screen}`;
 let nextId = 1;
@@ -148,6 +149,8 @@ export function useChatSession(screen) {
 
   const stop = useCallback(() => abort.current?.abort(), []);
 
+  const scenario = useCallback(async (body) => preview ? previewScenario(body) : api.scenario(token.current, body), [preview]);
+
   const reset = useCallback(async () => {
     abort.current?.abort();
     try {
@@ -160,5 +163,5 @@ export function useChatSession(screen) {
     setStatus("ready");
   }, [mint]);
 
-  return { messages, status, send, stop, reset, preview };
+  return { messages, status, send, stop, reset, preview, scenario };
 }

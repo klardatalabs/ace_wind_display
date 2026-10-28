@@ -41,6 +41,7 @@ export const api = {
   chatSession: (screen) => request("/api/chat/session", { method: "POST", body: { screen } }),
   chatHistory: (token) => request("/api/chat/history", { token }),
   chatReset: (token) => request("/api/chat/session", { method: "DELETE", token }),
+  scenario: (token, body) => request("/api/chat/scenario", { method: "POST", token, body }),
 
   // Where the turbine stands right now: weather at the site + any demo override
   environment: () => request("/api/environment"),
@@ -74,6 +75,7 @@ export const ENDPOINTS = [
   { group: "Open data", method: "GET", path: "/api/datasets/scada_10m.csv?from=2026-10-01&to=2026-10-07", about: "Instant CSV download for a dataset and UK date range (inclusive); no sign-up." },
   { group: "Ask Ace", method: "POST", path: "/api/chat/session", about: "Mint an anonymous, signed session token for one browser tab ({ screen })." },
   { group: "Ask Ace", method: "POST", path: "/api/chat/stream", about: "Send { message }; the reply streams back as Server-Sent Events: token, status, sources, action, done, error." },
+  { group: "Ask Ace", method: "POST", path: "/api/chat/scenario", about: "Evaluate a private what-if scenario against a timestamped ACE or reference baseline; returns sources and calculation limits." },
   { group: "Ask Ace", method: "GET", path: "/api/chat/history", about: "This session's own transcript (Bearer token), so a reload keeps the conversation." },
   { group: "Ask Ace", method: "DELETE", path: "/api/chat/session", about: "Forget this session's conversation." },
   { group: "Photos", method: "GET", path: "/api/photos?q=wind+turbine&count=3", about: "Unsplash photographs for a search (with photographer credits). Needs UNSPLASH_ACCESS_KEY on the server.", tryIt: true },

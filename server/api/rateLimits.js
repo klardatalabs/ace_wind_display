@@ -11,6 +11,7 @@ export const LIMITS = {
   chatSessionCreate: { limit: 60, windowMs: MINUTE }, // per IP
   chatMessagePerSession: { limit: 8, windowMs: MINUTE },
   chatMessagePerIp: { limit: 60, windowMs: MINUTE },
+  scenarioPerSession: { limit: 60, windowMs: MINUTE },
   photos: { limit: 30, windowMs: MINUTE }, // per IP
   screenCommandPerSession: { limit: 20, windowMs: MINUTE },
   screenWalkPerSession: { limit: 600, windowMs: MINUTE }, // the walk slider sends ~10 updates a second
